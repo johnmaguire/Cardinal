@@ -25,7 +25,7 @@ from twisted.internet import protocol
 
 from plugins.ping import PingPlugin
 
-modules = {
+plugins = {
     'ping': PingPlugin,
 }
 
@@ -38,13 +38,13 @@ class CardinalBot(irc.IRCClient):
     # This is a regex to split the user nick, ident, and hostname
     user_regex = re.compile(r'(.*?)!(.*?)@(.*?)')
 
-    # This dictionary will contain a list of loaded modules
-    loaded_modules = {}
+    # This dictionary will contain a list of loaded plugins
+    loaded_plugins = {}
 
     def __init__(self):
-        # Create a list of modules
-        for name, module in modules.items():
-            self.loaded_modules[name] = module.setup()
+        # Create a list of plugins
+        for name, plugin in plugins.items():
+            self.loaded_plugins[name] = {'commands': plugin.setup()}
 
     # This is triggered when we have signed onto the network
     def signedOn(self):
@@ -66,7 +66,7 @@ class CardinalBot(irc.IRCClient):
             channel = user.group(1)
 
         # Loop through each loaded module
-        for name, module in self.loaded_modules.items():
+        for name, module in self.loaded_plugins.items():
             # Loop through each registered command of the module
             for command in module['commands']:
                 # If the message matches the commands regex...

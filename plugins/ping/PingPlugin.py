@@ -28,10 +28,7 @@ class PingPlugin(object):
 
 def setup():
     instance = PingPlugin()
-    
-    return {
-        'instance': instance,
-        'commands': {
-            instance.pong
-        }
-    }
+
+    return [
+        instance.pong
+    ]
