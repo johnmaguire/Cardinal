@@ -25,6 +25,7 @@ class PingPlugin(object):
         else:
             cardinal.sendMsg(channel, "Pong.")
     pong.regex = r'ping[.?!]?'
+    pong.commands = ['ping']
 
 def setup():
     instance = PingPlugin()
