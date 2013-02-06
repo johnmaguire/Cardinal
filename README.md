@@ -8,6 +8,8 @@ Running Cardinal is as simple as typing `./cardinal.py`. To configure it to conn
 
 To install a plugin, simply import the plugin in `CardinalBot.py` and add it to the `plugins` dictionary.
 
+To use the admin plugin, modify `plugins/admin/config.py` to contain your username and vhost in the following format: `nick@vhost`.
+
 Plugins
 -------
 A plugin must contain a `setup()` function. This function should return a list of callable functions which have attributes `regex` and/or `commands`. The function will be called if a message is received in a channel or via PM matching the regex or the command.
