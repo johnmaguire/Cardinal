@@ -4,9 +4,9 @@ A modular, Twisted IRC bot.
 
 Instructions
 ------------
-Running Cardinal is as simple as typing ./cardinal.py. To configure it to connect to your network you may either modify `cardinal.py` or use command line options. Run `./cardinal.py -h` for more information.
+Running Cardinal is as simple as typing `./cardinal.py`. To configure it to connect to your network you may either modify `cardinal.py` or use command line options. Run `./cardinal.py -h` for more information.
 
-To install a plugin, simply import the plugin in `CardinalBot.py` and add it to the `modules` dictionary.
+To install a plugin, simply import the plugin in `CardinalBot.py` and add it to the `plugins` dictionary.
 
 Plugins
 -------
