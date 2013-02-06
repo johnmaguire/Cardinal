@@ -23,9 +23,11 @@ import re
 from twisted.words.protocols import irc
 from twisted.internet import protocol
 
+from plugins.admin import AdminPlugin
 from plugins.ping import PingPlugin
 
 plugins = {
+    'admin': AdminPlugin,
     'ping': PingPlugin,
 }
 
@@ -36,7 +38,7 @@ class CardinalBot(irc.IRCClient):
     nickname = property(_get_nickname)
 
     # This is a regex to split the user nick, ident, and hostname
-    user_regex = re.compile(r'(.*?)!(.*?)@(.*?)')
+    user_regex = re.compile(r'^(.*?)!(.*?)@(.*?)$')
 
     # This is a regex to get the current command
     command_regex = re.compile(r'\.([A-Za-z0-9]+)\w?')
@@ -83,6 +85,12 @@ class CardinalBot(irc.IRCClient):
                       get_command.group(1) in command.commands):
                     command(self, user, channel, msg)
 
+    # This is a wrapper command to really quit the server
+    def disconnect(self, message=''):
+        print "Disconnecting..."
+        self.factory.quit = True
+        self.quit(message)
+
     # This is a wrapper command to send messages
     def sendMsg(self, user, message, length=None):
         print "(%s)<<< %s" % (user, message)
@@ -90,6 +98,7 @@ class CardinalBot(irc.IRCClient):
 
 # This interfaces CardinalBot with the Twisted library
 class CardinalBotFactory(protocol.ClientFactory):
+    quit = False
     protocol = CardinalBot
 
     def __init__(self, channels, nickname='Cardinal'):
@@ -97,8 +106,9 @@ class CardinalBotFactory(protocol.ClientFactory):
         self.nickname = nickname
 
     def clientConnectionLost(self, connector, reason):
-        print "Lost connection (%s), reconnecting." % (reason,)
-        connector.connect()
+        if not quit:
+            print "Lost connection (%s), reconnecting." % (reason,)
+            connector.connect()
 
     def clientConnectionFailed(self, connector, reason):
         print "Could not connect: %s" % (reason,)
