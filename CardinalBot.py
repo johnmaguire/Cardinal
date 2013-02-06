@@ -38,6 +38,9 @@ class CardinalBot(irc.IRCClient):
     # This is a regex to split the user nick, ident, and hostname
     user_regex = re.compile(r'(.*?)!(.*?)@(.*?)')
 
+    # This is a regex to get the current command
+    command_regex = re.compile(r'\.([A-Za-z0-9]+)\w?')
+
     # This dictionary will contain a list of loaded plugins
     loaded_plugins = {}
 
@@ -58,6 +61,8 @@ class CardinalBot(irc.IRCClient):
 
     # This is triggered when we have received a message
     def privmsg(self, user, channel, msg):
+        print "(%s)>>> %s" % (channel, msg)
+
         # Break the user up into usable groups
         user = re.match(self.user_regex, user)
 
@@ -65,16 +70,18 @@ class CardinalBot(irc.IRCClient):
         if channel == self.nickname:
             channel = user.group(1)
 
+        # Check if this was a command
+        get_command = re.match(self.command_regex, msg)
+
         # Loop through each loaded module
         for name, module in self.loaded_plugins.items():
             # Loop through each registered command of the module
             for command in module['commands']:
-                # If the message matches the commands regex...
-                if re.match(command.regex, msg):
-                    # Call the matched command.
+                if hasattr(command, 'regex') and re.match(command.regex, msg):
                     command(self, user, channel, msg)
-
-        print "(%s)>>> %s" % (channel, msg)
+                elif (get_command and hasattr(command, 'commands') and
+                      get_command.group(1) in command.commands):
+                    command(self, user, channel, msg)
 
     # This is a wrapper command to send messages
     def sendMsg(self, user, message, length=None):
