@@ -43,16 +43,32 @@ class AdminPlugin(object):
 
         return False
 
+    def reload_plugins(self, cardinal, user, channel, msg):
+        if self.is_owner(user):
+            cardinal.sendMsg(channel, "%s: Reloading plugins..." % user.group(1))
+            
+            plugins = msg.split()
+            plugins.pop(0)
+
+            if len(plugins) < 1:
+                plugins = cardinal.plugins
+            cardinal._load_plugins(plugins)
+
+            cardinal.sendMsg(channel, "Plugins reloaded.")
+    reload_plugins.commands = ['reload']
+
     def join(self, cardinal, user, channel, msg):
         if self.is_owner(user):
-            channels = msg[6:].split()
+            channels = msg.split()
+            channels.pop(0)
             for channel in channels:
                 cardinal.join(channel)
     join.commands = ['join']
 
     def part(self, cardinal, user, channel, msg):
         if self.is_owner(user):
-            channels = msg[6:].split()
+            channels = msg.split()
+            channels.pop(0)
             if len(channels) > 0:
                 for channel in channels:
                     cardinal.part(channel)
@@ -67,10 +83,4 @@ class AdminPlugin(object):
     quit.commands = ['quit']
 
 def setup():
-    instance = AdminPlugin()
-
-    return [
-        instance.join,
-        instance.part,
-        instance.quit
-    ]
+    return AdminPlugin()

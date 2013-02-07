@@ -90,9 +90,4 @@ class LastfmPlugin(object):
     now_playing.commands = ['np', 'nowplaying']
 
 def setup():
-    instance = LastfmPlugin()
-
-    return [
-        instance.set_user,
-        instance.now_playing,
-    ]
+    return LastfmPlugin()

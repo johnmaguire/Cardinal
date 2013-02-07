@@ -28,8 +28,4 @@ class PingPlugin(object):
     pong.commands = ['ping']
 
 def setup():
-    instance = PingPlugin()
-
-    return [
-        instance.pong
-    ]
+    return PingPlugin()

@@ -19,19 +19,16 @@
 # IN THE SOFTWARE.
 
 import re
+import importlib
 
 from twisted.words.protocols import irc
 from twisted.internet import protocol
 
-from plugins.ping import PingPlugin
-# from plugins.admin import AdminPlugin
-# from plugins.lastfm import LastfmPlugin
-
-plugins = {
-    'ping': PingPlugin,
-#     'admin': AdminPlugin,
-#     'lastfm': LastfmPlugin,
-}
+plugins = [
+    'ping',
+#    'admin',
+#    'lastfm',
+]
 
 class CardinalBot(irc.IRCClient):
     # Get the current nickname from the factory
@@ -48,10 +45,47 @@ class CardinalBot(irc.IRCClient):
     # This dictionary will contain a list of loaded plugins
     loaded_plugins = {}
 
+    def _load_plugins(self, plugins):
+        # A dictionary of loaded plugins
+        loaded_plugins = self.loaded_plugins
+
+        # Turn this into a list if it isn't one
+        if isinstance(plugins, basestring):
+            plugins = [plugins]
+
+        # Setup each plugin
+        for plugin in plugins:
+            # Reload the plugin if it was already loaded once
+            if plugin in loaded_plugins:
+                reload(loaded_plugins[plugin]['module'])
+            else:
+                loaded_plugins[plugin] = {}
+                loaded_plugins[plugin]['module'] = importlib.import_module('plugins.%s.plugin' % plugin)
+
+            # Get an instance of the plugin object
+            loaded_plugins[plugin]['instance'] = loaded_plugins[plugin]['module'].setup()
+
+            # Find all functions on the object
+            functions = [method for method in dir(loaded_plugins[plugin]['instance']) if callable(getattr(loaded_plugins[plugin]['instance'], method))]
+            loaded_plugins[plugin]['commands'] = []
+
+            # Check if each function is a valid command
+            for function in functions:
+                function = getattr(loaded_plugins[plugin]['instance'], function)
+                if hasattr(function, 'regex') or hasattr(function, 'commands'):
+                    loaded_plugins[plugin]['commands'].append(function)
+
+            self.loaded_plugins = loaded_plugins
+
+        print "Loaded plugins: %s" % ', '.join(plugins)
+
+
     def __init__(self):
-        # Create a list of plugins
-        for name, plugin in plugins.items():
-            self.loaded_plugins[name] = {'commands': plugin.setup()}
+        # Grab the global plugins variable for use with reloading
+        self.plugins = plugins
+
+        # Attempt to load plugins
+        self._load_plugins(plugins)
 
     # This is triggered when we have signed onto the network
     def signedOn(self):
