@@ -24,12 +24,10 @@ from twisted.words.protocols import irc
 from twisted.internet import protocol
 
 from plugins.admin import AdminPlugin
-from plugins.lastfm import LastfmPlugin
 from plugins.ping import PingPlugin
 
 plugins = {
     'admin': AdminPlugin,
-    'lastfm': LastfmPlugin,
     'ping': PingPlugin,
 }
 
