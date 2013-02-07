@@ -23,13 +23,13 @@ import re
 from twisted.words.protocols import irc
 from twisted.internet import protocol
 
-from plugins.admin import AdminPlugin
 from plugins.ping import PingPlugin
+# from plugins.admin import AdminPlugin
 # from plugins.lastfm import LastfmPlugin
 
 plugins = {
-    'admin': AdminPlugin,
     'ping': PingPlugin,
+#     'admin': AdminPlugin,
 #     'lastfm': LastfmPlugin,
 }
 
