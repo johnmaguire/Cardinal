@@ -59,6 +59,8 @@ class CardinalBot(irc.IRCClient):
             if plugin in loaded_plugins:
                 reload(loaded_plugins[plugin]['module'])
             else:
+                if plugin not in self.plugins:
+                    self.plugins.append(plugin)
                 loaded_plugins[plugin] = {}
                 loaded_plugins[plugin]['module'] = importlib.import_module('plugins.%s.plugin' % plugin)
 
