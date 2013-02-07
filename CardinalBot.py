@@ -25,10 +25,12 @@ from twisted.internet import protocol
 
 from plugins.admin import AdminPlugin
 from plugins.ping import PingPlugin
+# from plugins.lastfm import LastfmPlugin
 
 plugins = {
     'admin': AdminPlugin,
     'ping': PingPlugin,
+#     'lastfm': LastfmPlugin,
 }
 
 class CardinalBot(irc.IRCClient):
