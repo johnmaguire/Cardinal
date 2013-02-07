@@ -83,7 +83,7 @@ class LastfmPlugin(object):
 
                 message = "%s last listened to: %s by %s" % (str(username), str(song), str(artist))
             except KeyError:
-                message = "Either the username is incorrect or no tracks have been played."
+                message = "Either the API key has not been set correctly, your username is incorrect, or no tracks have been played."
 
         cardinal.sendMsg(channel, message)
 
