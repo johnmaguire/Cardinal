@@ -58,6 +58,9 @@ class LastfmPlugin(object):
     set_user.commands = ['setlastfm']
 
     def now_playing(self, cardinal, user, channel, msg):
+        # Before we do anything, let's make sure we'll be able to query Last.fm
+        if not hasattr(config, 'API_KEY') or config.API_KEY == "API_KEY":
+            return
         c = self.conn.cursor()
         c.execute("SELECT username FROM users WHERE nick=? OR vhost=?", (user.group(1), user.group(3)))
         result = c.fetchone()
