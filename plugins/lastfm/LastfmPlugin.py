@@ -30,7 +30,7 @@ class LastfmPlugin(object):
 
     def __init__(self):
         try:
-            self.conn = sqlite3.connect('users.db')
+            self.conn = sqlite3.connect('lastfm.db')
         except:
             return
 
