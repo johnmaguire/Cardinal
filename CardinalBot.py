@@ -136,7 +136,7 @@ class CardinalBot(irc.IRCClient):
         for name, module in self.loaded_plugins.items():
             # Loop through each registered command of the module
             for command in module['commands']:
-                if hasattr(command, 'regex') and re.match(command.regex, msg):
+                if hasattr(command, 'regex') and re.search(command.regex, msg):
                     command(self, user, channel, msg)
                 elif (get_command and hasattr(command, 'commands') and
                       get_command.group(1) in command.commands):
