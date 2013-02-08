@@ -62,9 +62,9 @@ class AdminPlugin(object):
                 if len(successful_plugins) > 0:
                     cardinal.sendMsg(channel, "Plugins loaded success: %s. Plugins loaded failure: %s." % (', '.join(successful_plugins), ', '.join(failed_plugins)))
                 else:
-                    cardinal.sendMsg(channel, "Plugins loaded failure: %s." % (', '.join(failed_plugins),))
+                    cardinal.sendMsg(channel, "Plugins loaded failure: %s." % ', '.join(failed_plugins))
             else:
-                cardinal.sendMsg(channel, "Plugins loaded success: %s." % (', '.join(plugins),))
+                cardinal.sendMsg(channel, "Plugins loaded success: %s." % ', '.join(plugins))
 
     reload_plugins.commands = ['reload']
 

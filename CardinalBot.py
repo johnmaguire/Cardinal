@@ -76,7 +76,7 @@ class CardinalBot(irc.IRCClient):
             else:
                 # Attempt to reload plugins that have not previously been loaded.
                 try:
-                    module = importlib.import_module('plugins.%s.plugin' % (plugin,))
+                    module = importlib.import_module('plugins.%s.plugin' % plugin)
                     loaded_plugins[plugin] = {}
                     loaded_plugins[plugin]['module'] = module
                     loaded_plugins[plugin]['instance'] = module.setup()
@@ -130,13 +130,13 @@ class CardinalBot(irc.IRCClient):
 
     # This is triggered when we have signed onto the network
     def signedOn(self):
-        print "Signed on as %s." % (self.nickname,)
+        print "Signed on as %s." % self.nickname
         for channel in self.factory.channels:
             self.join(channel)
 
     # This is triggered when we have joined a channel
     def joined(self, channel):
-        print "Joined %s." % (channel,)
+        print "Joined %s." % channel
 
     # This is triggered when we have received a message
     def privmsg(self, user, channel, msg):
@@ -191,8 +191,8 @@ class CardinalBotFactory(protocol.ClientFactory):
 
     def clientConnectionLost(self, connector, reason):
         if not quit:
-            print "Lost connection (%s), reconnecting." % (reason,)
+            print "Lost connection (%s), reconnecting." % reason
             connector.connect()
 
     def clientConnectionFailed(self, connector, reason):
-        print "Could not connect: %s" % (reason,)
+        print "Could not connect: %s" % reason
