@@ -41,7 +41,10 @@ class CardinalBot(irc.IRCClient):
     user_regex = re.compile(r'^(.*?)!(.*?)@(.*?)$')
 
     # This is a regex to get the current command
-    command_regex = re.compile(r'\.([A-Za-z0-9]+)\w?')
+    command_regex = re.compile(r'\.(([A-Za-z0-9]+)\w?.*$)')
+
+    # This is a regex to get the current natural command
+    natural_command_regex = r'%s:\s+((.+?)(\s(.*)|$))'
 
     # This dictionary will contain a list of loaded plugins
     loaded_plugins = {}
@@ -70,12 +73,14 @@ class CardinalBot(irc.IRCClient):
 
                     continue
             else:
+                # Attempt to reload plugins that have not previously been loaded.
                 try:
                     module = importlib.import_module('plugins.%s.plugin' % (plugin,))
                     loaded_plugins[plugin] = {}
                     loaded_plugins[plugin]['module'] = module
                     loaded_plugins[plugin]['instance'] = module.setup()
 
+                    # If we are just starting Cardinal, print a list of loaded plugins.
                     if first_run:
                         print "Loaded plugin %s" % plugin
                 except:
@@ -129,16 +134,23 @@ class CardinalBot(irc.IRCClient):
 
         # Check if this was a command
         get_command = re.match(self.command_regex, msg)
+        get_natural_command = re.match(self.natural_command_regex % self.nickname, msg, flags=re.IGNORECASE)
 
         # Loop through each loaded module
         for name, module in self.loaded_plugins.items():
             # Loop through each registered command of the module
             for command in module['commands']:
+                # Check whether this matches the regex of the command
                 if hasattr(command, 'regex') and re.search(command.regex, msg):
                     command(self, user, channel, msg)
+                # Check whether this matches .command syntax
                 elif (get_command and hasattr(command, 'commands') and
-                      get_command.group(1) in command.commands):
-                    command(self, user, channel, msg)
+                      get_command.group(2) in command.commands):
+                    command(self, user, channel, get_command.group(1))
+                # Check whether this matches Cardinal: command syntax
+                elif (get_natural_command and hasattr(command, 'commands') and
+                      get_natural_command.group(2) in command.commands):
+                    command(self, user, channel, get_natural_command.group(1))
 
     # This is a wrapper command to really quit the server
     def disconnect(self, message=''):
