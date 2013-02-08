@@ -46,7 +46,7 @@ class CardinalBot(irc.IRCClient):
     # This dictionary will contain a list of loaded plugins
     loaded_plugins = {}
 
-    def _load_plugins(self, plugins):
+    def _load_plugins(self, plugins, first_run=False):
         # A dictionary of loaded plugins
         loaded_plugins = self.loaded_plugins
 
@@ -64,9 +64,9 @@ class CardinalBot(irc.IRCClient):
                 try:
                     new_module = reload(loaded_plugins[plugin]['module'])
                     loaded_plugins[plugin]['module'] = new_module
+                    loaded_plugins[plugin]['instance'] = new_module.setup()
                 except:
                     failed_plugins.append(plugin)
-                    print "Error loading %s" % (plugin,)
 
                     continue
             else:
@@ -74,15 +74,16 @@ class CardinalBot(irc.IRCClient):
                     module = importlib.import_module('plugins.%s.plugin' % (plugin,))
                     loaded_plugins[plugin] = {}
                     loaded_plugins[plugin]['module'] = module
+                    loaded_plugins[plugin]['instance'] = module.setup()
+
+                    if first_run:
+                        print "Loaded plugin %s" % plugin
                 except:
                     failed_plugins.append(plugin)
-                    print "Error loading %s" % (plugin,)
+                    if plugin in loaded_plugins:
+                        del loaded_plugins[plugin]
 
                     continue
-
-
-            # Get an instance of the plugin object
-            loaded_plugins[plugin]['instance'] = loaded_plugins[plugin]['module'].setup()
 
             # Find all functions on the object
             functions = [method for method in dir(loaded_plugins[plugin]['instance']) if callable(getattr(loaded_plugins[plugin]['instance'], method))]
@@ -96,9 +97,6 @@ class CardinalBot(irc.IRCClient):
 
             self.loaded_plugins = loaded_plugins
 
-        successful_plugins = [plugin for plugin in plugins if plugin not in failed_plugins]
-        print "Loaded plugins: %s" % ', '.join(successful_plugins)
-
         if len(failed_plugins) > 0:
             return failed_plugins
         else:
@@ -106,7 +104,7 @@ class CardinalBot(irc.IRCClient):
 
     def __init__(self):
         # Attempt to load plugins
-        self._load_plugins(plugins)
+        self._load_plugins(plugins, True)
 
     # This is triggered when we have signed onto the network
     def signedOn(self):
