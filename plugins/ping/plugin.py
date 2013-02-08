@@ -24,7 +24,7 @@ class PingPlugin(object):
             cardinal.sendMsg(channel, "%s: Pong." % (user.group(1),))
         else:
             cardinal.sendMsg(channel, "Pong.")
-    pong.regex = r'ping[.?!]?'
+    pong.regex = r'^ping[.?!]?'
     pong.commands = ['ping']
 
 def setup():
