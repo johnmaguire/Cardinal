@@ -41,7 +41,7 @@ class CardinalBot(irc.IRCClient):
     user_regex = re.compile(r'^(.*?)!(.*?)@(.*?)$')
 
     # This is a regex to get the current command
-    command_regex = re.compile(r'\.(([A-Za-z0-9]+)\w?.*$)')
+    command_regex = re.compile(r'\.(([A-Za-z0-9_-]+)\w?.*$)')
 
     # This is a regex to get the current natural command
     natural_command_regex = r'%s:\s+((.+?)(\s(.*)|$))'
