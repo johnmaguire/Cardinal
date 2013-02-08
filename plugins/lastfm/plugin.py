@@ -55,6 +55,7 @@ class LastfmPlugin(object):
         self.conn.commit()
 
         cardinal.sendMsg(channel, "New Last.fm username is %s" % (split_msg[1]))
+
     set_user.commands = ['setlastfm']
 
     def now_playing(self, cardinal, user, channel, msg):
