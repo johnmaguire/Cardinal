@@ -51,10 +51,23 @@ class AdminPlugin(object):
             plugins.pop(0)
 
             if len(plugins) < 1:
-                plugins = cardinal.plugins
-            cardinal._load_plugins(plugins)
+                plugins = []
+                for key, value in cardinal.loaded_plugins.items():
+                    plugins.append(key)
 
-            cardinal.sendMsg(channel, "Plugins reloaded.")
+            failed_plugins = cardinal._load_plugins(plugins)
+            if failed_plugins:
+                successful_plugins = [plugin for plugin in plugins if plugin not in failed_plugins]
+
+            if failed_plugins:
+                if len(successful_plugins) > 0:
+                    cardinal.sendMsg(channel, "Plugins reloaded: %s. Plugins failed: %s." % (', '.join(successful_plugins), ', '.join(failed_plugins)))
+                else:
+                    cardinal.sendMsg(channel, "Plugins failed: %s" % (', '.join(failed_plugins),))
+            else:
+                cardinal.sendMsg(channel, "Plugins reloaded: %s." % (', '.join(plugins),))
+
+
     reload_plugins.commands = ['reload']
 
     def join(self, cardinal, user, channel, msg):

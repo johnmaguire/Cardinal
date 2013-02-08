@@ -49,6 +49,9 @@ class CardinalBot(irc.IRCClient):
         # A dictionary of loaded plugins
         loaded_plugins = self.loaded_plugins
 
+        # A list of plugins that failed to load
+        failed_plugins = []
+
         # Turn this into a list if it isn't one
         if isinstance(plugins, basestring):
             plugins = [plugins]
@@ -57,12 +60,25 @@ class CardinalBot(irc.IRCClient):
         for plugin in plugins:
             # Reload the plugin if it was already loaded once
             if plugin in loaded_plugins:
-                reload(loaded_plugins[plugin]['module'])
+                try:
+                    new_module = reload(loaded_plugins[plugin]['module'])
+                    loaded_plugins[plugin]['module'] = new_module
+                except:
+                    failed_plugins.append(plugin)
+                    print "Error loading %s" % (plugin,)
+
+                    continue
             else:
-                if plugin not in self.plugins:
-                    self.plugins.append(plugin)
-                loaded_plugins[plugin] = {}
-                loaded_plugins[plugin]['module'] = importlib.import_module('plugins.%s.plugin' % plugin)
+                try:
+                    module = importlib.import_module('plugins.%s.plugin' % (plugin,))
+                    loaded_plugins[plugin] = {}
+                    loaded_plugins[plugin]['module'] = module
+                except:
+                    failed_plugins.append(plugin)
+                    print "Error loading %s" % (plugin,)
+
+                    continue
+
 
             # Get an instance of the plugin object
             loaded_plugins[plugin]['instance'] = loaded_plugins[plugin]['module'].setup()
@@ -79,13 +95,16 @@ class CardinalBot(irc.IRCClient):
 
             self.loaded_plugins = loaded_plugins
 
-        print "Loaded plugins: %s" % ', '.join(plugins)
+        successful_plugins = [plugin for plugin in plugins if plugin not in failed_plugins]
+        print "Loaded plugins: %s" % ', '.join(successful_plugins)
+
+        if len(failed_plugins) > 0:
+            return failed_plugins
+        else:
+            return None
 
 
     def __init__(self):
-        # Grab the global plugins variable for use with reloading
-        self.plugins = plugins
-
         # Attempt to load plugins
         self._load_plugins(plugins)
 
