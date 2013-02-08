@@ -56,18 +56,15 @@ class AdminPlugin(object):
                     plugins.append(key)
 
             failed_plugins = cardinal._load_plugins(plugins)
+            
             if failed_plugins:
                 successful_plugins = [plugin for plugin in plugins if plugin not in failed_plugins]
-
-            if failed_plugins:
                 if len(successful_plugins) > 0:
-                    cardinal.sendMsg(channel, "Plugins reloaded: %s. Plugins failed: %s." % (', '.join(successful_plugins), ', '.join(failed_plugins)))
+                    cardinal.sendMsg(channel, "Plugins loaded success: %s. Plugins loaded failure: %s." % (', '.join(successful_plugins), ', '.join(failed_plugins)))
                 else:
-                    cardinal.sendMsg(channel, "Plugins failed: %s" % (', '.join(failed_plugins),))
+                    cardinal.sendMsg(channel, "Plugins loaded failure: %s" % (', '.join(failed_plugins),))
             else:
-                cardinal.sendMsg(channel, "Plugins reloaded: %s." % (', '.join(plugins),))
-
-
+                cardinal.sendMsg(channel, "Plugins loaded success: %s." % (', '.join(plugins),))
     reload_plugins.commands = ['reload']
 
     def join(self, cardinal, user, channel, msg):
@@ -92,7 +89,6 @@ class AdminPlugin(object):
     def quit(self, cardinal, user, channel, msg):
         if self.is_owner(user):
             cardinal.disconnect(msg[6:])
-
     quit.commands = ['quit']
 
 def setup():
