@@ -103,7 +103,6 @@ class CardinalBot(irc.IRCClient):
         else:
             return None
 
-
     def __init__(self):
         # Attempt to load plugins
         self._load_plugins(plugins)
