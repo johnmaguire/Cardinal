@@ -26,6 +26,7 @@ from twisted.internet import protocol
 
 plugins = [
     'ping',
+    'urls',
     'weather',
 #    'admin',
 #    'lastfm',
