@@ -18,7 +18,7 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS 
 # IN THE SOFTWARE.
 
-import urllib
+import urllib2
 from xml.dom import minidom
 
 WEATHER_URL = 'http://xml.weather.yahoo.com/forecastrss?z=%s'
@@ -28,8 +28,8 @@ class WeatherPlugin(object):
     def get_weather(self, cardinal, user, channel, msg):
         location = msg.split(' ', 1)[1]
 
-        url = WEATHER_URL % urllib.quote(location)
-        dom = minidom.parse(urllib.urlopen(url))
+        url = WEATHER_URL % urllib2.quote(location)
+        dom = minidom.parse(urllib2.urlopen(url))
 
         try:
             ylocation = dom.getElementsByTagNameNS(WEATHER_NS, 'location')[0]
@@ -55,9 +55,9 @@ class WeatherPlugin(object):
                 location += ", " + location_country
 
             cardinal.sendMsg(channel, "[ %s | %s | Temp: %s %s | Winds: %s %s ]" % (location,
-                                                                                            current_condition,
-                                                                                            current_temperature, units_temperature,
-                                                                                            current_wind_speed, units_speed))
+                                                                                    current_condition,
+                                                                                    current_temperature, units_temperature,
+                                                                                    current_wind_speed, units_speed))
         except IndexError:
             cardinal.sendMsg(channel, "Sorry, couldn't find weather for \"%s\"." % location)
 
