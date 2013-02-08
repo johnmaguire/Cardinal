@@ -108,6 +108,22 @@ class CardinalBot(irc.IRCClient):
         else:
             return None
 
+    def _unload_plugins(self, plugins):
+        # A list of plugins that weren't loaded in the first place
+        nonexistent_plugins = []
+
+        for plugin in plugins:
+            if plugin not in self.loaded_plugins:
+                nonexistent_plugins.append(plugin)
+                continue
+
+            del self.loaded_plugins[plugin]
+
+        if len(nonexistent_plugins) > 0:
+            return nonexistent_plugins
+        else:
+            return None
+
     def __init__(self):
         # Attempt to load plugins
         self._load_plugins(plugins, True)

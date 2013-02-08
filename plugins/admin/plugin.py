@@ -50,10 +50,10 @@ class AdminPlugin(object):
             plugins = msg.split()
             plugins.pop(0)
 
-            if len(plugins) < 1:
+            if len(plugins) == 0:
                 plugins = []
-                for key, value in cardinal.loaded_plugins.items():
-                    plugins.append(key)
+                for name, module in cardinal.loaded_plugins.items():
+                    plugins.append(name)
 
             failed_plugins = cardinal._load_plugins(plugins)
 
@@ -62,11 +62,34 @@ class AdminPlugin(object):
                 if len(successful_plugins) > 0:
                     cardinal.sendMsg(channel, "Plugins loaded success: %s. Plugins loaded failure: %s." % (', '.join(successful_plugins), ', '.join(failed_plugins)))
                 else:
-                    cardinal.sendMsg(channel, "Plugins loaded failure: %s" % (', '.join(failed_plugins),))
+                    cardinal.sendMsg(channel, "Plugins loaded failure: %s." % (', '.join(failed_plugins),))
             else:
                 cardinal.sendMsg(channel, "Plugins loaded success: %s." % (', '.join(plugins),))
 
     reload_plugins.commands = ['reload']
+
+    def unload_plugins(self, cardinal, user, channel, msg):
+        if self.is_owner(user):
+            plugins = msg.split()
+            plugins.pop(0)
+
+            if len(plugins) == 0:
+                cardinal.sendMsg(channel, "%s: No plugins to unload." % user.group(1))
+                return
+            
+            cardinal.sendMsg(channel, "%s: Unloading plugins..." % user.group(1))
+            nonexistent_plugins = cardinal._unload_plugins(plugins)
+
+            if nonexistent_plugins:
+                unloaded_plugins = [plugin for plugin in plugins if plugin not in nonexistent_plugins]
+                if len(unloaded_plugins) > 0:
+                    cardinal.sendMsg(channel, "Plugins unloaded success: %s. Plugins that didn't exist: %s." % (', '.join(unloaded_plugins), ', '.join(nonexistent_plugins)))
+                else:
+                    cardinal.sendMsg(channel, "Plugins didn't exist: %s." % ', '.join(nonexistent_plugins))
+            else:
+                cardinal.sendMsg(channel, "Plugins unloaded success: %s." % ', '.join(plugins))
+
+    unload_plugins.commands = ['unload']
 
     def join(self, cardinal, user, channel, msg):
         if self.is_owner(user):
