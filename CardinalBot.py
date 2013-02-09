@@ -18,8 +18,9 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS 
 # IN THE SOFTWARE.
 
-import re
+import sys
 import importlib
+import re
 
 from twisted.words.protocols import irc
 from twisted.internet import protocol
@@ -50,6 +51,10 @@ class CardinalBot(irc.IRCClient):
     # This dictionary will contain a list of loaded plugins
     loaded_plugins = {}
 
+    def __init__(self):
+        # Attempt to load plugins
+        self._load_plugins(plugins, True)
+
     def _load_plugins(self, plugins, first_run=False):
         # A dictionary of loaded plugins
         loaded_plugins = self.loaded_plugins
@@ -67,9 +72,19 @@ class CardinalBot(irc.IRCClient):
             if plugin in loaded_plugins:
                 try:
                     new_module = reload(loaded_plugins[plugin]['module'])
+                    try:
+                        new_config = reload(loaded_plugins[plugin]['config'])
+                    except ImportError:
+                        new_config = None
+                    except Exception, e:
+                        new_config = None
+                        print >> sys.stderr, "ERROR: Could not load plugin config: %s (%s)" % (plugin, e)
+
                     loaded_plugins[plugin]['module'] = new_module
+                    loaded_plugins[plugin]['config'] = new_config
                     loaded_plugins[plugin]['instance'] = new_module.setup()
-                except:
+                except Exception, e:
+                    print >> sys.stderr, "ERROR: Could not load plugin: %s (%s)" % (plugin, e)
                     failed_plugins.append(plugin)
 
                     continue
@@ -77,14 +92,24 @@ class CardinalBot(irc.IRCClient):
                 # Attempt to reload plugins that have not previously been loaded.
                 try:
                     module = importlib.import_module('plugins.%s.plugin' % plugin)
+                    try:
+                        config = importlib.import_module('plugins.%s.config' % plugin)
+                    except ImportError:
+                        config = None
+                    except Exception, e:
+                        config = None
+                        print >> sys.stderr, "ERROR: Could not load plugin config: %s (%s)" % (plugin, e)
+
                     loaded_plugins[plugin] = {}
                     loaded_plugins[plugin]['module'] = module
+                    loaded_plugins[plugin]['config'] = config
                     loaded_plugins[plugin]['instance'] = module.setup()
 
                     # If we are just starting Cardinal, print a list of loaded plugins.
                     if first_run:
                         print "Loaded plugin %s" % plugin
-                except:
+                except Exception, e:
+                    print >> sys.stderr, "ERROR: Could not load plugin: %s (%s)" % (plugin, e)
                     failed_plugins.append(plugin)
                     if plugin in loaded_plugins:
                         del loaded_plugins[plugin]
@@ -124,9 +149,9 @@ class CardinalBot(irc.IRCClient):
         else:
             return None
 
-    def __init__(self):
-        # Attempt to load plugins
-        self._load_plugins(plugins, True)
+    # A method to quickly grab a plugin's config
+    def config(self, plugin):
+        return self.loaded_plugins[plugin]['config']
 
     # This is triggered when we have signed onto the network
     def signedOn(self):
