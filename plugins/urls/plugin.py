@@ -60,8 +60,13 @@ class URLsPlugin(object):
             except:
                 read_bytes = 512 * 1024
                 print "Warning: READ_BYTES not set in urls/config.py."
-
+            
+            content_type = f.info()['content-type']
+            if not (('text/html' in content_type) or ('text/xhtml' in content_type)):
+                return
             content = f.read(read_bytes)
+            f.close()
+            
             title = re.search(TITLE_REGEX, content)
             if title:
                 if len(title.group(2).strip()) > 0:
