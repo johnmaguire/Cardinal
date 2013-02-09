@@ -22,27 +22,46 @@
 
 import argparse
 
-from twisted.internet import reactor
+from twisted.internet import ssl, reactor
 from CardinalBot import CardinalBotFactory
 
 DEFAULT_NICKNAME = 'Cardinal'
 DEFAULT_NETWORK = 'irc.darchoods.net'
 DEFAULT_PORT = 6667
 DEFAULT_CHANNELS = ('#bots',)
+DEFAULT_PLUGINS = (
+    'ping',
+    'urls',
+    'weather',
+#    'admin',
+#    'lastfm',
+)
 
 parser = argparse.ArgumentParser(description='Cardinal IRC bot')
 parser.add_argument('-n', '--nickname', metavar='nickname', default=DEFAULT_NICKNAME,
                     help='nickname to connect as', required=False)
+
 parser.add_argument('-i', '--network', metavar='network', default=DEFAULT_NETWORK,
                     help='network to connect to', required=False)
-parser.add_argument('-p', '--port', metavar='port', default=DEFAULT_PORT, type=int,
+parser.add_argument('-o', '--port', metavar='port', default=DEFAULT_PORT, type=int,
                     help='network port to connect to', required=False)
+
 parser.add_argument('-c', '--channels', metavar='channel', dest='channels',
-                    default=DEFAULT_CHANNELS, nargs='*', help='channel list',
+                    default=DEFAULT_CHANNELS, nargs='*', help='list of channels to connect to on startup',
                     required=False)
+parser.add_argument('-p', '--plugins', metavar='plugin', dest='plugins',
+                    default=DEFAULT_PLUGINS, nargs='*', help='list of plugins to load on startup',
+                    required=False)
+
+parser.add_argument('-s', '--ssl', dest='ssl', action='store_true', default=False,
+                    help='you must set this flag for SSL connections')
 
 if __name__ == "__main__":
     args = parser.parse_args()
+    factory = CardinalBotFactory(args.channels, args.nickname, args.plugins)
 
-    reactor.connectTCP(args.network, args.port, CardinalBotFactory(args.channels))
+    if not args.ssl:
+        reactor.connectTCP(args.network, args.port, factory)
+    else:
+        reactor.connectSSL(args.network, args.port, factory, ssl.ClientContextFactory())
     reactor.run()

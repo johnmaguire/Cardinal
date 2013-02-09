@@ -20,20 +20,14 @@
 
 import os
 import sys
+import signal
 import importlib
 import inspect
+import time
 import re
 
 from twisted.words.protocols import irc
 from twisted.internet import protocol, reactor
-
-plugins = [
-    'ping',
-    'urls',
-    'weather',
-#    'admin',
-#    'lastfm',
-]
 
 class CardinalBot(irc.IRCClient):
     # Path of executed file
@@ -58,10 +52,6 @@ class CardinalBot(irc.IRCClient):
 
     # This dictionary will contain all the configuration files
     config = {}
-
-    def __init__(self):
-        # Attempt to load plugins
-        self._load_plugins(plugins, True)
 
     def _import_module(self, module, config=False):
         if inspect.ismodule(module):
@@ -172,6 +162,14 @@ class CardinalBot(irc.IRCClient):
     # This is triggered when we have signed onto the network
     def signedOn(self):
         print "Signed on as %s." % self.nickname
+
+        # Give the factory access to the bot
+        self.factory.cardinal = self
+
+        # Attempt to load plugins
+        self._load_plugins(self.factory.plugins, True)
+
+        # Attempt to join channels
         for channel in self.factory.channels:
             self.join(channel)
 
@@ -229,13 +227,28 @@ class CardinalBotFactory(protocol.ClientFactory):
     # Whether disconnect.quit() was called.
     disconnect = False
 
-    def __init__(self, channels, nickname='Cardinal'):
+    # List of plugins to start CardinalBot with
+    plugins = []
+
+    # The instance of CardinalBot, which will be set by CardinalBot
+    cardinal = None
+
+    def __init__(self, channels, nickname='Cardinal', plugins=[]):
         self.channels = channels
         self.nickname = nickname
+        self.plugins = plugins
+
+        signal.signal(signal.SIGINT, self._sigint)
+
+    def _sigint(self, signal, frame):
+        self.disconnect = True
+        if self.cardinal:
+            self.cardinal.quit('Received SIGINT.')
 
     def clientConnectionLost(self, connector, reason):
         if not self.disconnect:
-            print "Lost connection (%s), reconnecting." % reason
+            print "Lost connection (%s), reconnecting in 10 seconds." % reason
+            time.sleep(10)
             connector.connect()
         else:
             print "Lost connection (%s), quitting." % reason
