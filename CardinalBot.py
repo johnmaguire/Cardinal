@@ -56,6 +56,9 @@ class CardinalBot(irc.IRCClient):
     # This dictionary will contain a list of loaded plugins
     loaded_plugins = {}
 
+    # This dictionary will contain all the configuration files
+    config = {}
+
     def __init__(self):
         # Attempt to load plugins
         self._load_plugins(plugins, True)
@@ -108,12 +111,12 @@ class CardinalBot(irc.IRCClient):
 
             # Import each config with the same _import_module function.
             try:
-                config = self._import_module(loaded_plugins[plugin]['config'] if plugin in loaded_plugins else plugin, config=True)
+                self.config[plugin] = self._import_module(self.config[plugin] if plugin in self.config else plugin, config=True)
             except ImportError:
-                config = None
+                self.config[plugin] = None
             except Exception, e:
-                config = None
-                print >> sys.stderr, "WARNING: Could not load plugin config: %s (%s)" % (plugin, e)
+                self.config[plugin] = None
+                print >> sys.stderr, "WARNING: Could not load plugin config: %s (%f)" % (plugin, e)
 
             # Create a new instance of the plugin
             try:
@@ -125,7 +128,6 @@ class CardinalBot(irc.IRCClient):
             # Set module, config, and instance of the plugin
             loaded_plugins[plugin] = {}
             loaded_plugins[plugin]['module'] = module
-            loaded_plugins[plugin]['config'] = config
             loaded_plugins[plugin]['instance'] = instance
             loaded_plugins[plugin]['commands'] = self._get_plugin_commands(instance)
 
@@ -155,10 +157,6 @@ class CardinalBot(irc.IRCClient):
             return nonexistent_plugins
         else:
             return None
-
-    # A shorthand version of loaded_plugins['plugin']['config']
-    def config(self, plugin):
-        return self.loaded_plugins[plugin]['config']
 
     # This is triggered when we have signed onto the network
     def signedOn(self):

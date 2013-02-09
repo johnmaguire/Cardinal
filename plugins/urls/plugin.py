@@ -37,9 +37,15 @@ class URLsPlugin(object):
             if url[:3] != "htt":
                 url = "http://" + url
 
-            # Attempt to load the page, timing out after ten seconds
+            # Attempt to load the page, timing out after a default of ten seconds
             try:
-                f = urllib2.urlopen(url, timeout=10)
+                try:
+                    timeout = cardinal.config['urls'].TIMEOUT
+                except:
+                    timeout = 10
+                    print "Warning: TIMEOUT not set in urls/config.py."
+
+                f = urllib2.urlopen(url, timeout=timeout)
             except urllib2.URLError, e:
                 print "Unable to load URL (%s): %s" % (url, e.reason)
                 return
@@ -47,8 +53,15 @@ class URLsPlugin(object):
                 print "Unable to load URL (%s): %s" % (url, e.reason)
                 return
 
-            # Attempt to find the title in the first 512KB.
-            content = f.read(512 * 1024)
+            # Attempt to find the title, giving up after a default of 512KB
+            # (512 * 1024).
+            try:
+                read_bytes = cardinal.config['urls'].READ_BYTES
+            except:
+                read_bytes = 512 * 1024
+                print "Warning: READ_BYTES not set in urls/config.py."
+
+            content = f.read(read_bytes)
             title = re.search(TITLE_REGEX, content)
             if title:
                 if len(title.group(2).strip()) > 0:
