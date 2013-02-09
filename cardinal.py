@@ -61,8 +61,8 @@ if __name__ == "__main__":
     factory = CardinalBotFactory(args.channels, args.nickname, args.plugins)
 
     if not args.ssl:
-        from twisted.internet import ssl
         reactor.connectTCP(args.network, args.port, factory)
     else:
+        from twisted.internet import ssl
         reactor.connectSSL(args.network, args.port, factory, ssl.ClientContextFactory())
     reactor.run()
