@@ -24,15 +24,17 @@ import sqlite3
 import json
 import urllib2
 
-CARDINAL_DIR = os.path.dirname(os.path.realpath(sys.argv[0]))
-
 class LastfmPlugin(object):
     # This will hold the connection to the sqlite database
     conn = None
 
-    def __init__(self):
+    def __init__(self, cardinal):
+        # Connect to or create the database
+        self.connect_or_create_db(cardinal)
+
+    def connect_or_create_db(self, cardinal):
         try:
-            self.conn = sqlite3.connect(os.path.join(CARDINAL_DIR, 'db', 'lastfm.db'))
+            self.conn = sqlite3.connect(os.path.join(cardinal.path, 'db', 'lastfm.db'))
         except Exception, e:
             self.conn = None
             print >> sys.stderr, "ERROR: Unable to access local Last.fm database (%s)" % e
@@ -107,5 +109,8 @@ class LastfmPlugin(object):
 
     now_playing.commands = ['np', 'nowplaying']
 
-def setup():
-    return LastfmPlugin()
+    def __del__(self):
+        self.conn.close()
+
+def setup(cardinal):
+    return LastfmPlugin(cardinal)
