@@ -67,6 +67,7 @@ class LastfmPlugin(object):
         result = c.fetchone()
         if not result:
             cardinal.sendMsg(channel, "Username not set. Use .setlastfm <user> to set your username.")
+            return
         
         username = result[0]
 
@@ -76,15 +77,15 @@ class LastfmPlugin(object):
             song = content['recenttracks']['track'][0]['name']
             artist = content['recenttracks']['track'][0]['artist']['#text']
 
-            message = "%s is now listening to: %s by %s" % (str(username), str(song), str(artist))
+            cardinal.sendMsg(channel, "%s is now listening to: %s by %s" % (str(username), str(song), str(artist)))
         except KeyError:
             try:
                 song = content['recenttracks']['track']['name']
                 artist = content['recenttracks']['track']['artist']['#text']
 
-                message = "%s last listened to: %s by %s" % (str(username), str(song), str(artist))
+                cardinal.sendMsg(channel, "%s last listened to: %s by %s" % (str(username), str(song), str(artist)))
             except KeyError:
-                message = "Either the API key has not been set correctly, your username is incorrect, or no tracks have been played."
+                cardinal.sendMsg(channel, "Either the API key has not been set correctly, your username is incorrect, or no tracks have been played.")
 
         cardinal.sendMsg(channel, message)
 
