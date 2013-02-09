@@ -18,11 +18,13 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS 
 # IN THE SOFTWARE.
 
+import os
+import sys
 import sqlite3
 import json
 import urllib2
 
-from plugins.lastfm import config
+CARDINAL_DIR = os.path.dirname(os.path.realpath(sys.argv[0]))
 
 class LastfmPlugin(object):
     # This will hold the connection to the sqlite database
@@ -30,8 +32,10 @@ class LastfmPlugin(object):
 
     def __init__(self):
         try:
-            self.conn = sqlite3.connect('lastfm.db')
-        except:
+            self.conn = sqlite3.connect(os.path.join(CARDINAL_DIR, 'db', 'lastfm.db'))
+        except Exception, e:
+            self.conn = None
+            print >> sys.stderr, "ERROR: Unable to access local Last.fm database (%s)" % e
             return
 
         c = self.conn.cursor()
@@ -39,6 +43,9 @@ class LastfmPlugin(object):
         self.conn.commit()
 
     def set_user(self, cardinal, user, channel, msg):
+        if not self.conn:
+            cardinal.sendMsg(channel, "Unable to access local Last.fm database.")
+
         split_msg = msg.split()
         if len(split_msg) < 2:
             return
@@ -47,21 +54,24 @@ class LastfmPlugin(object):
         c.execute("SELECT username FROM users WHERE nick=? OR vhost=?", (user.group(1), user.group(3)))
         result = c.fetchone()
         if result:
-            print "Updating database."
             c.execute("UPDATE users SET username=? WHERE nick=? OR vhost=?", (split_msg[1], user.group(1), user.group(3)))
         else:
-            print "Inserting into database."
             c.execute("INSERT INTO users (nick, vhost, username) VALUES(?, ?, ?)", (user.group(1), user.group(3), split_msg[1]))
         self.conn.commit()
 
-        cardinal.sendMsg(channel, "New Last.fm username is %s" % (split_msg[1]))
+        cardinal.sendMsg(channel, "Your Last.fm username is now set to %s." % (split_msg[1]))
 
     set_user.commands = ['setlastfm']
 
     def now_playing(self, cardinal, user, channel, msg):
         # Before we do anything, let's make sure we'll be able to query Last.fm
-        if not hasattr(config, 'API_KEY') or config.API_KEY == "API_KEY":
+        if not hasattr(cardinal.config('lastfm'), 'API_KEY') or cardinal.config('lastfm').API_KEY == "API_KEY":
             return
+
+        if not self.conn:
+            cardinal.sendMsg(channel, "Unable to access local Last.fm database.")
+            return
+
         c = self.conn.cursor()
         c.execute("SELECT username FROM users WHERE nick=? OR vhost=?", (user.group(1), user.group(3)))
         result = c.fetchone()
@@ -71,8 +81,16 @@ class LastfmPlugin(object):
         
         username = result[0]
 
-        uh = urllib2.urlopen("http://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user=%s&api_key=%s&limit=1&format=json" % (username, config.API_KEY))
+        uh = urllib2.urlopen("http://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user=%s&api_key=%s&limit=1&format=json" % (username, cardinal.config('lastfm').API_KEY))
         content = json.load(uh)
+
+        if 'error' in content and content['error'] == 10:
+            cardinal.sendmsg(channel, "Plugin is not configured correctly. Please set API key.")
+            return
+        elif 'error' in content and content['error'] == 6:
+            cardinal.sendMsg(channel, "Your username is incorrect. No user exists by the username %s." % str(username))
+            return
+
         try:
             song = content['recenttracks']['track'][0]['name']
             artist = content['recenttracks']['track'][0]['artist']['#text']
@@ -85,9 +103,7 @@ class LastfmPlugin(object):
 
                 cardinal.sendMsg(channel, "%s last listened to: %s by %s" % (str(username), str(song), str(artist)))
             except KeyError:
-                cardinal.sendMsg(channel, "Either the API key has not been set correctly, your username is incorrect, or no tracks have been played.")
-
-        cardinal.sendMsg(channel, message)
+                cardinal.sendMsg(channel, "Unable to find any tracks played. (Is your username correct?)")
 
     now_playing.commands = ['np', 'nowplaying']
 
