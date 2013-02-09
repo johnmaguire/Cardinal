@@ -110,7 +110,6 @@ class LastfmPlugin(object):
     now_playing.commands = ['np', 'nowplaying']
 
     def __del__(self):
-        print "Closing database connection."
         self.conn.close()
 
 def setup(cardinal):
