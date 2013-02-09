@@ -25,7 +25,7 @@ import inspect
 import re
 
 from twisted.words.protocols import irc
-from twisted.internet import protocol
+from twisted.internet import protocol, reactor
 
 plugins = [
     'ping',
@@ -214,7 +214,7 @@ class CardinalBot(irc.IRCClient):
     def disconnect(self, message=''):
         self._unload_plugins([plugin for plugin, data in self.loaded_plugins.items()])
         print "Disconnecting..."
-        self.factory.quit = True
+        self.factory.disconnect = True
         self.quit(message)
 
     # This is a wrapper command to send messages
@@ -224,17 +224,22 @@ class CardinalBot(irc.IRCClient):
 
 # This interfaces CardinalBot with the Twisted library
 class CardinalBotFactory(protocol.ClientFactory):
-    quit = False
     protocol = CardinalBot
+
+    # Whether disconnect.quit() was called.
+    disconnect = False
 
     def __init__(self, channels, nickname='Cardinal'):
         self.channels = channels
         self.nickname = nickname
 
     def clientConnectionLost(self, connector, reason):
-        if not quit:
+        if not self.disconnect:
             print "Lost connection (%s), reconnecting." % reason
             connector.connect()
+        else:
+            print "Lost connection (%s), quitting." % reason
+            reactor.stop()
 
     def clientConnectionFailed(self, connector, reason):
         print "Could not connect: %s" % reason
