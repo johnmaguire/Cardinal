@@ -61,7 +61,7 @@ class WeatherPlugin(object):
         except IndexError:
             cardinal.sendMsg(channel, "Sorry, couldn't find weather for \"%s\"." % location)
 
-    get_weather.commands = ['weather']
+    get_weather.commands = ['weather', 'w']
 
 def setup():
     return WeatherPlugin()
