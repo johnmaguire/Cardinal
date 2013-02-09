@@ -18,8 +18,6 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS 
 # IN THE SOFTWARE.
 
-from plugins.admin import config
-
 class AdminPlugin(object):
     # A dictionary which will contain the owner nicks and vhosts
     owners = {}
@@ -27,10 +25,10 @@ class AdminPlugin(object):
     # A list of trusted vhosts
     trusted_vhosts = []
 
-    def __init__(self):
+    def __init__(self, cardinal):
         # Loop through the owners in the config file and add them to the
         # instance's owner array.
-        for owner in config.OWNERS:
+        for owner in cardinal.config['admin'].OWNERS:
             owner = owner.split('@')
             self.owners[owner[0]] = owner[1]
             self.trusted_vhosts.append(owner[1])
@@ -118,5 +116,5 @@ class AdminPlugin(object):
 
     quit.commands = ['quit']
 
-def setup():
-    return AdminPlugin()
+def setup(cardinal):
+    return AdminPlugin(cardinal)

@@ -67,8 +67,8 @@ class LastfmPlugin(object):
 
     def now_playing(self, cardinal, user, channel, msg):
         # Before we do anything, let's make sure we'll be able to query Last.fm
-        if not hasattr(cardinal.config('lastfm'), 'API_KEY') or cardinal.config('lastfm').API_KEY == "API_KEY":
-            return
+        if not hasattr(cardinal.config['lastfm'], 'API_KEY') or cardinal.config['lastfm'].API_KEY == "API_KEY":
+            cardinal.sendMsg(channel, "Plugin is not configured correctly. Please set API key.")
 
         if not self.conn:
             cardinal.sendMsg(channel, "Unable to access local Last.fm database.")
@@ -83,11 +83,11 @@ class LastfmPlugin(object):
         
         username = result[0]
 
-        uh = urllib2.urlopen("http://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user=%s&api_key=%s&limit=1&format=json" % (username, cardinal.config('lastfm').API_KEY))
+        uh = urllib2.urlopen("http://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user=%s&api_key=%s&limit=1&format=json" % (username, cardinal.config['lastfm'].API_KEY))
         content = json.load(uh)
 
         if 'error' in content and content['error'] == 10:
-            cardinal.sendmsg(channel, "Plugin is not configured correctly. Please set API key.")
+            cardinal.sendMsg(channel, "Plugin is not configured correctly. Please set API key.")
             return
         elif 'error' in content and content['error'] == 6:
             cardinal.sendMsg(channel, "Your username is incorrect. No user exists by the username %s." % str(username))
@@ -110,6 +110,7 @@ class LastfmPlugin(object):
     now_playing.commands = ['np', 'nowplaying']
 
     def __del__(self):
+        print "Closing database connection."
         self.conn.close()
 
 def setup(cardinal):

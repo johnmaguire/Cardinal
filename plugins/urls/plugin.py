@@ -66,7 +66,6 @@ class URLsPlugin(object):
             if title:
                 if len(title.group(2).strip()) > 0:
                     cardinal.sendMsg(channel, "URL Found: %s" % title.group(2))
-
                     continue
 
             # The title was either blank or we couldn't find one
