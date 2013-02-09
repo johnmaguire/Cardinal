@@ -90,7 +90,7 @@ class CardinalBot(irc.IRCClient):
 
     def _load_plugins(self, plugins, first_run=False):
         # A dictionary of loaded plugins
-        loaded_plugins = self.loaded_plugins
+        loaded_plugins = {}
 
         # A list of plugins that failed to load
         failed_plugins = []
@@ -100,9 +100,11 @@ class CardinalBot(irc.IRCClient):
             plugins = [plugins]
 
         for plugin in plugins:
+            loaded_plugins[plugin] = {}
+
             # Import each plugin with a custom _import_module function.
             try:
-                module = self._import_module(loaded_plugins[plugin]['module'] if plugin in loaded_plugins else plugin)
+                module = self._import_module(self.loaded_plugins[plugin]['module'] if plugin in self.loaded_plugins else plugin)
             except Exception, e:
                 print >> sys.stderr, "ERROR: Could not load plugin module: %s (%s)" % (plugin, e)
                 failed_plugins.append(plugin)
@@ -111,6 +113,8 @@ class CardinalBot(irc.IRCClient):
 
             # Import each config with the same _import_module function.
             try:
+                if plugin in self.config:
+                    del self.config[plugin]
                 self.config[plugin] = self._import_module(self.config[plugin] if plugin in self.config else plugin, config=True)
             except ImportError:
                 self.config[plugin] = None
@@ -126,16 +130,19 @@ class CardinalBot(irc.IRCClient):
                 continue
 
             # Set module, config, and instance of the plugin
-            loaded_plugins[plugin] = {}
-            loaded_plugins[plugin]['module'] = module
-            loaded_plugins[plugin]['instance'] = instance
-            loaded_plugins[plugin]['commands'] = self._get_plugin_commands(instance)
+            commands = self._get_plugin_commands(instance)
 
             # If we are just starting Cardinal, print a list of loaded plugins.
+            loaded_plugins[plugin]['module'] = module
+            loaded_plugins[plugin]['instance'] = instance
+            loaded_plugins[plugin]['commands'] = commands
+            
+            if plugin in self.loaded_plugins:
+                self._unload_plugins(plugin)
+            self.loaded_plugins[plugin] = loaded_plugins[plugin]
+
             if first_run:
                 print "Loaded plugin %s" % plugin
-
-        self.loaded_plugins = loaded_plugins
 
         if len(failed_plugins) > 0:
             return failed_plugins
@@ -145,6 +152,10 @@ class CardinalBot(irc.IRCClient):
     def _unload_plugins(self, plugins):
         # A list of plugins that weren't loaded in the first place
         nonexistent_plugins = []
+
+        # Turn this into a list if it isn't one
+        if isinstance(plugins, basestring):
+            plugins = [plugins]
 
         for plugin in plugins:
             if plugin not in self.loaded_plugins:
@@ -201,6 +212,7 @@ class CardinalBot(irc.IRCClient):
 
     # This is a wrapper command to really quit the server
     def disconnect(self, message=''):
+        self._unload_plugins([plugin for plugin, data in self.loaded_plugins.items()])
         print "Disconnecting..."
         self.factory.quit = True
         self.quit(message)
