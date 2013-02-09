@@ -22,7 +22,7 @@
 
 import argparse
 
-from twisted.internet import ssl, reactor
+from twisted.internet import reactor
 from CardinalBot import CardinalBotFactory
 
 DEFAULT_NICKNAME = 'Cardinal'
@@ -61,6 +61,7 @@ if __name__ == "__main__":
     factory = CardinalBotFactory(args.channels, args.nickname, args.plugins)
 
     if not args.ssl:
+        from twisted.internet import ssl
         reactor.connectTCP(args.network, args.port, factory)
     else:
         reactor.connectSSL(args.network, args.port, factory, ssl.ClientContextFactory())
