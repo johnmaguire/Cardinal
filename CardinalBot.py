@@ -18,8 +18,10 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS 
 # IN THE SOFTWARE.
 
+import os
 import sys
 import importlib
+import inspect
 import re
 
 from twisted.words.protocols import irc
@@ -34,6 +36,9 @@ plugins = [
 ]
 
 class CardinalBot(irc.IRCClient):
+    # Path of executed file
+    path = os.path.dirname(os.path.realpath(sys.argv[0]))
+
     # Get the current nickname from the factory
     def _get_nickname(self):
         return self.factory.nickname
@@ -55,6 +60,31 @@ class CardinalBot(irc.IRCClient):
         # Attempt to load plugins
         self._load_plugins(plugins, True)
 
+    def _import_module(self, module, config=False):
+        if inspect.ismodule(module):
+            return reload(module)
+        elif isinstance(module, basestring):
+            return importlib.import_module('plugins.%s.%s' % (module, 'config' if config else 'plugin'))
+
+    def _create_plugin_instance(self, module):
+        argspec = inspect.getargspec(module.setup)
+        if len(argspec.args) > 0:
+            instance = module.setup(self)
+        else:
+            instance = module.setup()
+
+        return instance
+
+    def _get_plugin_commands(self, instance):
+        # Compile a list of all commands in the plugin
+        commands = []
+        for method in dir(instance):
+            method = getattr(instance, method)
+            if callable(method) and (hasattr(method, 'regex') or hasattr(method, 'commands')):
+                commands.append(method)
+
+        return commands
+
     def _load_plugins(self, plugins, first_run=False):
         # A dictionary of loaded plugins
         loaded_plugins = self.loaded_plugins
@@ -66,67 +96,44 @@ class CardinalBot(irc.IRCClient):
         if isinstance(plugins, basestring):
             plugins = [plugins]
 
-        # Setup each plugin
         for plugin in plugins:
-            # Reload the plugin if it was already loaded once
-            if plugin in loaded_plugins:
-                try:
-                    new_module = reload(loaded_plugins[plugin]['module'])
-                    try:
-                        new_config = reload(loaded_plugins[plugin]['config'])
-                    except ImportError:
-                        new_config = None
-                    except Exception, e:
-                        new_config = None
-                        print >> sys.stderr, "ERROR: Could not load plugin config: %s (%s)" % (plugin, e)
+            # Import each plugin with a custom _import_module function.
+            try:
+                module = self._import_module(loaded_plugins[plugin]['module'] if plugin in loaded_plugins else plugin)
+            except Exception, e:
+                print >> sys.stderr, "ERROR: Could not load plugin module: %s (%s)" % (plugin, e)
+                failed_plugins.append(plugin)
 
-                    loaded_plugins[plugin]['module'] = new_module
-                    loaded_plugins[plugin]['config'] = new_config
-                    loaded_plugins[plugin]['instance'] = new_module.setup()
-                except Exception, e:
-                    print >> sys.stderr, "ERROR: Could not load plugin: %s (%s)" % (plugin, e)
-                    failed_plugins.append(plugin)
+                continue
 
-                    continue
-            else:
-                # Attempt to reload plugins that have not previously been loaded.
-                try:
-                    module = importlib.import_module('plugins.%s.plugin' % plugin)
-                    try:
-                        config = importlib.import_module('plugins.%s.config' % plugin)
-                    except ImportError:
-                        config = None
-                    except Exception, e:
-                        config = None
-                        print >> sys.stderr, "ERROR: Could not load plugin config: %s (%s)" % (plugin, e)
+            # Import each config with the same _import_module function.
+            try:
+                config = self._import_module(loaded_plugins[plugin]['config'] if plugin in loaded_plugins else plugin, config=True)
+            except ImportError:
+                config = None
+            except Exception, e:
+                config = None
+                print >> sys.stderr, "WARNING: Could not load plugin config: %s (%s)" % (plugin, e)
 
-                    loaded_plugins[plugin] = {}
-                    loaded_plugins[plugin]['module'] = module
-                    loaded_plugins[plugin]['config'] = config
-                    loaded_plugins[plugin]['instance'] = module.setup()
+            # Create a new instance of the plugin
+            try:
+                instance = self._create_plugin_instance(module)
+            except Exception, e:
+                print >> sys.stderr, "ERROR: Could not create plugin instance: %s (%s)" % (plugin, e)
+                continue
 
-                    # If we are just starting Cardinal, print a list of loaded plugins.
-                    if first_run:
-                        print "Loaded plugin %s" % plugin
-                except Exception, e:
-                    print >> sys.stderr, "ERROR: Could not load plugin: %s (%s)" % (plugin, e)
-                    failed_plugins.append(plugin)
-                    if plugin in loaded_plugins:
-                        del loaded_plugins[plugin]
+            # Set module, config, and instance of the plugin
+            loaded_plugins[plugin] = {}
+            loaded_plugins[plugin]['module'] = module
+            loaded_plugins[plugin]['config'] = config
+            loaded_plugins[plugin]['instance'] = instance
+            loaded_plugins[plugin]['commands'] = self._get_plugin_commands(instance)
 
-                    continue
+            # If we are just starting Cardinal, print a list of loaded plugins.
+            if first_run:
+                print "Loaded plugin %s" % plugin
 
-            # Find all functions on the object
-            functions = [method for method in dir(loaded_plugins[plugin]['instance']) if callable(getattr(loaded_plugins[plugin]['instance'], method))]
-            loaded_plugins[plugin]['commands'] = []
-
-            # Check if each function is a valid command
-            for function in functions:
-                function = getattr(loaded_plugins[plugin]['instance'], function)
-                if hasattr(function, 'regex') or hasattr(function, 'commands'):
-                    loaded_plugins[plugin]['commands'].append(function)
-
-            self.loaded_plugins = loaded_plugins
+        self.loaded_plugins = loaded_plugins
 
         if len(failed_plugins) > 0:
             return failed_plugins
@@ -149,7 +156,7 @@ class CardinalBot(irc.IRCClient):
         else:
             return None
 
-    # A method to quickly grab a plugin's config
+    # A shorthand version of loaded_plugins['plugin']['config']
     def config(self, plugin):
         return self.loaded_plugins[plugin]['config']
 
