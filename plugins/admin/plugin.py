@@ -43,9 +43,9 @@ class AdminPlugin(object):
 
         return False
 
-    def reload_plugins(self, cardinal, user, channel, msg):
+    def load_plugins(self, cardinal, user, channel, msg):
         if self.is_owner(user):
-            cardinal.sendMsg(channel, "%s: Reloading plugins..." % user.group(1))
+            cardinal.sendMsg(channel, "%s: Loading plugins..." % user.group(1))
             
             plugins = msg.split()
             plugins.pop(0)
@@ -60,13 +60,13 @@ class AdminPlugin(object):
             if failed_plugins:
                 successful_plugins = [plugin for plugin in plugins if plugin not in failed_plugins]
                 if len(successful_plugins) > 0:
-                    cardinal.sendMsg(channel, "Plugins loaded success: %s. Plugins loaded failure: %s." % (', '.join(successful_plugins), ', '.join(failed_plugins)))
+                    cardinal.sendMsg(channel, "Plugins loaded succesfully: %s. Plugins failed to load: %s." % (', '.join(sorted(successful_plugins)), ', '.join(sorted(failed_plugins))))
                 else:
-                    cardinal.sendMsg(channel, "Plugins loaded failure: %s." % ', '.join(failed_plugins))
+                    cardinal.sendMsg(channel, "Plugins failed to load: %s." % ', '.join(sorted(failed_plugins)))
             else:
-                cardinal.sendMsg(channel, "Plugins loaded success: %s." % ', '.join(plugins))
+                cardinal.sendMsg(channel, "Plugins loaded successfully: %s." % ', '.join(sorted(plugins)))
 
-    reload_plugins.commands = ['reload']
+    load_plugins.commands = ['load', 'reload']
 
     def unload_plugins(self, cardinal, user, channel, msg):
         if self.is_owner(user):
@@ -83,11 +83,11 @@ class AdminPlugin(object):
             if nonexistent_plugins:
                 unloaded_plugins = [plugin for plugin in plugins if plugin not in nonexistent_plugins]
                 if len(unloaded_plugins) > 0:
-                    cardinal.sendMsg(channel, "Plugins unloaded success: %s. Plugins that didn't exist: %s." % (', '.join(unloaded_plugins), ', '.join(nonexistent_plugins)))
+                    cardinal.sendMsg(channel, "Plugins unloaded success: %s. Plugins that didn't exist: %s." % (', '.join(sorted(unloaded_plugins)), ', '.join(sorted(nonexistent_plugins))))
                 else:
-                    cardinal.sendMsg(channel, "Plugins didn't exist: %s." % ', '.join(nonexistent_plugins))
+                    cardinal.sendMsg(channel, "Plugins didn't exist: %s." % ', '.join(sorted(nonexistent_plugins)))
             else:
-                cardinal.sendMsg(channel, "Plugins unloaded success: %s." % ', '.join(plugins))
+                cardinal.sendMsg(channel, "Plugins unloaded success: %s." % ', '.join(sorted(plugins)))
 
     unload_plugins.commands = ['unload']
 
