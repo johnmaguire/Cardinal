@@ -58,7 +58,7 @@ parser.add_argument('-s', '--ssl', dest='ssl', action='store_true', default=Fals
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    factory = CardinalBotFactory(args.channels, args.nickname, args.plugins)
+    factory = CardinalBotFactory(args.network, args.channels, args.nickname, args.plugins)
 
     if not args.ssl:
         reactor.connectTCP(args.network, args.port, factory)

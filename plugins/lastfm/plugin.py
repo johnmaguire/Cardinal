@@ -34,7 +34,7 @@ class LastfmPlugin(object):
 
     def connect_or_create_db(self, cardinal):
         try:
-            self.conn = sqlite3.connect(os.path.join(cardinal.path, 'db', 'lastfm.db'))
+            self.conn = sqlite3.connect(os.path.join(cardinal.path, 'db', 'lastfm-%s.db' % cardinal.network))
         except Exception, e:
             self.conn = None
             print >> sys.stderr, "ERROR: Unable to access local Last.fm database (%s)" % e

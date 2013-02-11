@@ -9,7 +9,7 @@
 # 
 # The above copyright notice and this permission notice shall be included in 
 # all copies or substantial portions of the Software.
-#
+# 
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
@@ -32,6 +32,9 @@ from twisted.internet import protocol, reactor
 class CardinalBot(irc.IRCClient):
     # Path of executed file
     path = os.path.dirname(os.path.realpath(sys.argv[0]))
+
+    # The current connected network (e.g. 'irc.darchoods.net')
+    network = None
 
     # Get the current nickname from the factory
     def _get_nickname(self):
@@ -166,6 +169,9 @@ class CardinalBot(irc.IRCClient):
         # Give the factory access to the bot
         self.factory.cardinal = self
 
+        # Set the currently connected network
+        self.network = self.factory.network
+
         # Attempt to load plugins
         self._load_plugins(self.factory.plugins, True)
 
@@ -227,13 +233,23 @@ class CardinalBotFactory(protocol.ClientFactory):
     # Whether disconnect.quit() was called.
     disconnect = False
 
+    # The network Cardinal has connected to
+    network = None
+
+    # The nickname Cardinal has connected as
+    nickname = None
+
+    # List of channels for CardinalBot to join
+    channels = []
+
     # List of plugins to start CardinalBot with
     plugins = []
 
     # The instance of CardinalBot, which will be set by CardinalBot
     cardinal = None
 
-    def __init__(self, channels, nickname='Cardinal', plugins=[]):
+    def __init__(self, network, channels, nickname='Cardinal', plugins=[]):
+        self.network = network.lower()
         self.channels = channels
         self.nickname = nickname
         self.plugins = plugins
