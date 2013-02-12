@@ -48,8 +48,9 @@ class LastfmPlugin(object):
         if not self.conn:
             cardinal.sendMsg(channel, "Unable to access local Last.fm database.")
 
-        split_msg = msg.split()
-        if len(split_msg) < 2:
+        message = msg.split()
+        if len(message) < 2:
+            cardinal.sendMsg(channel, "Syntax: .setlastfm <username>")
             return
 
         c = self.conn.cursor()
@@ -74,14 +75,22 @@ class LastfmPlugin(object):
             cardinal.sendMsg(channel, "Unable to access local Last.fm database.")
             return
 
+        message = msg.split()
+        if len(message) >= 2:
+            nick = message[1]
+        else:
+            nick = user.group(1)
+
         c = self.conn.cursor()
-        c.execute("SELECT username FROM users WHERE nick=? OR vhost=?", (user.group(1), user.group(3)))
+        c.execute("SELECT username FROM users WHERE nick=? OR vhost=?", (nick, user.group(3)))
         result = c.fetchone()
-        if not result:
+        if not result and len(message) < 2:
             cardinal.sendMsg(channel, "Username not set. Use .setlastfm <user> to set your username.")
             return
-        
-        username = result[0]
+        elif not result and len(message) >= 2:
+            username = message[1]
+        else:
+            username = result[0]
 
         uh = urllib2.urlopen("http://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user=%s&api_key=%s&limit=1&format=json" % (username, cardinal.config['lastfm'].API_KEY))
         content = json.load(uh)
