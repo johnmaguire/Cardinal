@@ -50,7 +50,10 @@ class WeatherPlugin(object):
             
             if units_temperature == "F":
                 units_temperature2 = "C"
-                current_temperature2 = str((int(current_temperature) - 32) * (5/9))
+                current_temperature2 = str(int((float(current_temperature) - 32) * float(5)/float(9)))
+            else:
+                units_temperature2 = "F"
+                current_temperature2 = str(int(float(current_temperature) * float(9)/float(5) + 32))
 
             location = location_city
             if location_region:
