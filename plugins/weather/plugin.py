@@ -47,6 +47,10 @@ class WeatherPlugin(object):
 
             units_temperature = str(yunits.getAttribute('temperature'))
             units_speed = str(yunits.getAttribute('speed'))
+            
+            if units_temperature == "F":
+                units_temperature2 = "C"
+                current_temperature2 = str((int(current_temperature) - 32) * (5/9))
 
             location = location_city
             if location_region:
@@ -54,9 +58,10 @@ class WeatherPlugin(object):
             if location_country:
                 location += ", " + location_country
 
-            cardinal.sendMsg(channel, "[ %s | %s | Temp: %s %s | Winds: %s %s ]" % (location,
+            cardinal.sendMsg(channel, "[ %s | %s | Temp: %s %s (%s %s) | Winds: %s %s ]" % (location,
                                                                                     current_condition,
                                                                                     current_temperature, units_temperature,
+                                                                                    current_temperature2, units_temperature2,
                                                                                     current_wind_speed, units_speed))
         except IndexError:
             cardinal.sendMsg(channel, "Sorry, couldn't find weather for \"%s\"." % location)
