@@ -70,7 +70,7 @@ class URLsPlugin(object):
             title = re.search(TITLE_REGEX, content)
             if title:
                 if len(title.group(2).strip()) > 0:
-                    title = re.sub('\s+', ' ', title.group(2))
+                    title = re.sub('\s+', ' ', title.group(2)).strip()
                     cardinal.sendMsg(channel, "URL Found: %s" % title)
                     continue
 
