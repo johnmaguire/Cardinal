@@ -21,14 +21,27 @@
 import urllib2
 from xml.dom import minidom
 
-WEATHER_URL = 'http://xml.weather.yahoo.com/forecastrss?z=%s'
+WHERE_API_APP_ID = "MoToWJjdQX4XzV34ELXxh3MLG5x1cgBMiMrEuJ.0D_bohsdQlv5p7qzQXLgXmWID_zPRxFULW454h3"
+WHERE_API_URL = "http://where.yahooapis.com/v1/places.q(%s);count=1?appid=" + WHERE_API_APP_ID
+WHERE_API_NS = "http://where.yahooapis.com/v1/schema.rng"
+WEATHER_URL = 'http://xml.weather.yahoo.com/forecastrss?w=%s'
 WEATHER_NS = 'http://xml.weather.yahoo.com/ns/rss/1.0'
 
 class WeatherPlugin(object):
     def get_weather(self, cardinal, user, channel, msg):
         location = msg.split(' ', 1)[1]
 
-        url = WEATHER_URL % urllib2.quote(location)
+        url = WHERE_API_URL % urllib2.quote(location)
+        dom = minidom.parse(urllib2.urlopen(url))
+
+        try:
+            woeid = str(dom.getElementsByTagNameNS(WHERE_API_NS, 'woeid')[0].firstChild.nodeValue)
+        except IndexError:
+            cardinal.sendMsg(channel, "Sorry, couldn't find weather for \"%s\" (no WOEID)." % location)
+            return
+
+        url = WEATHER_URL % urllib2.quote(woeid)
+        print url
         dom = minidom.parse(urllib2.urlopen(url))
 
         try:
@@ -68,6 +81,7 @@ class WeatherPlugin(object):
                                                                                     current_wind_speed, units_speed))
         except IndexError:
             cardinal.sendMsg(channel, "Sorry, couldn't find weather for \"%s\"." % location)
+            return
 
     get_weather.commands = ['weather', 'w']
 
