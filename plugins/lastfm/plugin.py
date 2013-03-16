@@ -57,12 +57,12 @@ class LastfmPlugin(object):
         c.execute("SELECT username FROM users WHERE nick=? OR vhost=?", (user.group(1), user.group(3)))
         result = c.fetchone()
         if result:
-            c.execute("UPDATE users SET username=? WHERE nick=? OR vhost=?", (split_msg[1], user.group(1), user.group(3)))
+            c.execute("UPDATE users SET username=? WHERE nick=? OR vhost=?", (message[1], user.group(1), user.group(3)))
         else:
-            c.execute("INSERT INTO users (nick, vhost, username) VALUES(?, ?, ?)", (user.group(1), user.group(3), split_msg[1]))
+            c.execute("INSERT INTO users (nick, vhost, username) VALUES(?, ?, ?)", (user.group(1), user.group(3), message[1]))
         self.conn.commit()
 
-        cardinal.sendMsg(channel, "Your Last.fm username is now set to %s." % (split_msg[1]))
+        cardinal.sendMsg(channel, "Your Last.fm username is now set to %s." % (message[1],))
 
     set_user.commands = ['setlastfm']
 
@@ -75,19 +75,21 @@ class LastfmPlugin(object):
             cardinal.sendMsg(channel, "Unable to access local Last.fm database.")
             return
 
+        # Open the cursor for the query to find a saved Last.fm username
+        c = self.conn.cursor()
+
+        # If they supplied user parameter, use that for the query instead
         message = msg.split()
         if len(message) >= 2:
             nick = message[1]
+            c.execute("SELECT username FROM users WHERE nick=?", (nick,))
         else:
             nick = user.group(1)
-
-        c = self.conn.cursor()
-        c.execute("SELECT username FROM users WHERE nick=? OR vhost=?", (nick, user.group(3)))
+            c.execute("SELECT username FROM users WHERE nick=? OR vhost=?", (nick, user.group(3)))
         result = c.fetchone()
-        if not result and len(message) < 2:
-            cardinal.sendMsg(channel, "Username not set. Use .setlastfm <user> to set your username.")
-            return
-        elif not result and len(message) >= 2:
+
+        # Use the returned username, or the entered/user's nick otherwise
+        if not result:
             username = message[1]
         else:
             username = result[0]
