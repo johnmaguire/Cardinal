@@ -21,11 +21,13 @@
 # IN THE SOFTWARE.
 
 import argparse
+from getpass import getpass
 
 from twisted.internet import reactor
 from CardinalBot import CardinalBotFactory
 
 DEFAULT_NICKNAME = 'Cardinal'
+DEFAULT_PASSWORD = None
 DEFAULT_NETWORK = 'irc.darchoods.net'
 DEFAULT_PORT = 6667
 DEFAULT_CHANNELS = ('#bots',)
@@ -36,29 +38,34 @@ DEFAULT_PLUGINS = (
 #    'admin',
 #    'lastfm',
 )
+DEFAULT_SSL = False
 
 parser = argparse.ArgumentParser(description='Cardinal IRC bot')
-parser.add_argument('-n', '--nickname', metavar='nickname', default=DEFAULT_NICKNAME,
-                    help='nickname to connect as', required=False)
+parser.add_argument('-n', '--nickname', default=DEFAULT_NICKNAME,
+                    help='nickname to connect as')
+parser.add_argument('--password', default=DEFAULT_PASSWORD, action='store_true',
+                    help='set this flag to get a password prompt for identifying')
 
-parser.add_argument('-i', '--network', metavar='network', default=DEFAULT_NETWORK,
-                    help='network to connect to', required=False)
-parser.add_argument('-o', '--port', metavar='port', default=DEFAULT_PORT, type=int,
-                    help='network port to connect to', required=False)
+parser.add_argument('-i', '--network', default=DEFAULT_NETWORK,
+                    help='network to connect to')
+parser.add_argument('-o', '--port', default=DEFAULT_PORT, type=int,
+                    help='network port to connect to')
 
-parser.add_argument('-c', '--channels', metavar='channel', dest='channels',
-                    default=DEFAULT_CHANNELS, nargs='*', help='list of channels to connect to on startup',
-                    required=False)
-parser.add_argument('-p', '--plugins', metavar='plugin', dest='plugins',
-                    default=DEFAULT_PLUGINS, nargs='*', help='list of plugins to load on startup',
-                    required=False)
+parser.add_argument('-c', '--channels', default=DEFAULT_CHANNELS, nargs='*',
+                    help='list of channels to connect to on startup')
+parser.add_argument('-p', '--plugins', default=DEFAULT_PLUGINS, nargs='*',
+                    help='list of plugins to load on startup')
 
-parser.add_argument('-s', '--ssl', dest='ssl', action='store_true', default=False,
+parser.add_argument('-s', '--ssl', default=DEFAULT_SSL, action='store_true',
                     help='you must set this flag for SSL connections')
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    factory = CardinalBotFactory(args.network, args.channels, args.nickname, args.plugins)
+    if args.password:
+        password = getpass('NickServ password: ')
+    else:
+        password = DEFAULT_PASSWORD
+    factory = CardinalBotFactory(args.network, args.channels, args.nickname, password, args.plugins)
 
     if not args.ssl:
         reactor.connectTCP(args.network, args.port, factory)

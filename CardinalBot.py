@@ -172,6 +172,11 @@ class CardinalBot(irc.IRCClient):
         # Set the currently connected network
         self.network = self.factory.network
 
+        # Attempt to identify with NickServ, if a password was given
+        if self.factory.password:
+            print "Attempting to identify with NickServ."
+            self.msg("NickServ", "IDENTIFY %s" % (self.factory.password,))
+
         # Attempt to load plugins
         self._load_plugins(self.factory.plugins, True)
 
@@ -239,6 +244,9 @@ class CardinalBotFactory(protocol.ClientFactory):
     # The nickname Cardinal has connected as
     nickname = None
 
+    # The password for Cardinal to identify with, if any
+    password = None
+
     # List of channels for CardinalBot to join
     channels = []
 
@@ -248,8 +256,9 @@ class CardinalBotFactory(protocol.ClientFactory):
     # The instance of CardinalBot, which will be set by CardinalBot
     cardinal = None
 
-    def __init__(self, network, channels, nickname='Cardinal', plugins=[]):
+    def __init__(self, network, channels, nickname='Cardinal', password=None, plugins=[]):
         self.network = network.lower()
+        self.password = password
         self.channels = channels
         self.nickname = nickname
         self.plugins = plugins
