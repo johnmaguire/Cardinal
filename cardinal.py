@@ -40,21 +40,29 @@ DEFAULT_PLUGINS = (
 )
 DEFAULT_SSL = False
 
-parser = argparse.ArgumentParser(description='Cardinal IRC bot')
+parser = argparse.ArgumentParser(description="""
+Cardinal IRC bot
+
+A Python/Twisted-powered modular IRC bot. Aimed to be simple to use, simple
+to develop. For information on developing plugins, visit the project page
+below.
+
+https://github.com/JohnMaguire2013/Cardinal
+""", formatter_class=argparse.RawDescriptionHelpFormatter)
 parser.add_argument('-n', '--nickname', default=DEFAULT_NICKNAME,
-                    help='nickname to connect as')
+                    metavar='nickname', help='nickname to connect as')
 parser.add_argument('--password', default=DEFAULT_PASSWORD, action='store_true',
                     help='set this flag to get a password prompt for identifying')
 
 parser.add_argument('-i', '--network', default=DEFAULT_NETWORK,
-                    help='network to connect to')
+                    metavar='network', help='network to connect to')
 parser.add_argument('-o', '--port', default=DEFAULT_PORT, type=int,
-                    help='network port to connect to')
+                    metavar='port', help='network port to connect to')
 
 parser.add_argument('-c', '--channels', default=DEFAULT_CHANNELS, nargs='*',
-                    help='list of channels to connect to on startup')
+                    metavar='channel', help='list of channels to connect to on startup')
 parser.add_argument('-p', '--plugins', default=DEFAULT_PLUGINS, nargs='*',
-                    help='list of plugins to load on startup')
+                    metavar='plugin', help='list of plugins to load on startup')
 
 parser.add_argument('-s', '--ssl', default=DEFAULT_SSL, action='store_true',
                     help='you must set this flag for SSL connections')
