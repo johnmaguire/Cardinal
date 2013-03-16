@@ -22,6 +22,7 @@ import os
 import sys
 import signal
 import importlib
+import linecache
 import inspect
 import time
 import re
@@ -91,6 +92,8 @@ class CardinalBot(irc.IRCClient):
         # Turn this into a list if it isn't one
         if isinstance(plugins, basestring):
             plugins = [plugins]
+
+        linecache.clearcache()
 
         for plugin in plugins:
             loaded_plugins[plugin] = {}
