@@ -116,7 +116,7 @@ class CardinalBot(irc.IRCClient):
                 self.config[plugin] = None
             except Exception, e:
                 self.config[plugin] = None
-                print >> sys.stderr, "WARNING: Could not load plugin config: %s (%f)" % (plugin, e)
+                print >> sys.stderr, "WARNING: Could not load plugin config: %s (%s)" % (plugin, e)
 
             # Create a new instance of the plugin
             try:
