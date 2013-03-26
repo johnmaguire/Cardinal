@@ -65,6 +65,8 @@ class AdminPlugin(object):
                 cardinal.sendMsg(channel, "Plugins loaded successfully: %s." % ', '.join(sorted(plugins)))
 
     load_plugins.commands = ['load', 'reload']
+    load_plugins.help = ["If no plugins are given after the command, reload all plugins. Otherwise, load (or reload) the selected plugins.",
+                         "Syntax: .reload [plugin [plugin ...]]"]
 
     def unload_plugins(self, cardinal, user, channel, msg):
         if self.is_owner(user):
@@ -88,6 +90,8 @@ class AdminPlugin(object):
                 cardinal.sendMsg(channel, "Plugins unloaded success: %s." % ', '.join(sorted(plugins)))
 
     unload_plugins.commands = ['unload']
+    unload_plugins.help = ["Unload selected plugins.",
+                           "Syntax: .unload <plugin [plugin ...]>"]
 
     def join(self, cardinal, user, channel, msg):
         if self.is_owner(user):
@@ -97,6 +101,8 @@ class AdminPlugin(object):
                 cardinal.join(channel)
 
     join.commands = ['join']
+    join.help = ["Joins selected channels.",
+                 "Syntax: .join <channel [channel ...]>"]
 
     def part(self, cardinal, user, channel, msg):
         if self.is_owner(user):
@@ -109,12 +115,16 @@ class AdminPlugin(object):
                 cardinal.part(channel)
 
     part.commands = ['part']
+    part.help = ["Parts selected channels.",
+                 "Syntax: .join <channel [channel ...]>"]
 
     def quit(self, cardinal, user, channel, msg):
         if self.is_owner(user):
-            cardinal.disconnect(msg[6:])
+            cardinal.disconnect(' '.join(msg.split(' ')[1:]))
 
     quit.commands = ['quit']
+    quit.help = ["Quits the network with a quit message, if one is defined.",
+                 "Syntax: .quit [message]"]
 
 def setup(cardinal):
     return AdminPlugin(cardinal)

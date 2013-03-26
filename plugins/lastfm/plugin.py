@@ -65,6 +65,8 @@ class LastfmPlugin(object):
         cardinal.sendMsg(channel, "Your Last.fm username is now set to %s." % (message[1],))
 
     set_user.commands = ['setlastfm']
+    set_user.help = ["Sets the default Last.fm username for your nick.",
+                     "Syntax: .setlastfm <username>"]
 
     def now_playing(self, cardinal, user, channel, msg):
         # Before we do anything, let's make sure we'll be able to query Last.fm
@@ -119,6 +121,8 @@ class LastfmPlugin(object):
                 cardinal.sendMsg(channel, "Unable to find any tracks played. (Is your username correct?)")
 
     now_playing.commands = ['np', 'nowplaying']
+    now_playing.help = ["Get the Last.fm track currently played by a user (attempts to default to username set with .setlastfm)",
+                        "Syntax: .np [username]"]
 
     def close(self):
         self.conn.close()
