@@ -41,6 +41,21 @@ class AdminPlugin(object):
 
         return False
 
+    def eval(self, cardinal, user, channel, msg):
+        if self.is_owner(user):
+            command = ' '.join(msg.split()[1:])
+            if len(command) > 0:
+                try:
+                    output = str(eval(command))
+                    cardinal.sendMsg(channel, output)
+                except Exception, e:
+                    cardinal.sendMsg(channel, 'Exception %s: %s' % (e.__class__, e))
+                    raise
+
+    eval.commands = ['eval']
+    eval.help = ["A super dangerous command that runs eval() on the input.",
+                 "Syntax: .eval <command>"]
+
     def load_plugins(self, cardinal, user, channel, msg):
         if self.is_owner(user):
             cardinal.sendMsg(channel, "%s: Loading plugins..." % user.group(1))
