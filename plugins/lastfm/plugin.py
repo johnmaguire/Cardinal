@@ -30,9 +30,9 @@ class LastfmPlugin(object):
 
     def __init__(self, cardinal):
         # Connect to or create the database
-        self.connect_or_create_db(cardinal)
+        self._connect_or_create_db(cardinal)
 
-    def connect_or_create_db(self, cardinal):
+    def _connect_or_create_db(self, cardinal):
         try:
             self.conn = sqlite3.connect(os.path.join(cardinal.path, 'db', 'lastfm-%s.db' % cardinal.network))
         except Exception, e:
@@ -120,7 +120,7 @@ class LastfmPlugin(object):
 
     now_playing.commands = ['np', 'nowplaying']
 
-    def __del__(self):
+    def close(self):
         self.conn.close()
 
 def setup(cardinal):
