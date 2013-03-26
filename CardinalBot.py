@@ -158,6 +158,14 @@ class CardinalBot(irc.IRCClient):
                 nonexistent_plugins.append(plugin)
                 continue
 
+            if (hasattr(self.loaded_plugins[plugin]['instance'], 'close') and
+                inspect.ismethod(self.loaded_plugins[plugin]['instance'].close)):
+                argspec = inspect.getargspec(self.loaded_plugins[plugin]['instance'].close)
+                if len(argspec.args) > 1:
+                    self.loaded_plugins[plugin]['instance'].close(self)
+                else:
+                    self.loaded_plugins[plugin]['instance'].close()
+
             del self.loaded_plugins[plugin]
 
         if len(nonexistent_plugins) > 0:
