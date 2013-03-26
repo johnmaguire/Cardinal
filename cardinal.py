@@ -33,11 +33,11 @@ DEFAULT_PORT = 6667
 DEFAULT_CHANNELS = ('#bots',)
 DEFAULT_PLUGINS = (
     'help',
+    'admin',
     'ping',
     'urls',
     'weather',
     'remind',
-#    'admin',
 #    'lastfm',
 )
 DEFAULT_SSL = False
