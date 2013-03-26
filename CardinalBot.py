@@ -109,8 +109,6 @@ class CardinalBot(irc.IRCClient):
 
             # Import each config with the same _import_module function.
             try:
-                if plugin in self.config:
-                    del self.config[plugin]
                 self.config[plugin] = self._import_module(self.config[plugin] if plugin in self.config else plugin, config=True)
             except ImportError:
                 self.config[plugin] = None
@@ -123,6 +121,8 @@ class CardinalBot(irc.IRCClient):
                 instance = self._create_plugin_instance(module)
             except Exception, e:
                 print >> sys.stderr, "ERROR: Could not create plugin instance: %s (%s)" % (plugin, e)
+                failed_plugins.append(plugin)
+
                 continue
 
             # Set module, config, and instance of the plugin
