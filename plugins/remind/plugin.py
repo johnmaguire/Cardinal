@@ -34,6 +34,8 @@ class RemindPlugin(object):
             cardinal.sendMsg(channel, "You did not give a valid number of minutes to be reminded in.")
             
     remind.commands = ['remind']
+    remind.help = ["Sets up a reminder, where the bot will message the user after a predetermined time.",
+                   "Syntax: .remind <seconds> <message>"]
 
 def setup():
     return RemindPlugin()

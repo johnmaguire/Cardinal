@@ -27,6 +27,7 @@ class PingPlugin(object):
 
     pong.regex = r'^ping[.?!]?$'
     pong.commands = ['ping']
+    pong.help = "Responds to a ping message with 'Pong.'"
 
 def setup():
     return PingPlugin()

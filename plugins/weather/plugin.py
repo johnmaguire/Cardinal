@@ -84,6 +84,8 @@ class WeatherPlugin(object):
             return
 
     get_weather.commands = ['weather', 'w']
+    get_weather.help = ["Retrieves the weather using the Yahoo! weather API.",
+                        "Syntax: .weather <location>"]
 
 def setup():
     return WeatherPlugin()
