@@ -28,7 +28,7 @@ from CardinalBot import CardinalBotFactory
 
 DEFAULT_NICKNAME = 'Cardinal'
 DEFAULT_PASSWORD = None
-DEFAULT_NETWORK = 'irc.darchoods.net'
+DEFAULT_NETWORK = 'irc.freenode.net'
 DEFAULT_PORT = 6667
 DEFAULT_CHANNELS = ('#bots',)
 DEFAULT_PLUGINS = (
