@@ -53,7 +53,7 @@ class AdminPlugin(object):
                     raise
 
     eval.commands = ['eval']
-    eval.help = ["A super dangerous command that runs eval() on the input.",
+    eval.help = ["A super dangerous command that runs eval() on the input. (admin only)",
                  "Syntax: .eval <command>"]
 
     def load_plugins(self, cardinal, user, channel, msg):
@@ -80,7 +80,7 @@ class AdminPlugin(object):
                 cardinal.sendMsg(channel, "Plugins loaded successfully: %s." % ', '.join(sorted(plugins)))
 
     load_plugins.commands = ['load', 'reload']
-    load_plugins.help = ["If no plugins are given after the command, reload all plugins. Otherwise, load (or reload) the selected plugins.",
+    load_plugins.help = ["If no plugins are given after the command, reload all plugins. Otherwise, load (or reload) the selected plugins. (admin only)",
                          "Syntax: .reload [plugin [plugin ...]]"]
 
     def unload_plugins(self, cardinal, user, channel, msg):
@@ -105,7 +105,7 @@ class AdminPlugin(object):
                 cardinal.sendMsg(channel, "Plugins unloaded success: %s." % ', '.join(sorted(plugins)))
 
     unload_plugins.commands = ['unload']
-    unload_plugins.help = ["Unload selected plugins.",
+    unload_plugins.help = ["Unload selected plugins. (admin only)",
                            "Syntax: .unload <plugin [plugin ...]>"]
 
     def join(self, cardinal, user, channel, msg):
@@ -116,7 +116,7 @@ class AdminPlugin(object):
                 cardinal.join(channel)
 
     join.commands = ['join']
-    join.help = ["Joins selected channels.",
+    join.help = ["Joins selected channels. (admin only)",
                  "Syntax: .join <channel [channel ...]>"]
 
     def part(self, cardinal, user, channel, msg):
@@ -130,7 +130,7 @@ class AdminPlugin(object):
                 cardinal.part(channel)
 
     part.commands = ['part']
-    part.help = ["Parts selected channels.",
+    part.help = ["Parts selected channels. (admin only)",
                  "Syntax: .join <channel [channel ...]>"]
 
     def quit(self, cardinal, user, channel, msg):
@@ -138,7 +138,7 @@ class AdminPlugin(object):
             cardinal.disconnect(' '.join(msg.split(' ')[1:]))
 
     quit.commands = ['quit']
-    quit.help = ["Quits the network with a quit message, if one is defined.",
+    quit.help = ["Quits the network with a quit message, if one is defined. (admin only)",
                  "Syntax: .quit [message]"]
 
 def setup(cardinal):
