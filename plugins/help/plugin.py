@@ -27,7 +27,7 @@ class HelpPlugin(object):
                 owner = owner.split('@')
                 owners.append(owner[0])
             
-#            owners = list(set(owners))
+            owners = list(set(owners))
 
         return ', '.join(owners) if owners else 'No registered owners.'
 
