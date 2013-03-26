@@ -32,6 +32,7 @@ DEFAULT_NETWORK = 'irc.freenode.net'
 DEFAULT_PORT = 6667
 DEFAULT_CHANNELS = ('#bots',)
 DEFAULT_PLUGINS = (
+    'help',
     'ping',
     'urls',
     'weather',
