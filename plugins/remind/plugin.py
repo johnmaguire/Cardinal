@@ -35,7 +35,7 @@ class RemindPlugin(object):
             
     remind.commands = ['remind']
     remind.help = ["Sets up a reminder, where the bot will message the user after a predetermined time.",
-                   "Syntax: .remind <seconds> <message>"]
+                   "Syntax: .remind <minutes> <message>"]
 
 def setup():
     return RemindPlugin()
