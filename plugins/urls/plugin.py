@@ -22,6 +22,7 @@
 import re
 import urllib2
 import socket
+import HTMLParser
 
 URL_REGEX = re.compile(r'(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:\'".,<>?«»“”‘’]))', flags=re.IGNORECASE)
 TITLE_REGEX = re.compile(r'<title(\s+.*?)?>(.*?)</title>', flags=re.IGNORECASE|re.DOTALL)
@@ -71,6 +72,10 @@ class URLsPlugin(object):
             if title:
                 if len(title.group(2).strip()) > 0:
                     title = re.sub('\s+', ' ', title.group(2)).strip()
+                    
+                    h = HTMLParser.HTMLParser()
+                    title = str(h.unescape(title))
+                    
                     cardinal.sendMsg(channel, "URL Found: %s" % title)
                     continue
 
