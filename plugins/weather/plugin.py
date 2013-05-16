@@ -48,6 +48,7 @@ class WeatherPlugin(object):
             ylocation = dom.getElementsByTagNameNS(WEATHER_NS, 'location')[0]
             yunits = dom.getElementsByTagNameNS(WEATHER_NS, 'units')[0]
             ywind = dom.getElementsByTagNameNS(WEATHER_NS, 'wind')[0]
+            yatmosphere = dom.getElementsByTagNameNS(WEATHER_NS, 'atmosphere')[0]
             ycondition = dom.getElementsByTagNameNS(WEATHER_NS, 'condition')[0]
 
             location_city = str(ylocation.getAttribute('city'))
@@ -56,6 +57,7 @@ class WeatherPlugin(object):
 
             current_condition = str(ycondition.getAttribute('text'))
             current_temperature = str(ycondition.getAttribute('temp'))
+            current_humidity = str(yatmosphere.getAttribute('humidity'))
             current_wind_speed = str(ywind.getAttribute('speed'))
 
             units_temperature = str(yunits.getAttribute('temperature'))
@@ -74,10 +76,12 @@ class WeatherPlugin(object):
             if location_country:
                 location += ", " + location_country
 
-            cardinal.sendMsg(channel, "[ %s | %s | Temp: %s %s (%s %s) | Winds: %s %s ]" % (location,
+            cardinal.sendMsg(channel, "[ %s | %s | Temp: %s %s (%s %s) | Humidity: %s%% | Winds: %s %s ]" %
+                                                                                   (location,
                                                                                     current_condition,
                                                                                     current_temperature, units_temperature,
                                                                                     current_temperature2, units_temperature2,
+                                                                                    current_humidity,
                                                                                     current_wind_speed, units_speed))
         except IndexError:
             cardinal.sendMsg(channel, "Sorry, couldn't find weather for \"%s\"." % location)
