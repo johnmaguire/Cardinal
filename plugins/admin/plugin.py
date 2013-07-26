@@ -56,6 +56,21 @@ class AdminPlugin(object):
     eval.help = ["A super dangerous command that runs eval() on the input. (admin only)",
                  "Syntax: .eval <command>"]
 
+    def execute(self, cardinal, user, channel, msg):
+        if self.is_owner(user):
+            command = ' '.join(msg.split()[1:])
+            if len(command) > 0:
+                try:
+                    exec(command)
+                    cardinal.sendMsg(channel, "Ran exec() on input.")
+                except Exception, e:
+                    cardinal.sendMsg(channel, 'Exception %s: %s' % (e.__class__, e))
+                    raise
+
+    execute.commands = ['exec']
+    execute.help = ["A super dangerous command that runs exec() on the input. (admin only)",
+                 "Syntax: .exec <command>"]
+
     def load_plugins(self, cardinal, user, channel, msg):
         if self.is_owner(user):
             cardinal.sendMsg(channel, "%s: Loading plugins..." % user.group(1))
