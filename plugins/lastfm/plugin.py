@@ -71,7 +71,7 @@ class LastfmPlugin(object):
     def now_playing(self, cardinal, user, channel, msg):
         # Before we do anything, let's make sure we'll be able to query Last.fm
         if not hasattr(cardinal.config['lastfm'], 'API_KEY') or cardinal.config['lastfm'].API_KEY == "API_KEY":
-            cardinal.sendMsg(channel, "Plugin is not configured correctly. Please set API key.")
+            cardinal.sendMsg(channel, "Last.fm plugin is not configured correctly. Please set API key.")
 
         if not self.conn:
             cardinal.sendMsg(channel, "Unable to access local Last.fm database.")
@@ -100,10 +100,10 @@ class LastfmPlugin(object):
         content = json.load(uh)
 
         if 'error' in content and content['error'] == 10:
-            cardinal.sendMsg(channel, "Plugin is not configured correctly. Please set API key.")
+            cardinal.sendMsg(channel, "Last.fm plugin is not configured correctly. Please set API key.")
             return
         elif 'error' in content and content['error'] == 6:
-            cardinal.sendMsg(channel, "Your username is incorrect. No user exists by the username %s." % str(username))
+            cardinal.sendMsg(channel, "Your Last.fm username is incorrect. No user exists by the username %s." % str(username))
             return
 
         try:
