@@ -118,11 +118,72 @@ class LastfmPlugin(object):
 
                 cardinal.sendMsg(channel, "%s last listened to: %s by %s" % (str(username), str(song), str(artist)))
             except KeyError:
-                cardinal.sendMsg(channel, "Unable to find any tracks played. (Is your username correct?)")
+                cardinal.sendMsg(channel, "Unable to find any tracks played. (Is your Last.fm username correct?)")
 
     now_playing.commands = ['np', 'nowplaying']
     now_playing.help = ["Get the Last.fm track currently played by a user (attempts to default to username set with .setlastfm)",
                         "Syntax: .np [username]"]
+
+    def compare(self, cardinal, user, channel, msg):
+        # Before we do anything, let's make sure we'll be able to query Last.fm
+        if not hasattr(cardinal.config['lastfm'], 'API_KEY') or cardinal.config['lastfm'].API_KEY == "API_KEY":
+            cardinal.sendMsg(channel, "Last.fm plugin is not configured correctly. Please set API key.")
+
+        if not self.conn:
+            cardinal.sendMsg(channel, "Unable to access local Last.fm database.")
+            return
+
+        # Open the cursor for the query to find a saved Last.fm username
+        c = self.conn.cursor()
+
+        # If they supplied user parameter, use that for the query instead
+        message = msg.split()
+        if len(message) < 2:
+            cardinal.sendMsg(channel, "Syntax: .compare <username> [username]")
+
+        nick = message[1]
+        c.execute("SELECT username FROM users WHERE nick=?", (nick,))
+        result = c.fetchone()
+
+        if not result:
+            username1 = nick
+        else:
+            username1 = result[0]
+
+        if len(message) >= 3:
+            nick = message[2]
+            c.execute("SELECT username FROM users WHERE nick=?", (nick,))
+        else:
+            nick = user.group(1)
+            c.execute("SELECT username FROM users WHERE nick=? OR vhost=?", (nick, user.group(3)))
+        result = c.fetchone()
+
+        # Use the returned username, or the entered/user's nick otherwise
+        if not result:
+            username2 = nick
+        else:
+            username2 = result[0]
+
+        uh = urllib2.urlopen("http://ws.audioscrobbler.com/2.0/?method=tasteometer.compare&type1=user&type2=user&value1=%s&value2=%s&api_key=%s&format=json" % (username1, username2, cardinal.config['lastfm'].API_KEY))
+        content = json.load(uh)
+
+        if 'error' in content and content['error'] == 10:
+            cardinal.sendMsg(channel, "Last.fm plugin is not configured correctly. Please set API key.")
+            return
+        elif 'error' in content and content['error'] == 7:
+            cardinal.sendMsg(channel, "One of the Last.fm usernames entered was invalid. Please try again.")
+            return
+
+        try:
+            score = int(float(content['comparison']['result']['score']) * 100)
+
+            cardinal.sendMsg(channel, "According to Last.fm's Tasteometer, %s and %s's music preferences are %d%% compatible!" % (str(username1), str(username2), score))
+        except KeyError:
+            cardinal.sendMsg(channel, "An unknown error has occurred.")
+
+    compare.commands = ['compare']
+    compare.help = ["Uses Last.fm to compare the compatibility of music between two users.",
+                    "Syntax: .compare <username> [username]"]
 
     def close(self):
         self.conn.close()
