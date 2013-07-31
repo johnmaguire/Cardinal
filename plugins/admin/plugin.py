@@ -69,7 +69,7 @@ class AdminPlugin(object):
 
     execute.commands = ['exec']
     execute.help = ["A super dangerous command that runs exec() on the input. (admin only)",
-                 "Syntax: .exec <command>"]
+                    "Syntax: .exec <command>"]
 
     def load_plugins(self, cardinal, user, channel, msg):
         if self.is_owner(user):
