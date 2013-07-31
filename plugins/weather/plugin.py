@@ -29,7 +29,11 @@ WEATHER_NS = 'http://xml.weather.yahoo.com/ns/rss/1.0'
 
 class WeatherPlugin(object):
     def get_weather(self, cardinal, user, channel, msg):
-        location = msg.split(' ', 1)[1]
+        try:
+            location = msg.split(' ', 1)[1]
+        except IndexError:
+            cardinal.sendMsg(channel, "Syntax: .weather <location>")
+            return
 
         url = WHERE_API_URL % urllib2.quote(location)
         dom = minidom.parse(urllib2.urlopen(url))
