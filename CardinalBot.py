@@ -201,10 +201,11 @@ class CardinalBot(irc.IRCClient):
 
     # This is triggered when we have received a message
     def privmsg(self, user, channel, msg):
-        print "(%s)>>> %s" % (channel, msg)
-
         # Break the user up into usable groups
         user = re.match(self.user_regex, user)
+
+        # Print message to terminal
+        print "(%s)==>(%s) %s" % (user.group(1), channel, msg)
 
         # Change the channel to something we can reply to
         if channel == self.nickname:
@@ -239,7 +240,7 @@ class CardinalBot(irc.IRCClient):
 
     # This is a wrapper command to send messages
     def sendMsg(self, user, message, length=None):
-        print "(%s)<<< %s" % (user, message)
+        print "(%s)<==(%s) %s" % (user, self.nickname, message)
         self.msg(user, message, length)
 
 # This interfaces CardinalBot with the Twisted library
