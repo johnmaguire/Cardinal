@@ -39,7 +39,7 @@ class WeatherPlugin(object):
             url = WHERE_API_URL % urllib2.quote(location)
             dom = minidom.parse(urllib2.urlopen(url))
         except urllib2.URLError:
-            cardinal.sendMsg(channel, "Error accessing Yahoo! Weather API. (URLError Exception occurred.)")
+            cardinal.sendMsg(channel, "Error accessing Yahoo! Where API. (URLError Exception occurred.)")
         except urllib2.HTTPError:
             cardinal.sendMsg(channel, "Error accessing Yahoo! Where API. (HTPPError Exception occurred.")
             return
