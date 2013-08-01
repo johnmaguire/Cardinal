@@ -35,9 +35,16 @@ class YouTubePlugin(object):
             cardinal.sendMsg(channel, "Syntax: .youtube <search query>")
             return
 
-        yt_request = {'part': 'snippet', 'q': search_query, 'maxResults': 1, 'key': cardinal.config['youtube'].API_KEY}
-        uh = urllib2.urlopen("https://www.googleapis.com/youtube/v3/search?" + urllib.urlencode(yt_request))
-        content = json.load(uh)
+        try:
+            yt_request = {'part': 'snippet', 'q': search_query, 'maxResults': 1, 'key': cardinal.config['youtube'].API_KEY}
+            uh = urllib2.urlopen("https://www.googleapis.com/youtube/v3/search?" + urllib.urlencode(yt_request))
+            content = json.load(uh)
+        except urllib2.URLError:
+            cardinal.sendMsg(channel, "Error accessing YouTube API. (URLError Exception occurred.)")
+            return
+        except urllib2.HTTPError:
+            cardinal.sendMsg(channel, "Error accessing YouTube API. (HTTPError Exception occurred.")
+            return
 
         if 'error' in content:
             cardinal.sendMsg(channel, "An error occurred while attempting to search YouTube.")
