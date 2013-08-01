@@ -72,6 +72,7 @@ class LastfmPlugin(object):
         # Before we do anything, let's make sure we'll be able to query Last.fm
         if not hasattr(cardinal.config['lastfm'], 'API_KEY') or cardinal.config['lastfm'].API_KEY == "API_KEY":
             cardinal.sendMsg(channel, "Last.fm plugin is not configured correctly. Please set API key.")
+            return
 
         if not self.conn:
             cardinal.sendMsg(channel, "Unable to access local Last.fm database.")
@@ -96,8 +97,17 @@ class LastfmPlugin(object):
         else:
             username = result[0]
 
-        uh = urllib2.urlopen("http://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user=%s&api_key=%s&limit=1&format=json" % (username, cardinal.config['lastfm'].API_KEY))
-        content = json.load(uh)
+        try:
+            uh = urllib2.urlopen("http://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user=%s&api_key=%s&limit=1&format=json" % (username, cardinal.config['lastfm'].API_KEY))
+            content = json.load(uh)
+        except urllib2.URLError, e:
+            cardinal.sendMsg(channel, "Unable to reach Last.fm.")
+            print >> sys.stderr, "ERROR: Failed to reach the server: %s" % e.reason
+            return
+        except urllib2.HTTPError, e:
+            cardinal.sendMsg(channel, "Unable to access Last.fm API.")
+            print >> sys.stderr, "ERROR: The server did not fulfill the request. (%s Error)" % e.code
+            return
 
         if 'error' in content and content['error'] == 10:
             cardinal.sendMsg(channel, "Last.fm plugin is not configured correctly. Please set API key.")
@@ -164,8 +174,17 @@ class LastfmPlugin(object):
         else:
             username2 = result[0]
 
-        uh = urllib2.urlopen("http://ws.audioscrobbler.com/2.0/?method=tasteometer.compare&type1=user&type2=user&value1=%s&value2=%s&api_key=%s&format=json" % (username1, username2, cardinal.config['lastfm'].API_KEY))
-        content = json.load(uh)
+        try:
+            uh = urllib2.urlopen("http://ws.audioscrobbler.com/2.0/?method=tasteometer.compare&type1=user&type2=user&value1=%s&value2=%s&api_key=%s&format=json" % (username1, username2, cardinal.config['lastfm'].API_KEY))
+            content = json.load(uh)
+        except urllib2.URLError, e:
+            cardinal.sendMsg(channel, "Unable to reach Last.fm.")
+            print >> sys.stderr, "ERROR: Failed to reach the server: %s" % e.reason
+            return
+        except urllib2.HTTPError, e:
+            cardinal.sendMsg(channel, "Unable to access Last.fm API.")
+            print >> sys.stderr, "ERROR: The server did not fulfill the request. (%s Error)" % e.code
+            return
 
         if 'error' in content and content['error'] == 10:
             cardinal.sendMsg(channel, "Last.fm plugin is not configured correctly. Please set API key.")
