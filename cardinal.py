@@ -54,7 +54,7 @@ https://github.com/JohnMaguire2013/Cardinal
 """, formatter_class=argparse.RawDescriptionHelpFormatter)
 parser.add_argument('-n', '--nickname', default=DEFAULT_NICKNAME,
                     metavar='nickname', help='nickname to connect as')
-parser.add_argument('--password', default=DEFAULT_PASSWORD, action='store_true',
+parser.add_argument('--password', default=None, action='store_true',
                     help='set this flag to get a password prompt for identifying')
 
 parser.add_argument('-i', '--network', default=DEFAULT_NETWORK,
