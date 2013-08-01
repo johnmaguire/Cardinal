@@ -18,5 +18,5 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS 
 # IN THE SOFTWARE.
 
-# Get an API key from https://developers.google.com/youtube/registering_an_application
+# Get a YouTube v3 API key from https://code.google.com/apis/console/
 API_KEY = "API_KEY"
