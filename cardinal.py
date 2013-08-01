@@ -39,6 +39,7 @@ DEFAULT_PLUGINS = (
     'weather',
     'remind',
 #    'lastfm',
+#    'youtube',
 )
 DEFAULT_SSL = False
 
