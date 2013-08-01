@@ -32,7 +32,9 @@ class RemindPlugin(object):
             cardinal.sendMsg(channel, "%s: You will be reminded in %d minutes." % (user.group(1), int(message[1])))
         except ValueError:
             cardinal.sendMsg(channel, "You did not give a valid number of minutes to be reminded in.")
-            
+        except AssertionError:
+            cardinal.sendMsg(channel, "You did not give a valid number of minutes to be reminded in.")
+
     remind.commands = ['remind']
     remind.help = ["Sets up a reminder, where the bot will message the user after a predetermined time.",
                    "Syntax: .remind <minutes> <message>"]
