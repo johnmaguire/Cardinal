@@ -55,9 +55,9 @@ class YouTubePlugin(object):
         except IndexError:
             cardinal.sendMsg(channel, "No videos found matching that search.")
 
-    search.commands = ['yt', 'youtube']
+    search.commands = ['youtube', 'yt']
     search.help = ["Get the first YouTube result for a given search.",
-                   "Syntax: .yt <search query>"]
+                   "Syntax: .youtube <search query>"]
 
 def setup():
     return YouTubePlugin()
