@@ -31,4 +31,4 @@ A plugin must contain a `setup()` function. This function should return an insta
 
 Plugin command functions should accept four arguments. The first will be an instance of `CardinalBot`. The second is a `re.match()` result with the first group containing the sending user's nick, the second group containing the sending user's ident, and the third group containing the sending user's vhost. The third argument will be the channel the message was sent to (will contain the user's nickname if it was sent in a PM to Cardinal.) The fourth argument will be the full message received.
 
-The default command symbol is ".". To change this, you must modify the `command_regex` variable in "CardinalBot.py".
+The default command symbol is `.`. To change this, you must modify the `command_regex` variable in `CardinalBot.py`.
