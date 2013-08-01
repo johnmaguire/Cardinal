@@ -35,8 +35,14 @@ class WeatherPlugin(object):
             cardinal.sendMsg(channel, "Syntax: .weather <location>")
             return
 
-        url = WHERE_API_URL % urllib2.quote(location)
-        dom = minidom.parse(urllib2.urlopen(url))
+        try:
+            url = WHERE_API_URL % urllib2.quote(location)
+            dom = minidom.parse(urllib2.urlopen(url))
+        except urllib2.URLError:
+            cardinal.sendMsg(channel, "Error accessing Yahoo! Weather API. (URLError Exception occurred.)")
+        except urllib2.HTTPError:
+            cardinal.sendMsg(channel, "Error accessing Yahoo! Where API. (HTPPError Exception occurred.")
+            return
 
         try:
             woeid = str(dom.getElementsByTagNameNS(WHERE_API_NS, 'woeid')[0].firstChild.nodeValue)
@@ -44,9 +50,15 @@ class WeatherPlugin(object):
             cardinal.sendMsg(channel, "Sorry, couldn't find weather for \"%s\" (no WOEID)." % location)
             return
 
-        url = WEATHER_URL % urllib2.quote(woeid)
-        print url
-        dom = minidom.parse(urllib2.urlopen(url))
+        try:
+            url = WEATHER_URL % urllib2.quote(woeid)
+            dom = minidom.parse(urllib2.urlopen(url))
+        except urllib2.URLError:
+            cardinal.sendMsg(channel, "Error accessing Yahoo! Weather API. (URLError Exception occurred.)")
+            return
+        except urllib2.HTPPError:
+            cardinal.sendMsg(channel, "Error accessing Yahoo! Weather API. (URLError Exception occurred.)")
+            return
 
         try:
             ylocation = dom.getElementsByTagNameNS(WEATHER_NS, 'location')[0]
