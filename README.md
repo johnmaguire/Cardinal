@@ -1,18 +1,16 @@
-Cardinal
+Meet Cardinal.
 ========
-A modular, Twisted IRC bot.
+Cardinal is your new best friend and personal assistant on IRC. A modular, Twisted-based Python IRC bot, Cardinal has plenty of common features (such as a calculator, fetching of page titles, etc.) as well as some more interesting ones (integration with Last.fm and YouTube searching.) If you're a developer, it's easy to create your own plugins in a matter of minutes.
 
 Instructions
 ------------
-Running Cardinal is as simple as typing `./cardinal.py`. To configure it to connect to your network you may either modify `cardinal.py` or use command line options. Run `./cardinal.py -h` for more information.
+Running Cardinal is as simple as typing `./cardinal.py`. Before running Cardinal, you should ensure that you have set your network settings in the `cardinal.py` file, or run `./cardinal.py -h` to use command line arguments to set the network and channels you would like Cardinal to connect to.
 
-To install a plugin, simply add the plugin name to the `plugins` list in `CardinalBot.py`.
+Before running Cardinal, you should add your nick and vhost to the `plugins/admin/config.py` file in the format `nick@vhost` in order to take advantage of admin-only commands.
 
-To use the admin plugin, modify `plugins/admin/config.py` to contain your username and vhost in the following format: `nick@vhost`. Finally, uncomment the admin plugin from your `plugins` list in `CardinalBot.py`. 
-
-What does it do?
+What can Cardinal do?
 ----------------
-Currently, Cardinal can...
+Out of the box Cardinal can...
 
 * Get the title of URLs in chat
 * Search for YouTube videos
@@ -26,9 +24,33 @@ But Cardinal is still in active development! Features are being added as quickly
 
 Writing Plugins
 ---------------
-A plugin must contain a `setup()` function. This function should return an instance of your plugin object. The object should contain functions which will act as commands.
+Writing plugins is simple and quick! Simply create a folder in the `plugins/` directory, add an empty `__init__.py` file, and create a `plugin.py` file to contain your plugin.
 
-Plugin command functions should accept four arguments. The first will be an instance of `CardinalBot`. The second is a `re.match()` result with the first group containing the sending user's nick, the second group containing the sending user's ident, and the third group containing the sending user's vhost. The third argument will be the channel the message was sent to (will contain the user's nickname if it was sent in a PM to Cardinal.) The fourth argument will be the full message received.
+The `plugin.py` file must contain two things: a plugin object, and a function called `setup()` which creates and returns an instance of your plugin object. Optionally, `setup()` may accept one argument, which will be an instance of Cardinal. This is useful if you need access to the Cardinal internals during initialization of your plugin.
+
+Plugins objects should be comprised of two different types of functions (though neither are required to exist within a plugin.) The first type is private functions. These should be prefixed with an underscore, and should only be used for controlling the flow of logic within the plugin.
+
+The second type is command functions. These are the functions that Cardinal will route messages to, when it detects that a command has been called. They should accept four arguments. The first will be an instance of `CardinalBot`. The second is a `re.match()` result with the first group containing the sending user's nick, the second group containing the sending user's ident, and the third group containing the sending user's vhost. The third argument will be the channel the message was sent to (however, if the message was sent in a PM to Cardinal, this will contain the sending user's nick instead.) And finally, the fourth argument will be the full message received.
+
+An example of a function definition for a command is as follows:
+
+```
+def hello(self, cardinal, user, channel, msg):
+```
+
+Command functions should also contain a couple attributes. The first is a `commands` attribute, which should be a list of commands that Cardinal should respond to. For example, if Cardinal should respond to ".hello" or "Cardinal: hello", the list should contain the term `hello`. The second is the `help` attribute. This may be either a string, or a list of strings, to be sent when the included `help` command is called, with the command function as its parameter. If the attribute is a list of strings, each string will be sent separately. It is recommended that you use a list of two strings, with one briefly describing the command, and the second providing syntax. An example is below:
+
+```
+hello.commands = ['hello', 'hi']
+compare.help = ["Responds to the user with a greeting.",
+                "Syntax: .hello [user to greet]"]
+```
+
+Note: Square bracket notation should be used for optional parameters, while angled brackets should be used for required parameters.
+
+Lastly, they may contain a `regex` attribute, either as an alternative to a `command` attribute, or in addition to the `command` attribute. If the regex is detected in any received message, the command will be called.
+
+Additionally, a `close()` function may be defined, which will be called whenever the plugin is unloaded (this includes during reloads.)
 
 The default command symbol is `.`. To change this, you must modify the `command_regex` variable in `CardinalBot.py`.
 
