@@ -74,6 +74,7 @@ class HelpPlugin(object):
     def help(self, cardinal, user, channel, msg):
         parameters = msg.split()
         if len(parameters) == 1:
+            cardinal.sendMsg(channel, "I am a Python-based Cardinal IRC bot. You can find out more about me on my Github page: https://github.com/JohnMaguire2013/Cardinal")
             cardinal.sendMsg(channel, "Loaded commands: %s" % ', '.join(self._get_commands(cardinal)))
         else:
             command = parameters[1]
@@ -87,7 +88,7 @@ class HelpPlugin(object):
                 cardinal.sendMsg(channel, "Unable to handle help string returned by module.")
 
     help.commands = ['help']
-    help.help = ["Shows loaded commands if no command is given. Otherwise, returns that command's help string.", "Syntax: .help [command]"]
+    help.help = ["Shows bot information and loaded commands if no command is given. Otherwise, returns that command's help string.", "Syntax: .help [command]"]
 
     def owners(self, cardinal, user, channel, msg):
         cardinal.sendMsg(channel, "Owners: %s" % self._get_owners(cardinal))
