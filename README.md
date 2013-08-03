@@ -10,8 +10,6 @@ To install a plugin, simply add the plugin name to the `plugins` list in `Cardin
 
 To use the admin plugin, modify `plugins/admin/config.py` to contain your username and vhost in the following format: `nick@vhost`. Finally, uncomment the admin plugin from your `plugins` list in `CardinalBot.py`. 
 
-To use the Last.fm now playing plugin, modify `plugins/lastfm/config.py` to contain your Last.fm API key and then uncomment it from the `plugins` list in `CardinalBot.py`.
-
 What does it do?
 ----------------
 Currently, Cardinal can...
