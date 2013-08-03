@@ -34,16 +34,16 @@ The second type is command functions. These are the functions that Cardinal will
 
 An example of a function definition for a command is as follows:
 
-```
+```python
 def hello(self, cardinal, user, channel, msg):
 ```
 
 Command functions should also contain a couple attributes. The first is a `commands` attribute, which should be a list of commands that Cardinal should respond to. For example, if Cardinal should respond to ".hello" or "Cardinal: hello", the list should contain the term `hello`. The second is the `help` attribute. This may be either a string, or a list of strings, to be sent when the included `help` command is called, with the command function as its parameter. If the attribute is a list of strings, each string will be sent separately. It is recommended that you use a list of two strings, with one briefly describing the command, and the second providing syntax. An example is below:
 
-```
+```python
 hello.commands = ['hello', 'hi']
-compare.help = ["Responds to the user with a greeting.",
-                "Syntax: .hello [user to greet]"]
+hello.help = ["Responds to the user with a greeting.",
+              "Syntax: .hello [user to greet]"]
 ```
 
 Note: Square bracket notation should be used for optional parameters, while angled brackets should be used for required parameters.
