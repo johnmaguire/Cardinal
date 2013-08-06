@@ -93,7 +93,10 @@ class LastfmPlugin(object):
 
         # Use the returned username, or the entered/user's nick otherwise
         if not result:
-            username = message[1]
+            try:
+                username = message[1]
+            except IndexError:
+                username = user.group(1)
         else:
             username = result[0]
 
