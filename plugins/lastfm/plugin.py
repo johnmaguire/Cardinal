@@ -53,16 +53,20 @@ class LastfmPlugin(object):
             cardinal.sendMsg(channel, "Syntax: .setlastfm <username>")
             return
 
+        nick = user.group(1)
+        vhost = user.group(3)
+        username = message[1]
+
         c = self.conn.cursor()
-        c.execute("SELECT username FROM users WHERE nick=? OR vhost=?", (user.group(1), user.group(3)))
+        c.execute("SELECT username FROM users WHERE nick=? OR vhost=?", (nick, vhost))
         result = c.fetchone()
         if result:
-            c.execute("UPDATE users SET username=? WHERE nick=? OR vhost=?", (message[1], user.group(1), user.group(3)))
+            c.execute("UPDATE users SET username=? WHERE nick=? OR vhost=?", (username, nick, vhost))
         else:
-            c.execute("INSERT INTO users (nick, vhost, username) VALUES(?, ?, ?)", (user.group(1), user.group(3), message[1]))
+            c.execute("INSERT INTO users (nick, vhost, username) VALUES(?, ?, ?)", (nick, vhost, username))
         self.conn.commit()
 
-        cardinal.sendMsg(channel, "Your Last.fm username is now set to %s." % (message[1],))
+        cardinal.sendMsg(channel, "Your Last.fm username is now set to %s." % (username,))
 
     set_user.commands = ['setlastfm']
     set_user.help = ["Sets the default Last.fm username for your nick.",
@@ -83,12 +87,14 @@ class LastfmPlugin(object):
 
         # If they supplied user parameter, use that for the query instead
         message = msg.split()
+        
         if len(message) >= 2:
             nick = message[1]
             c.execute("SELECT username FROM users WHERE nick=?", (nick,))
         else:
             nick = user.group(1)
-            c.execute("SELECT username FROM users WHERE nick=? OR vhost=?", (nick, user.group(3)))
+            vhost = user.group(3)
+            c.execute("SELECT username FROM users WHERE nick=? OR vhost=?", (nick, vhost))
         result = c.fetchone()
 
         # Use the returned username, or the entered/user's nick otherwise
@@ -168,7 +174,8 @@ class LastfmPlugin(object):
             c.execute("SELECT username FROM users WHERE nick=?", (nick,))
         else:
             nick = user.group(1)
-            c.execute("SELECT username FROM users WHERE nick=? OR vhost=?", (nick, user.group(3)))
+            vhost = user.group(3)
+            c.execute("SELECT username FROM users WHERE nick=? OR vhost=?", (nick, vhost))
         result = c.fetchone()
 
         # Use the returned username, or the entered/user's nick otherwise
