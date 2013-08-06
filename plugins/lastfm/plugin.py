@@ -190,13 +190,27 @@ class LastfmPlugin(object):
             cardinal.sendMsg(channel, "Last.fm plugin is not configured correctly. Please set API key.")
             return
         elif 'error' in content and content['error'] == 7:
+            print content
             cardinal.sendMsg(channel, "One of the Last.fm usernames entered was invalid. Please try again.")
             return
 
         try:
             score = int(float(content['comparison']['result']['score']) * 100)
+            artists = []
+            if not 'artist' in content['comparison']['result']['artists']:
+                # Return early to avoid error on looping through artists
+                cardinal.sendMsg(channel, "According to Last.fm's Tasteometer, %s and %s share none of the same music." % (str(username1), str(username2)))
+                return
+            
+            # Account for Last.fm giving a string instead of a list if only one artist is shared
+            if not isinstance(content['comparison']['result']['artists']['artist'], list):
+                artists.append(str(content['comparison']['result']['artists']['artist']['name']))
+            else:
+                # Loop through all artists to grab artist names
+                for i in range(len(content['comparison']['result']['artists']['artist'])):
+                    artists.append(str(content['comparison']['result']['artists']['artist'][i]['name']))
 
-            cardinal.sendMsg(channel, "According to Last.fm's Tasteometer, %s and %s's music preferences are %d%% compatible!" % (str(username1), str(username2), score))
+            cardinal.sendMsg(channel, "According to Last.fm's Tasteometer, %s and %s's music preferences are %d%% compatible! Some artists they have in common include: %s" % (str(username1), str(username2), score, ', '.join(artists)))
         except KeyError:
             cardinal.sendMsg(channel, "An unknown error has occurred.")
 
