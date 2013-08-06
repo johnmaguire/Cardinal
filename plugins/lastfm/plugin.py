@@ -41,7 +41,7 @@ class LastfmPlugin(object):
             return
 
         c = self.conn.cursor()
-        c.execute("CREATE TABLE IF NOT EXISTS users (nick text, vhost text, username text)")
+        c.execute("CREATE TABLE IF NOT EXISTS users (nick text collate nocase, vhost text, username text)")
         self.conn.commit()
 
     def set_user(self, cardinal, user, channel, msg):
