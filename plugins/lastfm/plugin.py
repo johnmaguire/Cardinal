@@ -47,6 +47,7 @@ class LastfmPlugin(object):
     def set_user(self, cardinal, user, channel, msg):
         if not self.conn:
             cardinal.sendMsg(channel, "Unable to access local Last.fm database.")
+            return
 
         message = msg.split()
         if len(message) < 2:
