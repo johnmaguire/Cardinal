@@ -132,7 +132,7 @@ class CardinalBot(irc.IRCClient):
             loaded_plugins[plugin]['module'] = module
             loaded_plugins[plugin]['instance'] = instance
             loaded_plugins[plugin]['commands'] = commands
-            
+
             if plugin in self.loaded_plugins:
                 self._unload_plugins(plugin)
             self.loaded_plugins[plugin] = loaded_plugins[plugin]
