@@ -39,7 +39,7 @@ class NotesPlugin(object):
             return
 
         c = self.conn.cursor()
-        c.execute("CREATE TABLE IF NOT EXISTS notes (title text nocase, content text nocase)")
+        c.execute("CREATE TABLE IF NOT EXISTS notes (title text collate nocase, content text collate nocase)")
         self.conn.commit()
 
     def add_note(self, cardinal, user, channel, msg):
