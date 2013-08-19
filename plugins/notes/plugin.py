@@ -78,14 +78,21 @@ class NotesPlugin(object):
         title = message[1]
 
         c = self.conn.cursor()
-        c.execute("SELECT COUNT(title), content FROM notes WHERE title=?", (title,))
+        c.execute("SELECT COUNT(title)t FROM notes WHERE title=?", (title,))
         result = c.fetchone()
         
         if not result:
             cardinal.sendMsg(channel, "No notes found under '%s'." % title)
             return
 
-        cardinal.sendMsg(channel, "%s (%d): %s" % (title, result[0], bytes(result[1])))
+        count = result[0]
+
+        c.execute("SELECT content FROM notes WHERE title=? ORDER BY RANDOM() LIMIT 1", (title,))
+        result = c.fetchone()
+
+        content = bytes(result[0])
+
+        cardinal.sendMsg(channel, "%s (%d): %s" % (title, count, content))
 
     get_note.commands = ["note"]
     get_note.syntax = ["Retrieve a saved note.",
