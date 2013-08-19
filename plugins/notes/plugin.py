@@ -20,7 +20,10 @@
 
 import os
 import sys
+import re
 import sqlite3
+
+HELP_REGEX = re.compile(r'^!(.+?)')
 
 class NotesPlugin(object):
     def __init__(self, cardinal):
@@ -72,16 +75,22 @@ class NotesPlugin(object):
             return
 
         message = msg.split(' ', 1)
-        if len(message) < 2:
-            cardinal.sendMsg(channel, "Syntax: .note <title>")
-            return
-        title = message[1]
+        # Check if they are using ! syntax.
+        if message[0][0] == '!':
+            title = ' '.join(message)[1:]
+        else:
+            if len(message) != 2:
+                cardinal.sendMsg(channel, "Syntax: .note <title>")
+                return
+
+            # Grab title for .note syntax.
+            title = message[1]
 
         c = self.conn.cursor()
         c.execute("SELECT COUNT(title)t FROM notes WHERE title=?", (title,))
         result = c.fetchone()
-        
-        if not result:
+
+        if not result[0]:
             cardinal.sendMsg(channel, "No notes found under '%s'." % title)
             return
 
@@ -95,6 +104,7 @@ class NotesPlugin(object):
         cardinal.sendMsg(channel, "%s (%d): %s" % (title, count, content))
 
     get_note.commands = ["note"]
+    get_note.regex = HELP_REGEX
     get_note.syntax = ["Retrieve a saved note.",
                        "Syntax: .note <title>"]
 
