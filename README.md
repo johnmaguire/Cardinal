@@ -18,6 +18,7 @@ Out of the box Cardinal can...
 * Give users' now playing track on Last.fm and compare Last.fm users
 * Send reminder messages
 * Act as a calculator and unit/currency converter
+* Save "notes" -- effectively turns Cardinal into an info bot
 * ... and more!
 
 But Cardinal is still in active development! Features are being added as quickly as they can be thought up and coded. It's also easy to write your own plugins for added functionality!
