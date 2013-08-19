@@ -36,6 +36,7 @@ DEFAULT_PLUGINS = (
     'admin',
     'ping',
     'urls',
+    'notes',
     'calculator',
     'weather',
     'remind',
