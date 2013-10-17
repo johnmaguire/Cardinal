@@ -82,6 +82,19 @@ class CardinalBot(irc.IRCClient):
 
         return commands
 
+    def _get_plugin_events(self, instance):
+        # Compile a list of all events in the plugin
+        events = []
+        for method in dir(instance):
+            method = getattr(instance, method)
+            if callable(method) and (hasattr(method, 'on_join') or hasattr(method, 'on_part') or
+                                     hasattr(method, 'on_quit') or hasattr(method, 'on_kick') or
+                                     hasattr(method, 'on_action') or hasattr(method, 'on_topic') or
+                                     hasattr(method, 'on_nick')):
+                events.append(method)
+
+        return events
+
     def _load_plugins(self, plugins, first_run=False):
         # A dictionary of loaded plugins
         loaded_plugins = {}
@@ -125,18 +138,20 @@ class CardinalBot(irc.IRCClient):
 
                 continue
 
-            # Set module, config, and instance of the plugin
             commands = self._get_plugin_commands(instance)
+            events   = self._get_plugin_events(instance)
 
-            # If we are just starting Cardinal, print a list of loaded plugins.
+            # Set module, commands, and instance of the plugin
             loaded_plugins[plugin]['module'] = module
             loaded_plugins[plugin]['instance'] = instance
             loaded_plugins[plugin]['commands'] = commands
+            loaded_plugins[plugin]['events'] = events
 
             if plugin in self.loaded_plugins:
                 self._unload_plugins(plugin)
             self.loaded_plugins[plugin] = loaded_plugins[plugin]
 
+            # If we are just starting Cardinal, print a list of loaded plugins.
             if first_run:
                 print "Loaded plugin %s" % plugin
 
@@ -230,6 +245,100 @@ class CardinalBot(irc.IRCClient):
                 elif (get_natural_command and hasattr(command, 'commands') and
                       get_natural_command.group(2) in command.commands):
                     command(self, user, channel, get_natural_command.group(1))
+
+    # This is triggered when a user joins a channel we are on.
+    def userJoined(self, nick, channel):
+        # Print message to terminal
+        print "%s has joined the channel %s." % (nick, channel)
+
+        # Loop through each module to pass this event off to any event which
+        # is listening for it.
+        for name, module in self.loaded_plugins.items():
+            # Loop through each registered event of the module
+            for event in module['events']:
+                if hasattr(event, 'on_join') and event.on_join:
+                    event(self, nick, channel)
+
+    # This is triggered when a user parts a channel we are on.
+    def userLeft(self, nick, channel):
+        # Print message to terminal
+        print "%s parted the channel %s." % (nick, channel)
+
+        # Loop through each module to pass this event off to any event which
+        # is listening for it.
+        for name, module in self.loaded_plugins.items():
+            # Loop through each registered event of the module
+            for event in module['events']:
+                if hasattr(event, 'on_part') and event.on_part:
+                    event(self, nick, channel)
+
+    # This occurs when a user in a channel we are on quits the server.
+    def userQuit(self, nick, quitMessage):
+        # Print message to terminal
+        print "%s has quit (%s)." % (nick, quitMessage)
+
+        # Loop through each module to pass this event off to any event which
+        # is listening for it.
+        for name, module in self.loaded_plugins.items():
+            # Loop through each registered event of the module
+            for event in module['events']:
+                if hasattr(event, 'on_quit') and event.on_quit:
+                    event(self, nick, quitMessage)
+
+    # This occurs when a user is kicked from a channel we are on.
+    def userKicked(self, kicked, channel, kicker, message):
+        # Print message to terminal
+        print "%s has been kicked from %s by %s (Reason: %s)." % (kicked, channel, kicker, message)
+
+        # Loop through each module to pass this event off to any event which
+        # is listening for it.
+        for name, module in self.loaded_plugins.items():
+            # Loop through each registered event of the module
+            for event in module['events']:
+                if hasattr(event, 'on_kick') and event.on_kick:
+                    event(self, kicked, channel, kicker, message)
+
+    # This occurs when a channel uses /me on a channel we are on.
+    def action(self, user, channel, data):
+        # Break the user up into usable groups
+        user = re.match(self.user_regex, user)
+
+        # Print message to terminal
+        print "(%s) *** %s %s." % (channel, user.group(1), data)
+
+        # Loop through each module to pass this event off to any event which
+        # is listening for it.
+        for name, module in self.loaded_plugins.items():
+            # Loop through each registered event of the module
+            for event in module['events']:
+                if hasattr(event, 'on_action') and event.on_action:
+                    event(self, user, channel, data)
+
+    # This occurs when a user updates a topic on a channel we are on.
+    def topicUpdated(self, nick, channel, newTopic):
+        # Print message to terminal
+        print "(%s) %s has updated the topic: %s" % (channel, nick, newTopic)
+
+        # Loop through each module to pass this event off to any event which
+        # is listening for it.
+        for name, module in self.loaded_plugins.items():
+            # Loop through each registered event of the module
+            for event in module['events']:
+                if hasattr(event, 'on_topic') and event.on_topic:
+                    event(self, nick, channel, newTopic)
+
+    # This occurs when a user changes their nick in a channel we are on.
+    def userRenamed(self, oldname, newname):
+        # Print message to terminal
+        print "%s is now known as %s." % (oldname, newname)
+
+        # Loop through each module to pass this event off to any event which
+        # is listening for it.
+        for name, module in self.loaded_plugins.items():
+            # Loop through each registered event of the module
+            for event in module['events']:
+                if hasattr(event, 'on_nick') and event.on_nick:
+                    event(self, oldname, newname)
 
     # This is a wrapper command to really quit the server
     def disconnect(self, message=''):
