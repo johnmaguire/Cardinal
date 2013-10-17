@@ -42,6 +42,7 @@ DEFAULT_PLUGINS = (
     'remind',
     'lastfm',
     'youtube',
+#    'event_examples',
 )
 DEFAULT_SSL = False
 
