@@ -90,7 +90,7 @@ class CardinalBot(irc.IRCClient):
             if callable(method) and (hasattr(method, 'on_join') or hasattr(method, 'on_part') or
                                      hasattr(method, 'on_quit') or hasattr(method, 'on_kick') or
                                      hasattr(method, 'on_action') or hasattr(method, 'on_topic') or
-                                     hasattr(method, 'on_nick')):
+                                     hasattr(method, 'on_nick') or hasattr(method, 'on_invite')):
                 events.append(method)
 
         return events
@@ -339,6 +339,16 @@ class CardinalBot(irc.IRCClient):
             for event in module['events']:
                 if hasattr(event, 'on_nick') and event.on_nick:
                     event(self, oldname, newname)
+
+    def irc_unknown(self, prefix, command, params):
+        if command == "INVITE":
+            nick = params[0]
+            channel = params[1]
+
+            for name, module in self.loaded_plugins.items():
+                for event in module['events']:
+                    if hasattr(event, 'on_invite') and event.on_invite:
+                        event(self, nick, channel)
 
     # This is a wrapper command to really quit the server
     def disconnect(self, message=''):
