@@ -24,7 +24,7 @@ import urllib2
 import socket
 import HTMLParser
 
-URL_REGEX = re.compile(r'(?:^|\s)((?:www[0-9]{0,3}[.]|https?://)?(?:[a-z0-9]*[.])*(?:[a-z0-9]+[.][a-z]{2,4}))', flags=re.IGNORECASE)
+URL_REGEX = re.compile(r'(?:^|\s)((?:www[0-9]{0,3}[.]|https?://)?(?:[a-z0-9]*[.])*(?:[a-z0-9]+[.][a-z]{2,4})(?:\((?:[^\s()<>]+|(?:\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:\'".,<>?«»“”‘’])*)', re.DOTALL)
 TITLE_REGEX = re.compile(r'<title(\s+.*?)?>(.*?)</title>', flags=re.IGNORECASE|re.DOTALL)
 
 class URLsPlugin(object):
@@ -46,7 +46,9 @@ class URLsPlugin(object):
                     timeout = 10
                     print "Warning: TIMEOUT not set in urls/config.py."
 
-                f = urllib2.urlopen(url, timeout=timeout)
+                o = urllib2.build_opener()
+                o.addheaders = [('User-agent', 'Mozilla/5.0 (Windows NT 6.2; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/32.0.1667.0 Safari/537.36')]
+                f = o.open(url, timeout=timeout)
             except urllib2.URLError, e:
                 print "Unable to load URL (%s): %s" % (url, e.reason)
                 return
@@ -78,9 +80,6 @@ class URLsPlugin(object):
                     
                     cardinal.sendMsg(channel, "URL Found: %s" % title)
                     continue
-
-            # The title was either blank or we couldn't find one
-            cardinal.sendMsg(channel, "URL Found: [ No title. ]")
 
     get_title.regex = URL_REGEX
 
