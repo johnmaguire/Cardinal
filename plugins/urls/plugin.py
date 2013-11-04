@@ -24,7 +24,7 @@ import urllib2
 import socket
 import HTMLParser
 
-URL_REGEX = re.compile(r'(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:\'".,<>?«»“”‘’]))', flags=re.IGNORECASE)
+URL_REGEX = re.compile(r'(?:^|\s)((?:www[0-9]{0,3}[.]|https?://)?(?:[a-z0-9]*[.])*(?:[a-z0-9]+[.][a-z]{2,4}))', flags=re.IGNORECASE)
 TITLE_REGEX = re.compile(r'<title(\s+.*?)?>(.*?)</title>', flags=re.IGNORECASE|re.DOTALL)
 
 class URLsPlugin(object):
@@ -34,8 +34,8 @@ class URLsPlugin(object):
 
         # Loop through the URLs, and make them valid
         for url in urls:
-            url = url[0]
-            if url[:3] != "htt":
+            url = url.lower()
+            if url[:7] != "http://" and url[:8] != "https://":
                 url = "http://" + url
 
             # Attempt to load the page, timing out after a default of ten seconds
