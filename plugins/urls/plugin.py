@@ -24,10 +24,15 @@ import urllib2
 import socket
 import HTMLParser
 
+from datetime import datetime
+
 URL_REGEX = re.compile(r"(?:^|\s)((?:www[0-9]{0,3}[.]|https?://)?(?:[a-z0-9]*[.])*(?:[a-z0-9]+[.][a-z]{2,4})(?:/[A-Za-z0-9_.-~:/?\#\[\]@!$&'\(\)*+,;=%]*)?)", flags=re.DOTALL)
 TITLE_REGEX = re.compile(r'<title(\s+.*?)?>(.*?)</title>', flags=re.IGNORECASE|re.DOTALL)
 
 class URLsPlugin(object):
+    last_url = None
+    last_url_at = None
+
     def get_title(self, cardinal, user, channel, msg):
         # Find every URL within the message
         urls = re.findall(URL_REGEX, msg)
@@ -36,6 +41,13 @@ class URLsPlugin(object):
         for url in urls:
             if url[:7].lower() != "http://" and url[:8].lower() != "https://":
                 url = "http://" + url
+
+            if (url == self.last_url and self.last_url_at and
+                (datetime.now() - self.last_url_at).seconds < cardinal.config['urls'].LOOKUP_COOLOFF):
+                return
+
+            self.last_url = url
+            self.last_url_at = datetime.now()
 
             # Attempt to load the page, timing out after a default of ten seconds
             try:
