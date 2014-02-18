@@ -90,8 +90,8 @@ class URLsPlugin(object):
                     h = HTMLParser.HTMLParser()
                     title = str(h.unescape(title))
 
-                    # Truncate long titles to the first 450 characters.
-                    title_to_send = title[:450] if len(title) >= 450 else title
+                    # Truncate long titles to the first 200 characters.
+                    title_to_send = title[:200] if len(title) >= 200 else title
                     
                     cardinal.sendMsg(channel, "URL Found: %s" % title_to_send)
                     continue
