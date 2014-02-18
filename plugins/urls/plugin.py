@@ -1,4 +1,5 @@
 # coding: iso-8859-15 
+# Copyright (c) 2014 Shawn Smith <shawn.spamfilter@gmail.com>
 # Copyright (c) 2013 John Maguire <john@leftforliving.com>
 # 
 # Permission is hereby granted, free of charge, to any person obtaining a copy 
@@ -88,8 +89,11 @@ class URLsPlugin(object):
                     
                     h = HTMLParser.HTMLParser()
                     title = str(h.unescape(title))
+
+                    # Truncate long titles to the first 200 characters.
+                    title_to_send = title[:200] if len(title) >= 200 else title
                     
-                    cardinal.sendMsg(channel, "URL Found: %s" % title)
+                    cardinal.sendMsg(channel, "URL Found: %s" % title_to_send)
                     continue
 
     get_title.regex = URL_REGEX
