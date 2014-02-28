@@ -5,7 +5,7 @@ class PingPlugin(object):
         else:
             cardinal.sendMsg(channel, "Pong.")
 
-    pong.regex = r'^ping[.?!]?$'
+    pong.regex = r'(?i)^ping[.?!]?$'
     pong.commands = ['ping']
     pong.help = "Responds to a ping message with 'Pong.'"
 
