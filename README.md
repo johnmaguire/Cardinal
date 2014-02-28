@@ -57,7 +57,7 @@ The default command symbol is `.`. To change this, you must modify the `command_
 
 Contributing
 ------------
-If you have found a bug, feel free to submit a patch or simply open an issue on this repository and I will get to it as soon as possible.
+If you have found a bug, feel free to submit a patch or simply open an issue on this repository and I will get to it as soon as possible. Be sure to add your name to the CONTRIBUTORS file in a separate commit on the same branch as your modification so that I can give credit where credit is due.
 
 If you have written a plugin that you feel could be useful to other users of Cardinal, open an issue with a link to a Github repository with your plugin in it, and I will consider adding it to the project as a [Git submodule](http://git-scm.com/book/en/Git-Tools-Submodules).
 
