@@ -1,4 +1,8 @@
+from datetime import datetime, timedelta
+
 class HelpPlugin(object):
+    # Gets a list of owners from the admin plugin instantiated within the
+    # Cardinal instance, if exists
     def _get_owners(self, cardinal):
         owners = False
         if 'admin' in cardinal.config:
@@ -6,14 +10,16 @@ class HelpPlugin(object):
             for owner in cardinal.config['admin'].OWNERS:
                 owner = owner.split('@')
                 owners.append(owner[0])
-            
+
             owners = list(set(owners))
 
         return ', '.join(owners) if owners else 'No registered owners.'
 
+    # Pulls a list of all commands from Cardinal instance, using either the
+    # first defined command alias or failing that, the command's name
     def _get_commands(self, cardinal):
         commands = []
-        
+
         # Loop through commands registered in Cardinal
         for name, module in cardinal.loaded_plugins.items():
             for command in module['commands']:
@@ -24,12 +30,13 @@ class HelpPlugin(object):
 
         return commands
 
+    # Gets the help text out of the Cardinal instance for a given command
     def _get_command_help(self, cardinal, help_command):
         help_text = 'No help found for that command.'
 
         # Check each module for the command being searched for
         for name, module in cardinal.loaded_plugins.items():
-            found_command = None
+            found_command = False
 
             for command in module['commands']:
                 # First check if the command responds to the requested command
@@ -42,15 +49,37 @@ class HelpPlugin(object):
                     found_command = command
                     break
 
+            # If the command was found and has a help file, set the help_text
+            if found_command and hasattr(found_command, 'help'):
+                help_text = found_command.help
+
             # Return the help text for the command found if it exists
             if found_command:
-                return found_command.help if hasattr(found_command, 'help') else 'No help found for that command.'
+                return help_text
 
         # Didn't find the command, so return a command does not exist error
         return 'Command does not exist.'
 
+    # Pulls relevant meta information from the Cardinal instance
+    def _get_meta(self, cardinal):
+        return {
+            'uptime':  cardinal.uptime,
+            'booted':  cardinal.booted,
+            'reloads': cardinal.reloads
+        }
+
+    # Given a number of seconds, converts it to a readable uptime string
+    def _pretty_uptime(self, seconds):
+        days, seconds    = divmod(seconds, 60 * 60 * 24)
+        hours, seconds   = divmod(seconds, 60 * 60)
+        minutes, seconds = divmod(seconds, 60)
+        uptime           = ("%d days" % days) if days else ""
+        uptime          += "%02d:%02d:%02d" % (hours, minutes, seconds)
+
+        return uptime
+
     # Give the user a list of valid commands in the bot if no command is
-    # provided. If a valid command is provided, return its 
+    # provided. If a valid command is provided, return its help text
     def help(self, cardinal, user, channel, msg):
         parameters = msg.split()
         if len(parameters) == 1:
@@ -70,8 +99,18 @@ class HelpPlugin(object):
     help.help = ["Shows loaded commands if no command is given. Otherwise, returns that command's help string.",
                  "Syntax: .help [command]"]
 
+    # Sends some basic meta information about the bot
     def info(self, cardinal, user, channel, msg):
-        cardinal.sendMsg(channel, "I am a Python-based Cardinal IRC bot. My owners are: %s. You can find out more about me on my Github page: http://johnmaguire2013.github.io/Cardinal" % self._get_owners(cardinal))
+        owners   = self._get_owners(cardinal)
+        meta     = self._get_meta(cardinal)
+
+        # Calculate uptime into readable format
+        now    = datetime.now()
+        uptime = self._pretty_uptime((now - meta['uptime']).seconds)
+        booted = self._pretty_uptime((now - meta['booted']).seconds)
+
+        cardinal.sendMsg(channel, "I am a Python-based Cardinal IRC bot. My owners are: %s. You can find out more about me on my Github page: http://johnmaguire2013.github.io/Cardinal (Try .help for commands.)" % owners)
+        cardinal.sendMsg(channel, "I have been online without downtime for %s, and was initially brought online %s ago. I've been reloaded (or partially reloaded) %s times since then." % (uptime, booted, meta['reloads']))
 
     info.commands = ['info']
     info.help = ["Gives some basic information about the bot.",

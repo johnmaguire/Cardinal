@@ -4,8 +4,8 @@ import signal
 import importlib
 import linecache
 import inspect
-import time
 import re
+from datetime import datetime, time
 
 from twisted.words.protocols import irc
 from twisted.internet import protocol, reactor
@@ -36,6 +36,13 @@ class CardinalBot(irc.IRCClient):
 
     # This dictionary will contain all the configuration files
     config = {}
+
+    # Some meta info, keeping track of the uptime of the bot, the boot time
+    # (when the first instance of CardinalBot was brought online), and the
+    # number of reloads performed.
+    uptime  = None
+    booted  = None
+    reloads = 0
 
     def _import_module(self, module, config=False):
         if inspect.ismodule(module):
@@ -131,9 +138,13 @@ class CardinalBot(irc.IRCClient):
                 self._unload_plugins(plugin)
             self.loaded_plugins[plugin] = loaded_plugins[plugin]
 
-            # If we are just starting Cardinal, print a list of loaded plugins.
+            # If we are just starting Cardinal, print a list of loaded plugins
             if first_run:
                 print "Loaded plugin %s" % plugin
+
+        # If this is a reload, add to the count
+        if not first_run:
+                self.reloads += 1
 
         if len(failed_plugins) > 0:
             return failed_plugins
@@ -189,6 +200,10 @@ class CardinalBot(irc.IRCClient):
         # Attempt to join channels
         for channel in self.factory.channels:
             self.join(channel)
+
+        # Set the uptime and boot time from the factory
+        self.uptime = datetime.now()
+        self.booted = self.factory.booted
 
     # This is triggered when we have joined a channel
     def joined(self, channel):
@@ -367,6 +382,9 @@ class CardinalBotFactory(protocol.ClientFactory):
     # The instance of CardinalBot, which will be set by CardinalBot
     cardinal = None
 
+    # The time the first instance of CardinalBot was brought online
+    booted = None
+
     def __init__(self, network, channels, nickname='Cardinal', password=None, plugins=[]):
         self.network = network.lower()
         self.password = password
@@ -375,6 +393,8 @@ class CardinalBotFactory(protocol.ClientFactory):
         self.plugins = plugins
 
         signal.signal(signal.SIGINT, self._sigint)
+
+        self.booted = datetime.now()
 
     def _sigint(self, signal, frame):
         self.disconnect = True
