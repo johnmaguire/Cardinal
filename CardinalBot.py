@@ -382,6 +382,17 @@ class CardinalBotFactory(protocol.ClientFactory):
     # The instance of CardinalBot, which will be set by CardinalBot
     cardinal = None
 
+    # The minimum time to wait before attempting to reconnect from an
+    # unexpected disconnection (in seconds)
+    minimum_reconnection_wait = 10
+
+    # The maximum amount of time to wait before attempting to reconnect from an
+    # unexpected disconnection (in seconds)
+    maximum_reconnection_wait = 3600
+
+    # The amount of time we waited before attempting to reconnect last
+    last_reconnection_wait = None
+
     # The time the first instance of CardinalBot was brought online
     booted = None
 
@@ -402,13 +413,37 @@ class CardinalBotFactory(protocol.ClientFactory):
             self.cardinal.quit('Received SIGINT.')
 
     def clientConnectionLost(self, connector, reason):
+        # This flag tells us whether Cardinal was supposed to disconnect or not
         if not self.disconnect:
-            print "Lost connection (%s), reconnecting in 10 seconds." % reason
-            time.sleep(10)
+            # Reset the last reconnection wait time since this is the first
+            # time we've disconnected since a successful connection
+            self.last_reconnection_wait = self.minimum_reconnection_wait
+
+            print "Lost connection (%s), reconnecting in %d seconds." % (reason, self.minimum_reconnection_wait)
+            time.sleep(self.minimum_reconnection_wait)
+
             connector.connect()
         else:
             print "Lost connection (%s), quitting." % reason
             reactor.stop()
 
     def clientConnectionFailed(self, connector, reason):
-        print "Could not connect: %s" % reason
+        # If we disconnected on our first connection attempt, then we don't
+        # need to calculate a wait time, we can just use the minimum time
+        if not self.last_reconnection_wait:
+            wait_time = self.minimum_reconnection_wait
+        else:
+            # We'll attempt to reconnect after waiting twice as long as the
+            # last time we waited, unless it exceeds the maximum wait time, in
+            # which case we'll wait that long instead
+            wait_time = self.last_reconnection_wait * 2
+            if wait_time > self.maximum_reconnection_wait:
+                wait_time = self.maximum_reconnection_wait
+       
+        # Set the last reconnection wait time so we can double it next time
+        self.last_reconnection_wait = wait_time
+
+        print "Could not connect (%s), retrying in %d seconds" % (reason, wait_time)
+        time.sleep(wait_time)
+
+        connector.connect()
