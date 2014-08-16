@@ -10,29 +10,6 @@ from twisted.internet import reactor
 from cardinal.config import ConfigParser
 from cardinal.bot import CardinalBotFactory
 
-# Hardcoded defaults in case the config file is missing and no command-line
-# options are specified
-DEFAULT_NICKNAME = 'Cardinal'
-DEFAULT_PASSWORD = None
-DEFAULT_NETWORK = 'irc.freenode.net'
-DEFAULT_PORT = 6667
-DEFAULT_SSL = False
-DEFAULT_CHANNELS = ('#bots',)
-DEFAULT_PLUGINS = (
-    'help',
-    'admin',
-    'ping',
-    'urls',
-    'notes',
-    'calculator',
-    'weather',
-    'remind',
-    'lastfm',
-    'youtube',
-    'join_on_invite',
-#    'event_examples',
-)
-
 # If this file is being run directly, set the logging level, load config file,
 # parse command-line arguments, and instance and run CardinalBot
 if __name__ == "__main__":
