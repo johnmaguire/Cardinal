@@ -1,11 +1,12 @@
 import os
 import sys
+import time
 import signal
 import importlib
 import linecache
 import inspect
 import re
-from datetime import datetime, time
+from datetime import datetime
 
 from twisted.words.protocols import irc
 from twisted.internet import protocol, reactor
