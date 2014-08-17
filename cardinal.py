@@ -95,6 +95,8 @@ https://github.com/JohnMaguire/Cardinal
         logging.info(
             "Connecting over SSL to %s:%d" % (config['network'], config['port'])
         )
+
+        # For SSL, we need to import the SSL module from Twisted
         from twisted.internet import ssl
         reactor.connectSSL(config['network'], config['port'], factory, ssl.ClientContextFactory())
 
