@@ -32,7 +32,18 @@ class ConfigSpec(object):
     options = {}
     """A dictionary holding tuples of the options"""
 
-    def add_option(self, name, type, default = None):
+    def add_option(self, name, type, default=None):
+        """Adds an option to the spec
+
+        Keyword arguments:
+          name    -- The name of the option to add to the spec.
+          type    -- An object representing the option's type.
+          default -- Optionally, what the option should default to.
+
+        Raises:
+          ValueError -- If the option is not a string or type isn't a class.
+
+        """
         # Name must be a string
         if not isinstance(name, basestring):
             raise ValueError("Name must be a string")
@@ -56,8 +67,11 @@ class ConfigSpec(object):
           name  -- The name of the option to validate for.
           value -- The value to validate.
 
-        Return:
-          string -- The value passed in or the option's default value.
+        Returns:
+          string -- The value passed in or the option's default value
+
+        Raises:
+          KeyError -- When the option name doesn't exist in the spec.
 
         """
         if name not in self.options:
@@ -104,6 +118,9 @@ class ConfigParser(object):
         Keyword arguments:
           spec -- Should be a built ConfigSpec
 
+        Raises:
+          ValueError -- If a valid config spec is not passed in.
+
         """
         if not isinstance(spec, ConfigSpec):
             raise ValueError("Spec must be a config spec")
@@ -119,10 +136,13 @@ class ConfigParser(object):
 
         Keyword arguments:
           json_object    -- Dict object returned by json.load() / json.loads().
-          called_by_self -- Internal parameter only used for sanity check.
+          called_by_self -- Internal parameter only used for sanity checking.
 
-        Return:
+        Returns:
           dict -- A UTF-8 encoded version of json_object.
+
+        Raises:
+          ValueError -- When the json_object isn't a dict.
 
         """
         if not called_by_self and not isinstance(json_object, dict):
@@ -153,7 +173,7 @@ class ConfigParser(object):
         Keyword arguments:
           file -- Path to a JSON config file.
 
-        Return:
+        Returns:
           dict -- Dictionary object of the entire config.
 
         """
@@ -196,10 +216,10 @@ class ConfigParser(object):
         """Merges the args returned by argparse.ArgumentParser into the config.
 
         Keyword arguments:
-          args -- The args object returned by argsparse.parse_args()
+          args -- The args object returned by argsparse.parse_args().
 
-        Return:
-          dict -- Dictionary object of the entire config
+        Returns:
+          dict -- Dictionary object of the entire config.
 
         """
         for option in self.spec.options:
