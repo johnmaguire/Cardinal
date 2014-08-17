@@ -1,12 +1,11 @@
 #!/usr/bin/env python
 
-import os
 import logging
-import json
 import argparse
 from getpass import getpass
 
 from twisted.internet import reactor
+
 from cardinal.config import ConfigParser, ConfigSpec
 from cardinal.bot import CardinalBotFactory
 
