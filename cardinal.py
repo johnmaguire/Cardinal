@@ -9,13 +9,10 @@ from twisted.internet import reactor
 from cardinal.config import ConfigParser, ConfigSpec
 from cardinal.bot import CardinalBotFactory
 
-# If this file is being run directly, set the logging level, load config file,
-# parse command-line arguments, and instance and run CardinalBot
 if __name__ == "__main__":
-    # Set logging to info by default
     logging.basicConfig(level=logging.INFO)
 
-    # Define the ArgumentParser for CLI options
+    # Create a new instance of ArgumentParser with a description about Cardinal
     arg_parser = argparse.ArgumentParser(description="""
 Cardinal IRC bot
 
@@ -26,13 +23,24 @@ below.
 https://github.com/JohnMaguire/Cardinal
 """, formatter_class=argparse.RawDescriptionHelpFormatter)
 
-    arg_parser.add_argument('-n', '--nickname', metavar='nickname', help='nickname to connect as')
-    arg_parser.add_argument('--password', action='store_true', help='set this flag to get a password prompt for identifying')
-    arg_parser.add_argument('-i', '--network', metavar='network', help='network to connect to')
-    arg_parser.add_argument('-o', '--port', type=int, metavar='port', help='network port to connect to')
-    arg_parser.add_argument('-s', '--ssl', action='store_true', help='you must set this flag for SSL connections')
-    arg_parser.add_argument('-c', '--channels', nargs='*', metavar='channel', help='list of channels to connect to on startup')
-    arg_parser.add_argument('-p', '--plugins', nargs='*', metavar='plugin', help='list of plugins to load on startup')
+    # Add all the possible arguments
+    #
+    # TODO: Shorten this? Maybe some of these are unnecessary.
+    # TODO: Add option for a config file location.
+    arg_parser.add_argument('-n', '--nickname', metavar='nickname',
+        help='nickname to connect as')
+    arg_parser.add_argument('--password', action='store_true',
+        help='set this flag to get a password prompt for identifying')
+    arg_parser.add_argument('-i', '--network', metavar='network',
+        help='network to connect to')
+    arg_parser.add_argument('-o', '--port', type=int, metavar='port',
+        help='network port to connect to')
+    arg_parser.add_argument('-s', '--ssl', action='store_true',
+        help='you must set this flag for SSL connections')
+    arg_parser.add_argument('-c', '--channels', nargs='*', metavar='channel',
+        help='list of channels to connect to on startup')
+    arg_parser.add_argument('-p', '--plugins', nargs='*', metavar='plugin',
+        help='list of plugins to load on startup')
 
     # Define the config spec and create a parser for our internal config
     spec = ConfigSpec()
@@ -54,22 +62,28 @@ https://github.com/JohnMaguire/Cardinal
         'weather',
         'youtube'
     ])
+
+    # TODO: Write a get_parser() method for ConfigSpec that handles instancing
+    # and keeping track of the instance.
     parser = ConfigParser(spec)
 
     # First attempt to load config.json for config options
-    logging.info("Looking for and attempting to load config.json")
+    #
+    # TODO: Make sure that we're looking for config.json in the user's current
+    # working directory, rather than relative to this file.
+    logging.debug("Attempting to load config.json if it existss")
     parser.load_config('config.json')
 
     # Parse command-line arguments last, as they should override both project
     # defaults and the user config (if available)
-    logging.info("Parsing command-line arguments")
+    logging.debug("Parsing command-line arguments")
     args = arg_parser.parse_args()
 
     # If SSL is set to false, set it to None (small hack - action 'store_true'
     # in arg_parse defaults to False. False instead of None will overwrite our
     # config settings.)
     if not args.ssl:
-        args.ssl = True
+        args.ssl = None
 
     # If the password flag was set, let the user safely type in their password
     if args.password:
@@ -78,27 +92,30 @@ https://github.com/JohnMaguire/Cardinal
         args.password = None
 
     # Merge the args into the config object
-    logging.info("Merging command-line arguments into config")
+    logging.debug("Merging command-line arguments into config")
     config = parser.merge_argparse_args_into_config(args)
 
     # Instance a new factory, and connect with/without SSL
-    logging.info("Initializing Cardinal factory")
+    logging.debug("Instantiating CardinalBotFactory")
     factory = CardinalBotFactory(config['network'], config['channels'],
         config['nickname'], config['password'], config['plugins'])
 
     if not config['ssl']:
         logging.info(
-            "Connecting over plaintext to %s:%d" % (config['network'], config['port'])
+            "Connecting over plaintext to %s:%d" %
+                (config['network'], config['port'])
         )
         reactor.connectTCP(config['network'], config['port'], factory)
     else:
         logging.info(
-            "Connecting over SSL to %s:%d" % (config['network'], config['port'])
+            "Connecting over SSL to %s:%d" %
+                (config['network'], config['port'])
         )
 
         # For SSL, we need to import the SSL module from Twisted
         from twisted.internet import ssl
-        reactor.connectSSL(config['network'], config['port'], factory, ssl.ClientContextFactory())
+        reactor.connectSSL(config['network'], config['port'], factory,
+            ssl.ClientContextFactory())
 
     # Run the Twisted reactor
     reactor.run()

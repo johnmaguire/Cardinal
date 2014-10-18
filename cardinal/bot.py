@@ -51,7 +51,9 @@ class CardinalBot(irc.IRCClient):
         if inspect.ismodule(module):
             return reload(module)
         elif isinstance(module, basestring):
-            return importlib.import_module('plugins.%s.%s' % (module, 'config' if config else 'plugin'))
+            return importlib.import_module(
+                'plugins.%s.%s' % (module, 'config' if config else 'plugin')
+            )
 
     def _create_plugin_instance(self, module):
         argspec = inspect.getargspec(module.setup)

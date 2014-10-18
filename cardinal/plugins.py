@@ -22,18 +22,16 @@ class PluginManager(object):
           plugins -- A list of plugins to be loaded when instanced.
 
         Raises:
-          ValueError -- When cardinal is not a CardinalBot instance.
+          ValueError -- When plugins is not a list.
 
         """
-        logging.info("Initializing plugin manager")
-
         # To prevent circular dependencies, we can't sanity check this. Hope
         # for the best.
         self.cardinal = cardinal
 
         # Make sure we operate on a list
-        if plugins is None:
-            plugins = []
+        if plugins is not None and not isinstance(plugins, list):
+            raise ValueError("Plugins argument must be a list")
 
         for plugin in plugins:
             self.load_plugin(plugin)
@@ -80,7 +78,7 @@ class PluginManager(object):
     def _import_module(self, module, type='plugin'):
         """Given a plugin name, will import it from its directory or reload it
 
-        If we are passing in a string, we can safely assume at this point that
+        If we are passing in a module, we can safely assume at this point that
         it's a plugin we've already loaded, so we just need to run reload() on
         it. However, if we're loading it fresh then we need to import it out
         of the plugins directory.
@@ -98,10 +96,10 @@ class PluginManager(object):
         """Creates an instance of the plugin module
 
         If the setup() function of the plugin's module takes an argument then
-        we will provide the instance of Cardinal to the plugin.
+        we will provide the instance of CardinalBot to the plugin.
 
         Keyword arguments:
-          module -- The module to instance.
+          module -- The module to instantiate.
 
         Returns:
           object -- The instance of the plugin.
@@ -110,15 +108,60 @@ class PluginManager(object):
           ValueError -- When a plugin's setup function has more than one
             argument.
         """
+        # Check whether the setup method on the module accepts an argument. If
+        # it does, they are expecting our instance of CardinalBot to be passed
+        # in. If not, just call setup. If there is more than one argument
+        # accepted, the method is invalid.
         argspec = inspect.getargspec(module.setup)
         if len(argspec.args) == 0:
             instance = module.setup()
         elif len(argspec.args) == 1:
             instance = module.setup(self.cardinal)
         else:
-            raise ValueError("Plugin setup function must have 0 or 1 arguments")
+            # TODO: Create an internal exception type for our own plugin rules.
+            raise ValueError("Plugin setup function may not have more than "
+                "one argument")
 
         return instance
+
+    def _close_plugin_instance(self, plugin):
+        """Calls the close method on an instance of a plugin
+
+        If the plugin's module has a close() function, we will check whether
+        it expects an instance of CardinalBot or not by checking whether it
+        accepts an argument or not. If it does, we will pass in the instance of
+        CardinalBot. This method is called just prior to removing the internal
+        reference to the plugin's instance.
+
+        Keyword arguments:
+          plugin -- The name of the plugin to remove the instance of.
+
+        Raises:
+          ValueError -- When a plugin's close function has more than one
+            argument.
+        """
+
+        instance = self.plugins[plugin]['instance']
+        module = self.plugins[plugin]['module']
+
+        if hasattr(instance, 'close') and inspect.ismethod(instance.close):
+            # The plugin has a close method, so we now need to check how
+            # many arguments the method has. If it only has one, then the
+            # argument must be 'self' and therefore they aren't expecting
+            # us to pass in an instance of CardinalBot. If there are two
+            # arguments, they expect CardinalBot. Anything else is invalid.
+            argspec = inspect.getargspec(
+                sinstance.close
+            )
+
+            if len(argspec.args) == 1:
+                module.close()
+            elif len(argspec.args) == 2:
+                module.close(self.cardinal)
+            else:
+            # TODO: Create an internal exception type for our own plugin rules.
+            raise ValueError("Plugin close function may not have more than "
+                "one argument")
 
     def _get_plugin_commands(self, instance):
         """Find the commands in a plugin and return them as callables
@@ -132,9 +175,16 @@ class PluginManager(object):
         """
         commands = []
 
+        # Loop through each method on the instance, checking whether it's a
+        # method meant to be interpreted as a command or not.
         for method in dir(instance):
             method = getattr(instance, method)
-            if callable(method) and (hasattr(method, 'regex') or hasattr(method, 'commands')):
+
+            if callable(method) and (hasattr(method, 'regex') or
+                                     hasattr(method, 'commands'):
+                # Since this method has either the 'regex' or the 'commands'
+                # attribute assigned, it's registered as a command for
+                # Cardinal.
                 commands.append(method)
 
         return commands
@@ -171,7 +221,7 @@ class PluginManager(object):
 
         return events
 
-    def load(self, name):
+    def load(self, plugins):
         """Takes either a plugin name or a list of plugins and loads them.
 
         This involves attempting to import the plugin's module, import the
@@ -179,41 +229,50 @@ class PluginManager(object):
         commands and events.
 
         Keyword arguments:
-          name -- This can be a list of plugin names, or a single plugin name.
+          plugins -- This can be either a single or list of plugin names.
 
         Returns:
           list -- A list of failed plugins, or an empty list.
 
         Raises:
-          ValueError -- When the name is not a string or list.
+          ValueError -- When the `plugin` argument is not a string or list.
 
         """
-        # Put it into a list if it's a string then make sure we have a list
-        if isinstance(name, basestring):
-        	name = [name.encode('utf-8')]
-        if not isinstance(name, list):
-            raise ValueError("Name must be a string or list of plugins")
+        # If they passed in a string, convert it to a list (and encode the
+        # name as UTF-8.)
+        if isinstance(plugins, basestring):
+            plugins = [plugins.encode('utf-8')]
+        if not isinstance(plugins, list):
+            raise ValueError(
+                "Plugins argument must be a string or list of plugins"
+            )
 
-        # List to hold failed plugins as a return value
+        # We'll keep track of plugins we failed to load (either because we)
         failed_plugins = []
 
-        # This helps with debugging, as uncaught exceptions can show the wrong
-        # data if the linecache isn't cleared
+        # Sort of a hack... this helps with debugging, as uncaught exceptions
+        # can show the wrong data (line numbers / relevant code) if linecache
+        # doesn't get cleared when a module is reloaded. This is Python's
+        # internal cache of code files and line numbers.
         linecache.clearcache()
 
-        for plugin in name:
+        for plugin in plugins:
             logging.info("Attempting to load plugin: %s" % plugin)
 
             # Import each plugin's module with our own hacky function to reload
             # modules that have already been imported previously
             try:
-                module = self._import_module(
-                    self.plugins[plugin]['module'] if plugin in self.plugins else plugin
-                )
-            # If we fail to import it (usually a syntax error), then log an
-            # error and move to the next plugin
+                if plugin in self.plugins:
+                    logging.info("Already loaded, reloading: %s" % plugin)
+                    module_to_import = self.plugins[plugin]['module']
+                else:
+                    module_to_import = plugin
+
+                module = self._import_module(module_to_import)
+
             except Exception, e:
-                logging.error("Could not load plugin module: %s (%s)" % (plugin, e))
+                # Probably a syntax error in the plugin, log the exception
+                logging.exception("Could not load plugin module: %s" % plugin)
                 failed_plugins.append(plugin)
 
                 continue
@@ -231,18 +290,18 @@ class PluginManager(object):
                     config = self._import_module(
                         plugin, 'config'
                     )
-            # This is expected if the plugin doesn't have a config file
             except ImportError:
+                # This is expected if the plugin doesn't have a config file
                 logging.info("No config found for plugin: %s" % plugin)
-            # This is usually do to a syntax error, so log a warning
             except Exception, e:
-                logging.warning("Could not load plugin config: %s (%s)" % (plugin, e))
+                # This is probably due to a syntax error, so log the exception
+                logging.exception("Could not load plugin config: %s" % plugin)
 
             # Instance the plugin
             try:
                 instance = self._create_plugin_instance(module)
             except Exception, e:
-                logging.error("Could not create plugin instance: %s (%s)" % (plugin, e))
+                logging.exception("Could not instantiate plugin: %s" % plugin)
                 failed_plugins.append(plugin)
 
                 continue
@@ -271,41 +330,49 @@ class PluginManager(object):
         if so, clears all the data associated with it.
 
         Keyword arguments:
-          name -- This can be a list of plugin names, or a single plugin name.
+          plugins -- This can be either a single or list of plugin names.
 
         Returns:
           list -- A list of failed plugins, or an empty list.
 
         Raises:
-          ValueError -- When the name is not a string or list.
+          ValueError -- When the `plugins` argument is not a string or list.
 
         """
-        if isinstance(name, basestring):
-            name = [name.encode('utf-8')]
-        if not isinstance(name, list):
-            raise ValueError("Name must be a string or list of plugins")
+        # If they passed in a string, convert it to a list (and encode the
+        # name as UTF-8.)
+        if isinstance(plugins, basestring):
+            plugins = [plugins.encode('utf-8')]
+        if not isinstance(plugins, list):
+            raise ValueError("Plugins must be a string or list of plugins")
 
-        # A list of plugins that weren't loaded in the first place
+        # We'll keep track of any plugins we failed to unload (either because
+        # we have no record of them being loaded or because the method was
+        # invalid.)
         failed_plugins = []
 
         for plugin in plugins:
+            logging.info("Attempting to unload plugin: %s" % plugin)
+
             if plugin not in self.plugins:
+                logging.warning("Plugin was never loaded: %s" % plugin)
                 failed_plugins.append(plugin)
                 continue
 
-            # Check if the plugin has a method named close
-            if (hasattr(self.plugins[plugin]['instance'], 'close') and
-                inspect.ismethod(self.plugins[plugin]['instance'].close)):
-                # Check if we should pass in the CardinalBot instance or not
-                argspec = inspect.getargspec(self.plugins[plugin]['instance'].close)
-                if len(argspec.args) == 1:
-                    instance = module.close()
-                elif len(argspec.args) == 2:
-                    instance = module.close(self.cardinal)
-                else:
-                    logging.error("Plugin %s's close method must have 1 or 2 arguments" % plugin)
+                try:
+                    self._close_plugin_instance(plugin)
+                except Exception, e:
+                    # Log the exception that came from trying to unload the
+                    # plugin, but don't skip over the plugin. We'll still
+                    # unload it.
+                    logging.exception(
+                        "Didn't close plugin cleanly: %s" % plugin
+                    )
+                    failed_plugins.append(plugin)
 
-            # Unassign the plugin and Python will do GC soon
+            # Once all references of the plugin have been removed, Python will
+            # eventually do garbage collection. We only opened it in one
+            # location, so we'll get rid of that now.
             del self.plugins[plugin]
 
         return failed_plugins
