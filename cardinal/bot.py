@@ -20,10 +20,10 @@ class CardinalBot(irc.IRCClient):
     # The current connected network (e.g. 'irc.darchoods.net')
     network = None
 
-    # Get the current nickname from the factory
-    def _get_nickname(self):
+    @property
+    def nickname(self):
+        """This is the `nickname` property of CardinalBot"""
         return self.factory.nickname
-    nickname = property(_get_nickname)
 
     # This is a regex to split the user nick, ident, and hostname
     user_regex = re.compile(r'^(.*?)!(.*?)@(.*?)$')
@@ -216,35 +216,30 @@ class CardinalBot(irc.IRCClient):
 
     # This is triggered when we have received a message
     def privmsg(self, user, channel, msg):
-        # Break the user up into usable groups
+        # Breaks the user up into usable groups:
+        # 1 - nick
+        # 2 - ident
+        # 3 - hostname
         user = re.match(self.user_regex, user)
 
-        # Print message to terminal
-        print "(%s)==>(%s) %s" % (user.group(1), channel, msg)
+        logging.debug(
+            "Message from %s to %s: %s" % (user.group(1), channel, msg)
+        )
 
-        # Change the channel to something we can reply to
+        # If the channel is ourselves, this is actually a PM to us, and so
+        # we'll update the channel variable to the sender's username to make
+        # replying a little easier.
         if channel == self.nickname:
             channel = user.group(1)
 
-        # Check if this was a command
-        get_command = re.match(self.command_regex, msg)
-        get_natural_command = re.match(self.natural_command_regex % self.nickname, msg, flags=re.IGNORECASE)
-
-        # Loop through each loaded module
-        for name, module in self.loaded_plugins.items():
-            # Loop through each registered command of the module
-            for command in module['commands']:
-                # Check whether this matches the regex of the command
-                if hasattr(command, 'regex') and re.search(command.regex, msg):
-                    command(self, user, channel, msg)
-                # Check whether this matches .command syntax
-                elif (get_command and hasattr(command, 'commands') and
-                      get_command.group(2) in command.commands):
-                    command(self, user, channel, get_command.group(1))
-                # Check whether this matches Cardinal: command syntax
-                elif (get_natural_command and hasattr(command, 'commands') and
-                      get_natural_command.group(2) in command.commands):
-                    command(self, user, channel, get_natural_command.group(1))
+        # Attempt to call a command. If it doesn't appear to PluginManager to
+        # be a command, this will just fall through. If it matches command
+        # syntax but there is no matching command, then a ValueError will be
+        # raised.
+        try:
+            self.plugin_manager.call_command(user, channel, message)
+        except ValueError:
+            logging.warning("Unable to find a matching command", exc_info=True)
 
     # This is triggered when a user joins a channel we are on.
     def userJoined(self, nick, channel):

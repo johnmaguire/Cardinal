@@ -14,6 +14,26 @@ class PluginManager(object):
     plugins = {}
     """List of loaded plugins"""
 
+    command_regex = re.compile(r'\.(([A-Za-z0-9_-]+)\s?.*$)')
+    """Regex for matching standard commands.
+
+    This will check for anything beginning with a period (.) followed by any
+    alphanumeric character, then whitespace, then any character(s). This means
+    registered commands will be found so long as the registered command is
+    alphanumeric (or either _ or -), and any additional arguments will be up to
+    the plugin for handling.
+    """
+
+    natural_command_regex = r'%s:\s+(([A-Za-z0-9_-]+?)(\s(.*)|$))'
+    """Regex for matching natural commands.
+
+    This will check for anything beginning with the bot's nickname, a colon
+    (:), whitespace, then an alphanumeric command. This may optionally be the
+    end of the message, or there may be whitespace followed by any characters
+    (additional arguments) which will be up to the plugin for handling.
+    """
+
+
     def __init__(self, cardinal, plugins=None):
         """Creates a new instance, optionally with a list of plugins to load
 
@@ -221,6 +241,20 @@ class PluginManager(object):
 
         return events
 
+    def itercommands(self):
+        """Simple generator to iterate through all commands of loaded plugins.
+
+        Returns:
+          iterator -- Iterator for looping through commands
+        """
+        # Loop through each plugin we have loaded
+        for name, plugin in self.plugins.items():
+            # Loop through each of the plugins' commands (these are actually
+            # class methods with attributes assigned to them, so they are all
+            # callable) and yield the command
+            for command in plugin['commands']:
+                yield command
+
     def load(self, plugins):
         """Takes either a plugin name or a list of plugins and loads them.
 
@@ -376,3 +410,63 @@ class PluginManager(object):
             del self.plugins[plugin]
 
         return failed_plugins
+
+    def call_command(self, user, channel, message):
+        """Checks a message to see if it appears to be a command and calls it.
+
+        This is done by checking both the `command_regex` and
+        `natural_command_regex` properties on this object. If one or both of
+        these tests succeeds, we then check whether any plugins have registered
+        a matching command. If both of these tests fail, we will check whether
+        any plugins have registered a custom regex expression matching the
+        message.
+
+        Keyword arguments:
+          user -- A tuple containing a user's nick, ident, and hostname.
+          channel -- A string representing where replies should be sent.
+          message -- A string containing a message received by CardinalBot.
+
+        Raises:
+          ValueError -- If the message appeared to be a command but no plugins
+                        matched.
+        """
+        # Perform a regex match of the message to our command regexes, since
+        # only one of these can match, and the matching groups are in the same
+        # order, we only need to check the second one if the first fails, and
+        # we only need to use one variable to track this.
+        get_command = re.match(self.command_regex, message)
+        if not get_command:
+            get_command = re.match(
+                self.natural_command_regex % self.cardinal.nickname, message,
+                flags=re.IGNORECASE
+            )
+
+        # Iterate through loaded commands
+        for command in self.itercommands():
+            # Check whether the plugin has a regex attribute, and try to match
+            # it if so.
+            if hasattr(command, 'regex' and re.search(command.regex, message)):
+                command(self.cardinal, user, channel, message)
+                found_command = True
+
+            # If we weren't able to match the a command regex earlier, we can
+            # bail early now.
+            if not get_command:
+                return
+
+            # Check if the plugin defined any standard commands and whether any
+            # of them match the command we found in the message.
+            if (hasattr(command, 'commands') and
+                get_command.group(2) in command.commands):
+                # Matched this command, so call it.
+                command(self.cardinal, user, channel, message)
+                found_command = True
+
+        # Since we found something that matched a command regex, yet no plugins
+        # that were loaded had a command matching, we can raise a ValueError.
+        #
+        # TODO: Create an internal exception type.
+        raise ValueError(
+            "Command syntax detected, but no matching command found: %s" %
+            message
+        )
