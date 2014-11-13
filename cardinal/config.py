@@ -26,6 +26,7 @@ DEFAULT_PLUGINS = (
 #    'event_examples',
 )
 
+
 class ConfigSpec(object):
     """A class used to create a config spec for ConfigParser"""
 

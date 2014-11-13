@@ -13,6 +13,7 @@ from twisted.internet import protocol, reactor
 
 from plugins import PluginManager
 
+
 class CardinalBot(irc.IRCClient):
     # Path of executed file
     path = os.path.dirname(os.path.realpath(sys.argv[0]))

@@ -2,6 +2,9 @@ import logging
 import inspect
 import linecache
 
+from cardinal.exceptions import PluginError
+
+
 class PluginManager(object):
     """Keeps track of, loads, and unloads plugins."""
 
@@ -42,7 +45,7 @@ class PluginManager(object):
           plugins -- A list of plugins to be loaded when instanced.
 
         Raises:
-          ValueError -- When plugins is not a list.
+          TypeError -- When the `plugins` argument is not a list.
 
         """
         # To prevent circular dependencies, we can't sanity check this. Hope
@@ -51,7 +54,7 @@ class PluginManager(object):
 
         # Make sure we operate on a list
         if plugins is not None and not isinstance(plugins, list):
-            raise ValueError("Plugins argument must be a list")
+            raise TypeError("Plugins argument must be a list")
 
         for plugin in plugins:
             self.load_plugin(plugin)
@@ -125,7 +128,7 @@ class PluginManager(object):
           object -- The instance of the plugin.
 
         Raises:
-          ValueError -- When a plugin's setup function has more than one
+          PluginError -- When a plugin's setup function has more than one
             argument.
         """
         # Check whether the setup method on the module accepts an argument. If
@@ -138,9 +141,7 @@ class PluginManager(object):
         elif len(argspec.args) == 1:
             instance = module.setup(self.cardinal)
         else:
-            # TODO: Create an internal exception type for our own plugin rules.
-            raise ValueError("Plugin setup function may not have more than "
-                "one argument")
+            raise PluginError("Unknown arguments for setup function")
 
         return instance
 
@@ -157,7 +158,7 @@ class PluginManager(object):
           plugin -- The name of the plugin to remove the instance of.
 
         Raises:
-          ValueError -- When a plugin's close function has more than one
+          PluginError -- When a plugin's close function has more than one
             argument.
         """
 
@@ -179,9 +180,7 @@ class PluginManager(object):
             elif len(argspec.args) == 2:
                 module.close(self.cardinal)
             else:
-            # TODO: Create an internal exception type for our own plugin rules.
-            raise ValueError("Plugin close function may not have more than "
-                "one argument")
+                raise PluginError("Unknown arguments for close function")
 
     def _get_plugin_commands(self, instance):
         """Find the commands in a plugin and return them as callables
@@ -269,7 +268,7 @@ class PluginManager(object):
           list -- A list of failed plugins, or an empty list.
 
         Raises:
-          ValueError -- When the `plugin` argument is not a string or list.
+          TypeError -- When the `plugins` argument is not a string or list.
 
         """
         # If they passed in a string, convert it to a list (and encode the
@@ -277,7 +276,7 @@ class PluginManager(object):
         if isinstance(plugins, basestring):
             plugins = [plugins.encode('utf-8')]
         if not isinstance(plugins, list):
-            raise ValueError(
+            raise TypeError(
                 "Plugins argument must be a string or list of plugins"
             )
 
@@ -370,7 +369,7 @@ class PluginManager(object):
           list -- A list of failed plugins, or an empty list.
 
         Raises:
-          ValueError -- When the `plugins` argument is not a string or list.
+          TypeError -- When the `plugins` argument is not a string or list.
 
         """
         # If they passed in a string, convert it to a list (and encode the
@@ -378,7 +377,7 @@ class PluginManager(object):
         if isinstance(plugins, basestring):
             plugins = [plugins.encode('utf-8')]
         if not isinstance(plugins, list):
-            raise ValueError("Plugins must be a string or list of plugins")
+            raise TypeError("Plugins must be a string or list of plugins")
 
         # We'll keep track of any plugins we failed to unload (either because
         # we have no record of them being loaded or because the method was
@@ -427,8 +426,8 @@ class PluginManager(object):
           message -- A string containing a message received by CardinalBot.
 
         Raises:
-          ValueError -- If the message appeared to be a command but no plugins
-                        matched.
+          CommandNotFoundError -- If the message appeared to be a command but
+            no matching plugins are loaded.
         """
         # Perform a regex match of the message to our command regexes, since
         # only one of these can match, and the matching groups are in the same
@@ -463,10 +462,8 @@ class PluginManager(object):
                 found_command = True
 
         # Since we found something that matched a command regex, yet no plugins
-        # that were loaded had a command matching, we can raise a ValueError.
-        #
-        # TODO: Create an internal exception type.
-        raise ValueError(
+        # that were loaded had a command matching, we can raise an exception.
+        raise CommandNotFoundError(
             "Command syntax detected, but no matching command found: %s" %
             message
         )
