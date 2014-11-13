@@ -1,8 +1,10 @@
+import re
 import logging
+import importlib
 import inspect
 import linecache
 
-from cardinal.exceptions import PluginError
+from cardinal.exceptions import *
 
 
 class PluginManager(object):
@@ -12,7 +14,7 @@ class PluginManager(object):
     """Holds our current iteration point"""
 
     cardinal = None
-    """Instance of CardinalBot"""
+    """Holds an instance of `CardinalBot`"""
 
     plugins = {}
     """List of loaded plugins"""
@@ -41,7 +43,7 @@ class PluginManager(object):
         """Creates a new instance, optionally with a list of plugins to load
 
         Keyword arguments:
-          cardinal -- An instance of CardinalBot to pass to plugins.
+          cardinal -- An instance of `CardinalBot` to pass to plugins.
           plugins -- A list of plugins to be loaded when instanced.
 
         Raises:
@@ -55,9 +57,10 @@ class PluginManager(object):
         # Make sure we operate on a list
         if plugins is not None and not isinstance(plugins, list):
             raise TypeError("Plugins argument must be a list")
+        elif plugins is None:
+            return
 
-        for plugin in plugins:
-            self.load_plugin(plugin)
+        self.load(plugins)
 
     def __iter__(self):
         """Part of the iterator protocol, returns iterator object
@@ -92,7 +95,6 @@ class PluginManager(object):
         # Increment the counter
         self.iteration_counter += 1
 
-        # Make sure that the 
         if self.iteration_counter > len(keys):
             raise StopIteration
 
@@ -200,7 +202,7 @@ class PluginManager(object):
             method = getattr(instance, method)
 
             if callable(method) and (hasattr(method, 'regex') or
-                                     hasattr(method, 'commands'):
+                                     hasattr(method, 'commands')):
                 # Since this method has either the 'regex' or the 'commands'
                 # attribute assigned, it's registered as a command for
                 # Cardinal.
@@ -253,6 +255,20 @@ class PluginManager(object):
             # callable) and yield the command
             for command in plugin['commands']:
                 yield command
+
+    def iterevents(self):
+        """Simple generator to iterate through all events of loaded plugins.
+
+        Returns:
+          iterator -- Iterator for looping through commands
+        """
+        # Loop through each plugin we have loaded
+        for name, plugin in self.plugins.items():
+            # Loop through each of the plugins' commands (these are actually
+            # class methods with attributes assigned to them, so they are all
+            # callable) and yield the command
+            for event in plugin['events']:
+                yield event
 
     def load(self, plugins):
         """Takes either a plugin name or a list of plugins and loads them.
@@ -410,6 +426,17 @@ class PluginManager(object):
 
         return failed_plugins
 
+    def unload_all(self):
+        """Unloads all loaded plugins.
+
+        This should theoretically only be called when quitting Cardinal (or
+        perhaps during a full reload) and therefore we don't need to really
+        pay attention to any failed plugins.
+
+        """
+        logging.info("Unloading all plugins")
+        self.unload([plugin for plugin, data in self.plugins.items()])
+
     def call_command(self, user, channel, message):
         """Checks a message to see if it appears to be a command and calls it.
 
@@ -444,9 +471,9 @@ class PluginManager(object):
         for command in self.itercommands():
             # Check whether the plugin has a regex attribute, and try to match
             # it if so.
-            if hasattr(command, 'regex' and re.search(command.regex, message)):
+            if hasattr(command, 'regex') and re.search(command.regex, message):
                 command(self.cardinal, user, channel, message)
-                found_command = True
+                return
 
             # If we weren't able to match the a command regex earlier, we can
             # bail early now.
@@ -459,7 +486,7 @@ class PluginManager(object):
                 get_command.group(2) in command.commands):
                 # Matched this command, so call it.
                 command(self.cardinal, user, channel, message)
-                found_command = True
+                return
 
         # Since we found something that matched a command regex, yet no plugins
         # that were loaded had a command matching, we can raise an exception.

@@ -2,44 +2,34 @@ import os
 import sys
 import time
 import signal
-import importlib
-import linecache
-import inspect
+import logging
 import re
 from datetime import datetime
 
 from twisted.words.protocols import irc
 from twisted.internet import protocol, reactor
 
-from plugins import PluginManager
+from cardinal.plugins import PluginManager
+from cardinal.exceptions import *
 
 
 class CardinalBot(irc.IRCClient):
-    # Path of executed file
-    path = os.path.dirname(os.path.realpath(sys.argv[0]))
+    factory = None
+    """Should contain an instance of `CardinalBotFactory`"""
 
-    # The current connected network (e.g. 'irc.darchoods.net')
     network = None
+    """Currently connected network (e.g. irc.darchoods.net)"""
 
     @property
     def nickname(self):
         """This is the `nickname` property of CardinalBot"""
         return self.factory.nickname
 
-    # This is a regex to split the user nick, ident, and hostname
     user_regex = re.compile(r'^(.*?)!(.*?)@(.*?)$')
+    """Regex for identifying a user's nick, ident, and vhost"""
 
-    # This is a regex to get the current command
-    command_regex = re.compile(r'\.(([A-Za-z0-9_-]+)\w?.*$)')
-
-    # This is a regex to get the current natural command
-    natural_command_regex = r'%s:\s+((.+?)(\s(.*)|$))'
-
-    # This dictionary will contain a list of loaded plugins
-    loaded_plugins = {}
-
-    # This dictionary will contain all the configuration files
-    config = {}
+    plugin_manager = None
+    """Holds an instance of `PluginManager`"""
 
     # Some meta info, keeping track of the uptime of the bot, the boot time
     # (when the first instance of CardinalBot was brought online), and the
@@ -48,148 +38,16 @@ class CardinalBot(irc.IRCClient):
     booted  = None
     reloads = 0
 
-    def _import_module(self, module, config=False):
-        if inspect.ismodule(module):
-            return reload(module)
-        elif isinstance(module, basestring):
-            return importlib.import_module(
-                'plugins.%s.%s' % (module, 'config' if config else 'plugin')
-            )
-
-    def _create_plugin_instance(self, module):
-        argspec = inspect.getargspec(module.setup)
-        if len(argspec.args) > 0:
-            instance = module.setup(self)
-        else:
-            instance = module.setup()
-
-        return instance
-
-    def _get_plugin_commands(self, instance):
-        # Compile a list of all commands in the plugin
-        commands = []
-        for method in dir(instance):
-            method = getattr(instance, method)
-            if callable(method) and (hasattr(method, 'regex') or hasattr(method, 'commands')):
-                commands.append(method)
-
-        return commands
-
-    def _get_plugin_events(self, instance):
-        # Compile a list of all events in the plugin
-        events = []
-        for method in dir(instance):
-            method = getattr(instance, method)
-            if callable(method) and (hasattr(method, 'on_join') or hasattr(method, 'on_part') or
-                                     hasattr(method, 'on_quit') or hasattr(method, 'on_kick') or
-                                     hasattr(method, 'on_action') or hasattr(method, 'on_topic') or
-                                     hasattr(method, 'on_nick') or hasattr(method, 'on_invite')):
-                events.append(method)
-
-        return events
-
-    def _load_plugins(self, plugins, first_run=False):
-        # A dictionary of loaded plugins
-        loaded_plugins = {}
-
-        # A list of plugins that failed to load
-        failed_plugins = []
-
-        # Turn this into a list if it isn't one
-        if isinstance(plugins, basestring):
-            plugins = [plugins]
-
-        linecache.clearcache()
-
-        for plugin in plugins:
-            loaded_plugins[plugin] = {}
-
-            # Import each plugin with a custom _import_module function.
-            try:
-                module = self._import_module(self.loaded_plugins[plugin]['module'] if plugin in self.loaded_plugins else plugin)
-            except Exception, e:
-                print >> sys.stderr, "ERROR: Could not load plugin module: %s (%s)" % (plugin, e)
-                failed_plugins.append(plugin)
-
-                continue
-
-            # Import each config with the same _import_module function.
-            try:
-                self.config[plugin] = self._import_module(self.config[plugin] if plugin in self.config else plugin, config=True)
-            except ImportError:
-                self.config[plugin] = None
-            except Exception, e:
-                self.config[plugin] = None
-                print >> sys.stderr, "WARNING: Could not load plugin config: %s (%s)" % (plugin, e)
-
-            # Create a new instance of the plugin
-            try:
-                instance = self._create_plugin_instance(module)
-            except Exception, e:
-                print >> sys.stderr, "ERROR: Could not create plugin instance: %s (%s)" % (plugin, e)
-                failed_plugins.append(plugin)
-
-                continue
-
-            commands = self._get_plugin_commands(instance)
-            events   = self._get_plugin_events(instance)
-
-            # Set module, commands, and instance of the plugin
-            loaded_plugins[plugin]['module'] = module
-            loaded_plugins[plugin]['instance'] = instance
-            loaded_plugins[plugin]['commands'] = commands
-            loaded_plugins[plugin]['events'] = events
-
-            if plugin in self.loaded_plugins:
-                self._unload_plugins(plugin)
-            self.loaded_plugins[plugin] = loaded_plugins[plugin]
-
-            # If we are just starting Cardinal, print a list of loaded plugins
-            if first_run:
-                print "Loaded plugin %s" % plugin
-
-        # If this is a reload, add to the count
-        if not first_run:
-                self.reloads += 1
-
-        if len(failed_plugins) > 0:
-            return failed_plugins
-        else:
-            return None
-
-    def _unload_plugins(self, plugins):
-        # A list of plugins that weren't loaded in the first place
-        nonexistent_plugins = []
-
-        # Turn this into a list if it isn't one
-        if isinstance(plugins, basestring):
-            plugins = [plugins]
-
-        for plugin in plugins:
-            if plugin not in self.loaded_plugins:
-                nonexistent_plugins.append(plugin)
-                continue
-
-            if (hasattr(self.loaded_plugins[plugin]['instance'], 'close') and
-                inspect.ismethod(self.loaded_plugins[plugin]['instance'].close)):
-                argspec = inspect.getargspec(self.loaded_plugins[plugin]['instance'].close)
-                if len(argspec.args) > 1:
-                    self.loaded_plugins[plugin]['instance'].close(self)
-                else:
-                    self.loaded_plugins[plugin]['instance'].close()
-
-            del self.loaded_plugins[plugin]
-
-        if len(nonexistent_plugins) > 0:
-            return nonexistent_plugins
-        else:
-            return None
-
-    # This is triggered when we have signed onto the network
     def signedOn(self):
-        print "Signed on as %s." % self.nickname
+        """Called once we've connected to a network"""
+        logging.info("Signed on as %s" % self.nickname)
 
         # Give the factory access to the bot
+        if self.factory is None:
+            raise InternalError("Factory must be set on CardinalBot instance")
+
+        # Give the factory the instance it created in case it needs to
+        # interface for error handling or metadata retention.
         self.factory.cardinal = self
 
         # Set the currently connected network
@@ -197,34 +55,37 @@ class CardinalBot(irc.IRCClient):
 
         # Attempt to identify with NickServ, if a password was given
         if self.factory.password:
-            print "Attempting to identify with NickServ."
+            logging.info("Attempting to identify with NickServ")
             self.msg("NickServ", "IDENTIFY %s" % (self.factory.password,))
 
-        # Attempt to load plugins
-        self._load_plugins(self.factory.plugins, True)
+        # Create an instance of PluginManager, giving it an instance of ourself
+        # to pass to plugins, as well as a list of initial plugins to load.
+        self.plugin_manager = PluginManager(self, self.factory.plugins)
 
         # Attempt to join channels
         for channel in self.factory.channels:
             self.join(channel)
 
-        # Set the uptime and boot time from the factory
+        # Set the uptime as now and grab the  boot time from the factory
         self.uptime = datetime.now()
         self.booted = self.factory.booted
 
-    # This is triggered when we have joined a channel
     def joined(self, channel):
-        print "Joined %s." % channel
+        """Called when we join a channel"""
+        logging.info("Joined %s" % channel)
 
-    # This is triggered when we have received a message
-    def privmsg(self, user, channel, msg):
+    def privmsg(self, user, channel, message):
+        """Called when we receive a message in a channel or PM"""
         # Breaks the user up into usable groups:
+        #
         # 1 - nick
         # 2 - ident
         # 3 - hostname
         user = re.match(self.user_regex, user)
 
         logging.debug(
-            "Message from %s to %s: %s" % (user.group(1), channel, msg)
+            "%s!%s@%s to %s: %s" %
+            (user.group(1), user.group(2), user.group(3), channel, message)
         )
 
         # If the channel is ourselves, this is actually a PM to us, and so
@@ -235,128 +96,88 @@ class CardinalBot(irc.IRCClient):
 
         # Attempt to call a command. If it doesn't appear to PluginManager to
         # be a command, this will just fall through. If it matches command
-        # syntax but there is no matching command, then a ValueError will be
-        # raised.
+        # syntax but there is no matching command, then we should catch the
+        # exception.
         try:
             self.plugin_manager.call_command(user, channel, message)
-        except ValueError:
-            logging.warning("Unable to find a matching command", exc_info=True)
+        except CommandNotFoundError:
+            # This is just an info, since anyone can trigger it, not really a
+            # bad thing.
+            logging.info("Unable to find a matching command", exc_info=True)
 
-    # This is triggered when a user joins a channel we are on.
     def userJoined(self, nick, channel):
-        # Print message to terminal
-        print "%s has joined the channel %s." % (nick, channel)
+        """Called when another user joins a channel we're in"""
+        logging.debug("%s joined %s" % (nick, channel))
 
-        # Loop through each module to pass this event off to any event which
-        # is listening for it.
-        for name, module in self.loaded_plugins.items():
-            # Loop through each registered event of the module
-            for event in module['events']:
-                if hasattr(event, 'on_join') and event.on_join:
-                    event(self, nick, channel)
+        # TODO: Call matching plugin events
 
-    # This is triggered when a user parts a channel we are on.
     def userLeft(self, nick, channel):
-        # Print message to terminal
-        print "%s parted the channel %s." % (nick, channel)
+        """Called when another user leaves a channel we're in"""
+        logging.debug("%s parted %s" % (nick, channel))
 
-        # Loop through each module to pass this event off to any event which
-        # is listening for it.
-        for name, module in self.loaded_plugins.items():
-            # Loop through each registered event of the module
-            for event in module['events']:
-                if hasattr(event, 'on_part') and event.on_part:
-                    event(self, nick, channel)
+        # TODO: Call matching plugin events
 
-    # This occurs when a user in a channel we are on quits the server.
     def userQuit(self, nick, quitMessage):
-        # Print message to terminal
-        print "%s has quit (%s)." % (nick, quitMessage)
+        """Called when another user in a channel we're in quits"""
+        logging.debug("%s quit (Reason: %s)" % (nick, quitMessage))
 
-        # Loop through each module to pass this event off to any event which
-        # is listening for it.
-        for name, module in self.loaded_plugins.items():
-            # Loop through each registered event of the module
-            for event in module['events']:
-                if hasattr(event, 'on_quit') and event.on_quit:
-                    event(self, nick, quitMessage)
+        # TODO: Call matching plugin events
 
-    # This occurs when a user is kicked from a channel we are on.
     def userKicked(self, kicked, channel, kicker, message):
-        # Print message to terminal
-        print "%s has been kicked from %s by %s (Reason: %s)." % (kicked, channel, kicker, message)
+        """Called when another user is kicked from a channel we're in"""
+        logging.debug("%s kicked %s from %s (Reason: %s)" % (kicker, kicked, channel, message))
 
-        # Loop through each module to pass this event off to any event which
-        # is listening for it.
-        for name, module in self.loaded_plugins.items():
-            # Loop through each registered event of the module
-            for event in module['events']:
-                if hasattr(event, 'on_kick') and event.on_kick:
-                    event(self, kicked, channel, kicker, message)
+        # TODO: Call matching plugin events
 
-    # This occurs when a channel uses /me on a channel we are on.
     def action(self, user, channel, data):
+        """Called when a user does an action message in a channel we're in"""
         # Break the user up into usable groups
         user = re.match(self.user_regex, user)
 
-        # Print message to terminal
-        print "(%s) *** %s %s." % (channel, user.group(1), data)
+        logging.debug(
+            "Action on %s: %s!%s@%s %s" % 
+            (channel, user.group(1), user.group(2), user.group(3), data)
+        )
 
-        # Loop through each module to pass this event off to any event which
-        # is listening for it.
-        for name, module in self.loaded_plugins.items():
-            # Loop through each registered event of the module
-            for event in module['events']:
-                if hasattr(event, 'on_action') and event.on_action:
-                    event(self, user, channel, data)
+        # TODO: Call matching plugin events
 
-    # This occurs when a user updates a topic on a channel we are on.
     def topicUpdated(self, nick, channel, newTopic):
-        # Print message to terminal
-        print "(%s) %s has updated the topic: %s" % (channel, nick, newTopic)
+        """Called when a user updates a topic in a channel we're in"""
+        logging.debug(
+            "Topic updated in %s by %s: %s" % (channel, nick, newTopic)
+        )
 
-        # Loop through each module to pass this event off to any event which
-        # is listening for it.
-        for name, module in self.loaded_plugins.items():
-            # Loop through each registered event of the module
-            for event in module['events']:
-                if hasattr(event, 'on_topic') and event.on_topic:
-                    event(self, nick, channel, newTopic)
+        # TODO: Call matching plugin events
 
-    # This occurs when a user changes their nick in a channel we are on.
-    def userRenamed(self, oldname, newname):
-        # Print message to terminal
-        print "%s is now known as %s." % (oldname, newname)
+    def userRenamed(self, oldNick, newNick):
+        """Called when a user in a channel we're in changes their nick"""
+        logging.debug("%s changed nick to %s" % (oldNick, newNick))
 
-        # Loop through each module to pass this event off to any event which
-        # is listening for it.
-        for name, module in self.loaded_plugins.items():
-            # Loop through each registered event of the module
-            for event in module['events']:
-                if hasattr(event, 'on_nick') and event.on_nick:
-                    event(self, oldname, newname)
+        # TODO: Call matching plugin events
 
     def irc_unknown(self, prefix, command, params):
+        """Called when Twisted doesn't understand an IRC command"""
+        # A user has invited us to a channel
         if command == "INVITE":
             nick = params[0]
             channel = params[1]
 
-            for name, module in self.loaded_plugins.items():
-                for event in module['events']:
-                    if hasattr(event, 'on_invite') and event.on_invite:
-                        event(self, nick, channel)
+            logging.debug("%s invited us to %s")
 
-    # This is a wrapper command to really quit the server
+            # TODO: Call matching plugin events
+
     def disconnect(self, message=''):
-        self._unload_plugins([plugin for plugin, data in self.loaded_plugins.items()])
-        print "Disconnecting..."
+        """Wrapper command to quit Cardinal"""
+        logging.info("Disconnecting from network")
+        self.plugin_manager.unload_all()
         self.factory.disconnect = True
         self.quit(message)
 
     # This is a wrapper command to send messages
-    def sendMsg(self, user, message, length=None):
-        print "(%s)<==(%s) %s" % (user, self.nickname, message)
-        self.msg(user, message, length)
+    def sendMsg(self, channel, message, length=None):
+        """Wrapper command to send messages"""
+        logging.info("Sending in %s: %s" % (channel, message))
+        self.msg(channel, message, length)
 
 # This interfaces CardinalBot with the Twisted library
 class CardinalBotFactory(protocol.ClientFactory):
@@ -416,16 +237,22 @@ class CardinalBotFactory(protocol.ClientFactory):
     def clientConnectionLost(self, connector, reason):
         # This flag tells us whether Cardinal was supposed to disconnect or not
         if not self.disconnect:
+            logging.info(
+                "Connection lost (%s), reconnecting in %d seconds." %
+                (reason, self.minimum_reconnection_wait)
+            )
+
             # Reset the last reconnection wait time since this is the first
-            # time we've disconnected since a successful connection
+            # time we've disconnected since a successful connection and then
+            # wait before connecting
             self.last_reconnection_wait = self.minimum_reconnection_wait
-
-            print "Lost connection (%s), reconnecting in %d seconds." % (reason, self.minimum_reconnection_wait)
             time.sleep(self.minimum_reconnection_wait)
-
             connector.connect()
         else:
-            print "Lost connection (%s), quitting." % reason
+            logging.info(
+                "Disconnected successfully (%s), quitting." % reason
+            )
+
             reactor.stop()
 
     def clientConnectionFailed(self, connector, reason):
@@ -440,11 +267,13 @@ class CardinalBotFactory(protocol.ClientFactory):
             wait_time = self.last_reconnection_wait * 2
             if wait_time > self.maximum_reconnection_wait:
                 wait_time = self.maximum_reconnection_wait
-       
-        # Set the last reconnection wait time so we can double it next time
+
+        logging.info(
+            "Could not connect (%s), retrying in %d seconds" %
+            (reason, wait_time)
+        )
+
+        # Update the last connection wait time, then wait and try to connect
         self.last_reconnection_wait = wait_time
-
-        print "Could not connect (%s), retrying in %d seconds" % (reason, wait_time)
         time.sleep(wait_time)
-
         connector.connect()
