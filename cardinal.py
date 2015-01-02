@@ -10,7 +10,13 @@ from cardinal.config import ConfigParser, ConfigSpec
 from cardinal.bot import CardinalBotFactory
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
+    # Set default log level to INFO and get some pretty formatting
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+
+    logger = logging.getLogger(__name__)
 
     # Create a new instance of ArgumentParser with a description about Cardinal
     arg_parser = argparse.ArgumentParser(description="""
@@ -71,12 +77,12 @@ https://github.com/JohnMaguire/Cardinal
     #
     # TODO: Make sure that we're looking for config.json in the user's current
     # working directory, rather than relative to this file.
-    logging.debug("Attempting to load config.json if it existss")
+    logger.debug("Attempting to load config.json if it existss")
     parser.load_config('config.json')
 
     # Parse command-line arguments last, as they should override both project
     # defaults and the user config (if available)
-    logging.debug("Parsing command-line arguments")
+    logger.debug("Parsing command-line arguments")
     args = arg_parser.parse_args()
 
     # If SSL is set to false, set it to None (small hack - action 'store_true'
@@ -92,22 +98,22 @@ https://github.com/JohnMaguire/Cardinal
         args.password = None
 
     # Merge the args into the config object
-    logging.debug("Merging command-line arguments into config")
+    logger.debug("Merging command-line arguments into config")
     config = parser.merge_argparse_args_into_config(args)
 
     # Instance a new factory, and connect with/without SSL
-    logging.debug("Instantiating CardinalBotFactory")
+    logger.debug("Instantiating CardinalBotFactory")
     factory = CardinalBotFactory(config['network'], config['channels'],
         config['nickname'], config['password'], config['plugins'])
 
     if not config['ssl']:
-        logging.info(
+        logger.info(
             "Connecting over plaintext to %s:%d" %
                 (config['network'], config['port'])
         )
         reactor.connectTCP(config['network'], config['port'], factory)
     else:
-        logging.info(
+        logger.info(
             "Connecting over SSL to %s:%d" %
                 (config['network'], config['port'])
         )

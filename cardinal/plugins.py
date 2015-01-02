@@ -10,6 +10,9 @@ from cardinal.exceptions import *
 class PluginManager(object):
     """Keeps track of, loads, and unloads plugins."""
 
+    logger = None
+    """Logging object for PluginManager"""
+
     iteration_counter = 0
     """Holds our current iteration point"""
 
@@ -50,6 +53,9 @@ class PluginManager(object):
           TypeError -- When the `plugins` argument is not a list.
 
         """
+        # Initialize logger
+        self.logger = logging.getLogger(__name__)
+
         # To prevent circular dependencies, we can't sanity check this. Hope
         # for the best.
         self.cardinal = cardinal
@@ -306,13 +312,13 @@ class PluginManager(object):
         linecache.clearcache()
 
         for plugin in plugins:
-            logging.info("Attempting to load plugin: %s" % plugin)
+            self.logger.info("Attempting to load plugin: %s" % plugin)
 
             # Import each plugin's module with our own hacky function to reload
             # modules that have already been imported previously
             try:
                 if plugin in self.plugins:
-                    logging.info("Already loaded, reloading: %s" % plugin)
+                    self.logger.info("Already loaded, reloading: %s" % plugin)
                     module_to_import = self.plugins[plugin]['module']
                 else:
                     module_to_import = plugin
@@ -321,7 +327,7 @@ class PluginManager(object):
 
             except Exception, e:
                 # Probably a syntax error in the plugin, log the exception
-                logging.exception("Could not load plugin module: %s" % plugin)
+                self.logger.exception("Could not load plugin module: %s" % plugin)
                 failed_plugins.append(plugin)
 
                 continue
@@ -341,16 +347,16 @@ class PluginManager(object):
                     )
             except ImportError:
                 # This is expected if the plugin doesn't have a config file
-                logging.info("No config found for plugin: %s" % plugin)
+                self.logger.info("No config found for plugin: %s" % plugin)
             except Exception, e:
                 # This is probably due to a syntax error, so log the exception
-                logging.exception("Could not load plugin config: %s" % plugin)
+                self.logger.exception("Could not load plugin config: %s" % plugin)
 
             # Instance the plugin
             try:
                 instance = self._create_plugin_instance(module)
             except Exception, e:
-                logging.exception("Could not instantiate plugin: %s" % plugin)
+                self.logger.exception("Could not instantiate plugin: %s" % plugin)
                 failed_plugins.append(plugin)
 
                 continue
@@ -368,7 +374,7 @@ class PluginManager(object):
                 'events': events
             }
 
-            logging.info("Plugin %s successfully loaded" % plugin)
+            self.logger.info("Plugin %s successfully loaded" % plugin)
 
         return failed_plugins
 
@@ -401,10 +407,10 @@ class PluginManager(object):
         failed_plugins = []
 
         for plugin in plugins:
-            logging.info("Attempting to unload plugin: %s" % plugin)
+            self.logger.info("Attempting to unload plugin: %s" % plugin)
 
             if plugin not in self.plugins:
-                logging.warning("Plugin was never loaded: %s" % plugin)
+                self.logger.warning("Plugin was never loaded: %s" % plugin)
                 failed_plugins.append(plugin)
                 continue
 
@@ -414,7 +420,7 @@ class PluginManager(object):
                     # Log the exception that came from trying to unload the
                     # plugin, but don't skip over the plugin. We'll still
                     # unload it.
-                    logging.exception(
+                    self.logger.exception(
                         "Didn't close plugin cleanly: %s" % plugin
                     )
                     failed_plugins.append(plugin)
@@ -434,7 +440,7 @@ class PluginManager(object):
         pay attention to any failed plugins.
 
         """
-        logging.info("Unloading all plugins")
+        self.logger.info("Unloading all plugins")
         self.unload([plugin for plugin, data in self.plugins.items()])
 
     def call_command(self, user, channel, message):

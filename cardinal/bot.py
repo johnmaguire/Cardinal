@@ -14,6 +14,9 @@ from cardinal.exceptions import *
 
 
 class CardinalBot(irc.IRCClient):
+    logger = None
+    """Logging object for CardinalBot"""
+
     factory = None
     """Should contain an instance of `CardinalBotFactory`"""
 
@@ -38,9 +41,13 @@ class CardinalBot(irc.IRCClient):
     booted  = None
     reloads = 0
 
+    def __init__(self):
+        """Initializes the logging"""
+        self.logger = logging.getLogger(__name__)
+
     def signedOn(self):
         """Called once we've connected to a network"""
-        logging.info("Signed on as %s" % self.nickname)
+        self.logger.info("Signed on as %s" % self.nickname)
 
         # Give the factory access to the bot
         if self.factory is None:
@@ -55,7 +62,7 @@ class CardinalBot(irc.IRCClient):
 
         # Attempt to identify with NickServ, if a password was given
         if self.factory.password:
-            logging.info("Attempting to identify with NickServ")
+            self.logger.info("Attempting to identify with NickServ")
             self.msg("NickServ", "IDENTIFY %s" % (self.factory.password,))
 
         # Create an instance of PluginManager, giving it an instance of ourself
@@ -72,7 +79,7 @@ class CardinalBot(irc.IRCClient):
 
     def joined(self, channel):
         """Called when we join a channel"""
-        logging.info("Joined %s" % channel)
+        self.logger.info("Joined %s" % channel)
 
     def privmsg(self, user, channel, message):
         """Called when we receive a message in a channel or PM"""
@@ -83,7 +90,7 @@ class CardinalBot(irc.IRCClient):
         # 3 - hostname
         user = re.match(self.user_regex, user)
 
-        logging.debug(
+        self.logger.debug(
             "%s!%s@%s to %s: %s" %
             (user.group(1), user.group(2), user.group(3), channel, message)
         )
@@ -103,29 +110,29 @@ class CardinalBot(irc.IRCClient):
         except CommandNotFoundError:
             # This is just an info, since anyone can trigger it, not really a
             # bad thing.
-            logging.info("Unable to find a matching command", exc_info=True)
+            self.logger.info("Unable to find a matching command", exc_info=True)
 
     def userJoined(self, nick, channel):
         """Called when another user joins a channel we're in"""
-        logging.debug("%s joined %s" % (nick, channel))
+        self.logger.debug("%s joined %s" % (nick, channel))
 
         # TODO: Call matching plugin events
 
     def userLeft(self, nick, channel):
         """Called when another user leaves a channel we're in"""
-        logging.debug("%s parted %s" % (nick, channel))
+        self.logger.debug("%s parted %s" % (nick, channel))
 
         # TODO: Call matching plugin events
 
     def userQuit(self, nick, quitMessage):
         """Called when another user in a channel we're in quits"""
-        logging.debug("%s quit (Reason: %s)" % (nick, quitMessage))
+        self.logger.debug("%s quit (Reason: %s)" % (nick, quitMessage))
 
         # TODO: Call matching plugin events
 
     def userKicked(self, kicked, channel, kicker, message):
         """Called when another user is kicked from a channel we're in"""
-        logging.debug("%s kicked %s from %s (Reason: %s)" % (kicker, kicked, channel, message))
+        self.logger.debug("%s kicked %s from %s (Reason: %s)" % (kicker, kicked, channel, message))
 
         # TODO: Call matching plugin events
 
@@ -134,8 +141,8 @@ class CardinalBot(irc.IRCClient):
         # Break the user up into usable groups
         user = re.match(self.user_regex, user)
 
-        logging.debug(
-            "Action on %s: %s!%s@%s %s" % 
+        self.logger.debug(
+            "Action on %s: %s!%s@%s %s" %
             (channel, user.group(1), user.group(2), user.group(3), data)
         )
 
@@ -143,7 +150,7 @@ class CardinalBot(irc.IRCClient):
 
     def topicUpdated(self, nick, channel, newTopic):
         """Called when a user updates a topic in a channel we're in"""
-        logging.debug(
+        self.logger.debug(
             "Topic updated in %s by %s: %s" % (channel, nick, newTopic)
         )
 
@@ -151,7 +158,7 @@ class CardinalBot(irc.IRCClient):
 
     def userRenamed(self, oldNick, newNick):
         """Called when a user in a channel we're in changes their nick"""
-        logging.debug("%s changed nick to %s" % (oldNick, newNick))
+        self.logger.debug("%s changed nick to %s" % (oldNick, newNick))
 
         # TODO: Call matching plugin events
 
@@ -162,13 +169,13 @@ class CardinalBot(irc.IRCClient):
             nick = params[0]
             channel = params[1]
 
-            logging.debug("%s invited us to %s")
+            self.logger.debug("%s invited us to %s")
 
             # TODO: Call matching plugin events
 
     def disconnect(self, message=''):
         """Wrapper command to quit Cardinal"""
-        logging.info("Disconnecting from network")
+        self.logger.info("Disconnecting from network")
         self.plugin_manager.unload_all()
         self.factory.disconnect = True
         self.quit(message)
@@ -176,11 +183,14 @@ class CardinalBot(irc.IRCClient):
     # This is a wrapper command to send messages
     def sendMsg(self, channel, message, length=None):
         """Wrapper command to send messages"""
-        logging.info("Sending in %s: %s" % (channel, message))
+        self.logger.info("Sending in %s: %s" % (channel, message))
         self.msg(channel, message, length)
 
 # This interfaces CardinalBot with the Twisted library
 class CardinalBotFactory(protocol.ClientFactory):
+    logger = None
+    """Logger object for CardinalBotFactory"""
+
     protocol = CardinalBot
 
     # Whether disconnect.quit() was called.
@@ -219,6 +229,7 @@ class CardinalBotFactory(protocol.ClientFactory):
     booted = None
 
     def __init__(self, network, channels, nickname='Cardinal', password=None, plugins=[]):
+        self.logger = logging.getLogger(__name__)
         self.network = network.lower()
         self.password = password
         self.channels = channels
@@ -237,7 +248,7 @@ class CardinalBotFactory(protocol.ClientFactory):
     def clientConnectionLost(self, connector, reason):
         # This flag tells us whether Cardinal was supposed to disconnect or not
         if not self.disconnect:
-            logging.info(
+            self.logger.info(
                 "Connection lost (%s), reconnecting in %d seconds." %
                 (reason, self.minimum_reconnection_wait)
             )
@@ -249,7 +260,7 @@ class CardinalBotFactory(protocol.ClientFactory):
             time.sleep(self.minimum_reconnection_wait)
             connector.connect()
         else:
-            logging.info(
+            self.logger.info(
                 "Disconnected successfully (%s), quitting." % reason
             )
 
@@ -268,7 +279,7 @@ class CardinalBotFactory(protocol.ClientFactory):
             if wait_time > self.maximum_reconnection_wait:
                 wait_time = self.maximum_reconnection_wait
 
-        logging.info(
+        self.logger.info(
             "Could not connect (%s), retrying in %d seconds" %
             (reason, wait_time)
         )

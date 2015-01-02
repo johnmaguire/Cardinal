@@ -30,8 +30,15 @@ DEFAULT_PLUGINS = (
 class ConfigSpec(object):
     """A class used to create a config spec for ConfigParser"""
 
+    logger = None
+    """Logging object for ConfigSpec"""
+
     options = {}
     """A dictionary holding tuples of the options"""
+
+    def __init__(self):
+        """Initializes the logging"""
+        self.logger = logging.getLogger(__name__)
 
     def add_option(self, name, type, default=None):
         """Adds an option to the spec
@@ -85,11 +92,11 @@ class ConfigSpec(object):
         # the value passed in
         if not isinstance(value, type):
             if value is not None:
-                logging.warning(
+                self.logger.warning(
                     "Value passed in for option %s was invalid -- ignoring" % name
                 )
             else:
-                logging.debug(
+                self.logger.debug(
                     "No value set for option %s -- using default" % name
                 )
 
@@ -107,6 +114,9 @@ class ConfigParser(object):
 
     """
 
+    logger = None
+    """Logging object for ConfigParser"""
+
     config = {}
     """A dictionary containing config values as we learn them"""
 
@@ -114,7 +124,7 @@ class ConfigParser(object):
     """A ConfigSpec object passed into the constructor"""
 
     def __init__(self, spec):
-        """Initializes ConfigParser with a ConfigSpec
+        """Initializes ConfigParser with a ConfigSpec and initializes logging
 
         Keyword arguments:
           spec -- Should be a built ConfigSpec
@@ -126,6 +136,7 @@ class ConfigParser(object):
         if not isinstance(spec, ConfigSpec):
             raise ValueError("Spec must be a config spec")
 
+        self.logger = logging.getLogger(__name__)
         self.spec = spec
 
     def _convert_json(self, json_object, called_by_self=False):
@@ -185,16 +196,16 @@ class ConfigParser(object):
             f.close()
         # File did not exist or we can't open it for another reason
         except IOError:
-            logging.warning(
+            self.logger.warning(
                 "Can't open %s (using defaults / command-line values)" % file
             )
         # Thrown by json.load() when the content isn't valid JSON
         except ValueError:
-            logging.warning(
+            self.logger.warning(
                 "Invalid JSON in %s, (using defaults / command-line values" % file
             )
         else:
-            # For every option, 
+            # For every option,
             for option in self.spec.options:
                 try:
                     # If the option wasn't defined in the config, ensure default
@@ -203,7 +214,7 @@ class ConfigParser(object):
 
                     self.config[option] = self.spec.return_value_or_default(option, json_config[option])
                 except KeyError:
-                    logging.warning("Option %s not in spec -- ignored" % option)
+                    self.logger.warning("Option %s not in spec -- ignored" % option)
 
         # If we didn't load the config earlier, or there was nothing in it...
         if self.config == {} and self.spec.options != {}:
@@ -231,7 +242,7 @@ class ConfigParser(object):
                 if value is not None:
                     self.config[option] = value
             except AttributeError:
-                logging.debug(
+                self.logger.debug(
                     "Option %s not in CLI arguments -- not updated" % name
                 )
 
