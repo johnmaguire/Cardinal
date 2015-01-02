@@ -108,7 +108,7 @@ class HelpPlugin(object):
         uptime = self._pretty_uptime((now - meta['uptime']).days, (now - meta['uptime']).seconds)
         booted = self._pretty_uptime((now - meta['uptime']).days, (now - meta['booted']).seconds)
 
-        cardinal.sendMsg(channel, "I am a Python-based Cardinal IRC bot. My owners are: %s. You can find out more about me on my Github page: http://johnmaguire2013.github.io/Cardinal (Try .help for commands.)" % owners)
+        cardinal.sendMsg(channel, "I am a Python-based Cardinal IRC bot. My owners are: %s. You can find out more about me on my Github page: http://johnmaguire.github.io/Cardinal (Try .help for commands.)" % owners)
         cardinal.sendMsg(channel, "I have been online without downtime for %s, and was initially brought online %s ago. I've been reloaded (or partially reloaded) %s times since then." % (uptime, booted, meta['reloads']))
 
     info.commands = ['info']
