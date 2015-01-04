@@ -13,3 +13,9 @@ class PluginError(CardinalException):
 class CommandNotFoundError(CardinalException):
 	"""This exception is raised when a given command isn't loaded."""
 	pass
+
+class ConfigNotFoundError(CardinalException):
+	"""This exception is raised when an expected plugin config isn't found."""
+
+class AmbiguousConfigError(CardinalException):
+	"""This exception is raised when multiple configs exist for a plugin."""

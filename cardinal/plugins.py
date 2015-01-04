@@ -139,6 +139,9 @@ class PluginManager(object):
           PluginError -- When a plugin's setup function has more than one
             argument.
         """
+        if not hasattr(module, 'setup') or not inspect.ismethod(module.setup):
+            raise PluginError("Plugin does not have a setup function")
+
         # Check whether the setup method on the module accepts an argument. If
         # it does, they are expecting our instance of CardinalBot to be passed
         # in. If not, just call setup. If there is more than one argument
@@ -189,6 +192,75 @@ class PluginManager(object):
                 module.close(self.cardinal)
             else:
                 raise PluginError("Unknown arguments for close function")
+
+    def _load_plugin_config(self, plugin):
+        """Loads a JSON or YML config for a given plugin
+
+        Keyword arguments:
+          plugin -- Name of plugin to load config for.
+
+        Raises:
+          AmbiguousConfigException -- Raised when two configs exist for plugin.
+          ConfigNotFoundException -- Raised when expected config isn't found.
+
+        """
+        # Initialize variable to hold plugin config
+        json_config = False
+        yml_config = False
+
+        # Attempt to load and parse JSON config file
+        # FIXME: Use correct config directory.
+        file = 'plugins/' + plugin + '/config.json'
+        try:
+            f = open(file, 'r')
+            json_config = json.load(f)
+            f.close()
+        # File did not exist or we can't open it for another reason
+        except IOError:
+            self.logger.debug(
+                "Can't open %s - maybe it doesn't exist?" % file
+            )
+        # Thrown by json.load() when the content isn't valid JSON
+        except ValueError:
+            self.logger.warning(
+                "Invalid JSON in %s, skipping it" % file
+            )
+
+        # Attempt to load and parse YML config file
+        # FIXME: Use correct config directory.
+        file = 'plugins/' + plugin + '/config.yml'
+        try:
+            f = open(file, 'r')
+           yml_config = yml.load(f)
+            f.close()
+        except IOError:
+            self.logger.debug(
+                "Can't open %s - maybe it doesn't exist?" % file
+            )
+        except ValueError:
+            self.logger.warning(
+                "Invalid YML in %s, skipping it" % file
+            )
+        # Loaded YML successfully
+        else:
+            # If we already loaded JSON, this is a problem because we won't
+            # know which config to use.
+            if json_config:
+                raise AmbiguousConfigException(
+                    "Found both a JSON and YML config for plugin"
+                )
+
+            # No JSON config, found YML config, return it
+            return yml_config
+
+        # If neither config was found, raise an exception
+        if not yml_config and not json_config:
+            raise ConfigNotFoundException(
+                "No config found for plugin" % plugin
+            )
+
+        # Return JSON config, since YML config wasn't found
+        return json_config
 
     def _get_plugin_commands(self, instance):
         """Find the commands in a plugin and return them as callables.
@@ -324,33 +396,12 @@ class PluginManager(object):
                     module_to_import = plugin
 
                 module = self._import_module(module_to_import)
-
             except Exception, e:
                 # Probably a syntax error in the plugin, log the exception
                 self.logger.exception("Could not load plugin module: %s" % plugin)
                 failed_plugins.append(plugin)
 
                 continue
-
-            # Attempt to load the config file for the given plugin.
-            #
-            # TODO: Change this to use ConfigParser
-            config = None
-            try:
-                if plugin in self.plugins and 'config' in self.plugins[plugin]:
-                    config = self._import_module(
-                        self.plugins[plugin]['config'], 'config'
-                    )
-                else:
-                    config = self._import_module(
-                        plugin, 'config'
-                    )
-            except ImportError:
-                # This is expected if the plugin doesn't have a config file
-                self.logger.info("No config found for plugin: %s" % plugin)
-            except Exception, e:
-                # This is probably due to a syntax error, so log the exception
-                self.logger.exception("Could not load plugin config: %s" % plugin)
 
             # Instance the plugin
             try:
@@ -360,6 +411,40 @@ class PluginManager(object):
                 failed_plugins.append(plugin)
 
                 continue
+
+            # If the plugin instance has a config method, then it expects to
+            # receive a config. Try to load it and pass it in.
+            if (hasattr(instance, 'config') and
+                inspect.ismethod(instance.config)):
+                # Attempt to load the config file for the given plugin.
+                config = None
+                try:
+                    config = self._load_plugin_config(plugin)
+                except AmbiguousConfigException, e:
+                    # If two configs exist for the plugin, bail
+                    self.logger.exception("Could not load plugin: %s" % plugin)
+                    failed_plugins.append(plugin)
+
+                    continue
+                except ConfigNotFoundException, e:
+                    # Couldn't find a valid config, bail
+                    self.logger.exception(
+                        "Could not load plugin config: %s" % plugin
+                    )
+                    failed_plugins.append(plugin)
+
+                    continue
+
+                # Try to pass the config to the plugin instance
+                try:
+                    instance.config(config)
+                except Exception, e:
+                    self.logger.exception(
+                        "Unable to pass config to plugin: %s" % plugin
+                    )
+                    failed_plugins.append(plugin)
+
+                    continue
 
             commands = self._get_plugin_commands(instance)
             events = self._get_plugin_events(instance)
