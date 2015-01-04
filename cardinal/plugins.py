@@ -69,7 +69,7 @@ class PluginManager(object):
         self.load(plugins)
 
     def __iter__(self):
-        """Part of the iterator protocol, returns iterator object
+        """Part of the iterator protocol, returns iterator object.
 
         In this case, this will return itself as it keeps track of the iterator
         internally. Before returning itself, the iteration counter will be
@@ -85,7 +85,7 @@ class PluginManager(object):
         return self
 
     def next(self):
-        """Part of the iterator protocol, returns the next plugin
+        """Part of the iterator protocol, returns the next plugin.
 
         Returns:
           dict -- Dictionary containing a plugin's data.
@@ -107,7 +107,7 @@ class PluginManager(object):
         return self.plugins[keys[self.iteration_counter - 1]]
 
     def _import_module(self, module, type='plugin'):
-        """Given a plugin name, will import it from its directory or reload it
+        """Given a plugin name, will import it from its directory or reload it.
 
         If we are passing in a module, we can safely assume at this point that
         it's a plugin we've already loaded, so we just need to run reload() on
@@ -124,7 +124,7 @@ class PluginManager(object):
             return importlib.import_module('plugins.%s.%s' % (module, type))
 
     def _create_plugin_instance(self, module):
-        """Creates an instance of the plugin module
+        """Creates an instance of the plugin module.
 
         If the setup() function of the plugin's module takes an argument then
         we will provide the instance of CardinalBot to the plugin.
@@ -154,7 +154,7 @@ class PluginManager(object):
         return instance
 
     def _close_plugin_instance(self, plugin):
-        """Calls the close method on an instance of a plugin
+        """Calls the close method on an instance of a plugin.
 
         If the plugin's module has a close() function, we will check whether
         it expects an instance of CardinalBot or not by checking whether it
@@ -191,7 +191,7 @@ class PluginManager(object):
                 raise PluginError("Unknown arguments for close function")
 
     def _get_plugin_commands(self, instance):
-        """Find the commands in a plugin and return them as callables
+        """Find the commands in a plugin and return them as callables.
 
         Keyword arguments:
           instance -- An instance of a plugin.
@@ -217,7 +217,7 @@ class PluginManager(object):
         return commands
 
     def _get_plugin_events(self, instance):
-        """Find the events in a plugin and return them as callables
+        """Find the events in a plugin and return them as callables.
 
         Valid events are as follows:
           on_join   -- When a user joins a channel.

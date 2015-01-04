@@ -78,14 +78,14 @@ class CardinalBot(irc.IRCClient):
         self.booted = self.factory.booted
 
     def joined(self, channel):
-        """Called when we join a channel
+        """Called when we join a channel.
 
         channel -- Channel joined. Provided by Twisted.
         """
         self.logger.info("Joined %s" % channel)
 
     def privmsg(self, user, channel, message):
-        """Called when we receive a message in a channel or PM
+        """Called when we receive a message in a channel or PM.
 
         user -- Tuple containing IRC user info. Provided by Twisted.
         channel -- Channel PRIVMSG was received on. Provided by Twisted.
@@ -121,7 +121,7 @@ class CardinalBot(irc.IRCClient):
             self.logger.info("Unable to find a matching command", exc_info=True)
 
     def userJoined(self, nick, channel):
-        """Called when another user joins a channel we're in
+        """Called when another user joins a channel we're in.
 
         nick -- Nick of user who joined channel. Provided by Twisted.
         channel -- Channel user joined. Provided by Twisted.
@@ -131,7 +131,7 @@ class CardinalBot(irc.IRCClient):
         # TODO: Call matching plugin events
 
     def userLeft(self, nick, channel):
-        """Called when another user leaves a channel we're in
+        """Called when another user leaves a channel we're in.
 
         nick -- Nick of user who left channel. Provided by Twisted.
         channel -- Channel user left. Provided by Twisted.
@@ -141,7 +141,7 @@ class CardinalBot(irc.IRCClient):
         # TODO: Call matching plugin events
 
     def userQuit(self, nick, quitMessage):
-        """Called when another user in a channel we're in quits
+        """Called when another user in a channel we're in quits.
 
         nick -- Nick of user who quit. Provided by Twisted.
         quitMessage -- Message in QUIT. Provided by Twisted.
@@ -151,7 +151,7 @@ class CardinalBot(irc.IRCClient):
         # TODO: Call matching plugin events
 
     def userKicked(self, kicked, channel, kicker, message):
-        """Called when another user is kicked from a channel we're in
+        """Called when another user is kicked from a channel we're in.
 
         kicked -- Nick of user who was kicked. Provided by Twisted.
         channel -- Channel user was kicked from. Provided by Twisted.
@@ -163,7 +163,7 @@ class CardinalBot(irc.IRCClient):
         # TODO: Call matching plugin events
 
     def action(self, user, channel, data):
-        """Called when a user does an action message in a channel we're in
+        """Called when a user does an action message in a channel we're in.
 
         user -- Tuple containing IRC user info. Provided by Twisted.
         channel -- Channel ACTION was received on. Provided by Twisted.
@@ -180,7 +180,7 @@ class CardinalBot(irc.IRCClient):
         # TODO: Call matching plugin events
 
     def topicUpdated(self, nick, channel, newTopic):
-        """Called when a user updates a topic in a channel we're in
+        """Called when a user updates a topic in a channel we're in.
 
         nick -- Nick of user who updated the topic. Provided by Twisted.
         channel -- Channel TOPIC was received on. Provided by Twisted.
@@ -193,7 +193,7 @@ class CardinalBot(irc.IRCClient):
         # TODO: Call matching plugin events
 
     def userRenamed(self, oldNick, newNick):
-        """Called when a user in a channel we're in changes their nick
+        """Called when a user in a channel we're in changes their nick.
 
         oldNick -- User's old nick. Provided by Twisted.
         newNick -- User's new nick. Provided by Twisted.
@@ -203,7 +203,7 @@ class CardinalBot(irc.IRCClient):
         # TODO: Call matching plugin events
 
     def irc_unknown(self, prefix, command, params):
-        """Called when Twisted doesn't understand an IRC command
+        """Called when Twisted doesn't understand an IRC command.
 
         prefix -- Message before unrecognized IRC command. Provided by Twisted.
         command -- Command that wasn't recognized. Provided by Twisted.
@@ -219,7 +219,7 @@ class CardinalBot(irc.IRCClient):
             # TODO: Call matching plugin events
 
     def disconnect(self, message=''):
-        """Wrapper command to quit Cardinal
+        """Wrapper command to quit Cardinal.
 
         message -- Message to insert into QUIT, if any.
         """
@@ -229,7 +229,7 @@ class CardinalBot(irc.IRCClient):
         self.quit(message)
 
     def sendMsg(self, channel, message, length=None):
-        """Wrapper command to send messages
+        """Wrapper command to send messages.
 
         channel -- Channel to send message to.
         message -- Message to send.
@@ -280,7 +280,7 @@ class CardinalBotFactory(protocol.ClientFactory):
     """Datetime object holding time Cardinal first started up"""
 
     def __init__(self, network, channels, nickname='Cardinal', password=None, plugins=[]):
-        """Boots the bot, triggers connection, and initializes logging
+        """Boots the bot, triggers connection, and initializes logging.
 
         Keyword arguments:
           network -- A string containing the server to connect to.
