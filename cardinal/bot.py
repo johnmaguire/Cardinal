@@ -180,7 +180,6 @@ class CardinalBot(irc.IRCClient):
         self.factory.disconnect = True
         self.quit(message)
 
-    # This is a wrapper command to send messages
     def sendMsg(self, channel, message, length=None):
         """Wrapper command to send messages"""
         self.logger.info("Sending in %s: %s" % (channel, message))
@@ -192,43 +191,51 @@ class CardinalBotFactory(protocol.ClientFactory):
     """Logger object for CardinalBotFactory"""
 
     protocol = CardinalBot
+    """Tells Twisted to look at the CardinalBot class for a client"""
 
-    # Whether disconnect.quit() was called.
     disconnect = False
+    """Keeps track of whether disconnect was triggered by CardinalBot"""
 
-    # The network Cardinal has connected to
     network = None
+    """Network to connect to"""
 
-    # The nickname Cardinal has connected as
     nickname = None
+    """Nick to connect with"""
 
-    # The password for Cardinal to identify with, if any
     password = None
+    """NickServ password, if any"""
 
-    # List of channels for CardinalBot to join
     channels = []
+    """Channels to join upon connection"""
 
-    # List of plugins to start CardinalBot with
     plugins = []
+    """Plugins to load upon connection"""
 
-    # The instance of CardinalBot, which will be set by CardinalBot
     cardinal = None
+    """When CardinalBot is started, holds its instance"""
 
-    # The minimum time to wait before attempting to reconnect from an
-    # unexpected disconnection (in seconds)
     minimum_reconnection_wait = 10
+    """Minimum time in seconds before reconnection attempt"""
 
-    # The maximum amount of time to wait before attempting to reconnect from an
-    # unexpected disconnection (in seconds)
-    maximum_reconnection_wait = 3600
+    maximum_reconnection_wait = 300
+    """Maximum time in connections before reconnection attempt"""
 
-    # The amount of time we waited before attempting to reconnect last
     last_reconnection_wait = None
+    """Time in seconds since last reconnection attempt"""
 
-    # The time the first instance of CardinalBot was brought online
     booted = None
+    """Datetime object holding time Cardinal first started up"""
 
     def __init__(self, network, channels, nickname='Cardinal', password=None, plugins=[]):
+        """Boots the bot, triggers connection, and initializes logging
+
+        Keyword arguments:
+          network -- A string containing the server to connect to.
+          channels -- A list of channels to connect to.
+          nickname -- A string with the nick to connect as.
+          password -- A string with NickServ password, if any.
+          plugins -- A list of plugins to load on boot.
+        """
         self.logger = logging.getLogger(__name__)
         self.network = network.lower()
         self.password = password
@@ -236,17 +243,29 @@ class CardinalBotFactory(protocol.ClientFactory):
         self.nickname = nickname
         self.plugins = plugins
 
+        # Register SIGINT handler, so we can close the connection cleanly
         signal.signal(signal.SIGINT, self._sigint)
 
         self.booted = datetime.now()
 
     def _sigint(self, signal, frame):
+        """Called when a SIGINT is received.
+
+        Set disconnect to true since this was user-triggered, and make Cardinal
+        send a valid IRC QUIT.
+        """
         self.disconnect = True
         if self.cardinal:
             self.cardinal.quit('Received SIGINT.')
 
     def clientConnectionLost(self, connector, reason):
-        # This flag tells us whether Cardinal was supposed to disconnect or not
+        """Called when we lose connection to the server.
+
+        connector -- Twisted IRC connector. Provided by Twisted.
+        reason -- Reason for disconnect. Provided by Twisted.
+        """
+        # This flag tells us if Cardinal was told to disconnect by a user. If
+        # not, we'll attempt to reconnect.
         if not self.disconnect:
             self.logger.info(
                 "Connection lost (%s), reconnecting in %d seconds." %
@@ -255,7 +274,7 @@ class CardinalBotFactory(protocol.ClientFactory):
 
             # Reset the last reconnection wait time since this is the first
             # time we've disconnected since a successful connection and then
-            # wait before connecting
+            # wait before connecting.
             self.last_reconnection_wait = self.minimum_reconnection_wait
             time.sleep(self.minimum_reconnection_wait)
             connector.connect()
@@ -267,6 +286,11 @@ class CardinalBotFactory(protocol.ClientFactory):
             reactor.stop()
 
     def clientConnectionFailed(self, connector, reason):
+        """Called when a connection attempt fails.
+
+        connector -- Twisted IRC connector. Provided by Twisted.
+        reason -- Reason connection failed. Provided by Twisted.
+        """
         # If we disconnected on our first connection attempt, then we don't
         # need to calculate a wait time, we can just use the minimum time
         if not self.last_reconnection_wait:
