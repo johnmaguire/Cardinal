@@ -496,6 +496,11 @@ class PluginManager(object):
                 command(self.cardinal, user, channel, message)
                 continue
 
+        # Since standard command regex wasn't found, there's no need to raise
+        # an exception - we weren't exactly expecting to find a command anyway.
+        if not get_command:
+            return
+
         # Since we found something that matched a command regex, yet no plugins
         # that were loaded had a command matching, we can raise an exception.
         raise CommandNotFoundError(
