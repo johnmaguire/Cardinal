@@ -3,29 +3,6 @@ import json
 import argparse
 import inspect
 
-# Hardcoded defaults in case the config file is missing and no command-line
-# options are specified
-DEFAULT_NICKNAME = 'Cardinal'
-DEFAULT_PASSWORD = None
-DEFAULT_NETWORK = 'irc.freenode.net'
-DEFAULT_PORT = 6667
-DEFAULT_SSL = False
-DEFAULT_CHANNELS = ('#bots',)
-DEFAULT_PLUGINS = (
-    'help',
-    'admin',
-    'ping',
-    'urls',
-    'notes',
-    'calculator',
-    'weather',
-    'remind',
-    'lastfm',
-    'youtube',
-    'join_on_invite',
-#    'event_examples',
-)
-
 
 class ConfigSpec(object):
     """A class used to create a config spec for ConfigParser"""
