@@ -473,18 +473,20 @@ class PluginManager(object):
                 flags=re.IGNORECASE
             )
 
-        # Iterate through loaded commands
+        # Iterate through all loaded commands
         for command in self.itercommands():
-            # Check whether the plugin has a regex attribute, and try to match
-            # it if so.
+            # Check whether the current command has a regex to match by, and if
+            # it does, and the message given to us matches the regex, then call
+            # the command.
             if hasattr(command, 'regex') and re.search(command.regex, message):
                 command(self.cardinal, user, channel, message)
-                return
+                continue
 
-            # If we weren't able to match the a command regex earlier, we can
-            # bail early now.
+            # If the message didn't match a typical command regex, then we can
+            # skip to the next command without checking whether this one
+            # matches the message.
             if not get_command:
-                return
+                continue
 
             # Check if the plugin defined any standard commands and whether any
             # of them match the command we found in the message.
@@ -492,7 +494,7 @@ class PluginManager(object):
                 get_command.group(2) in command.commands):
                 # Matched this command, so call it.
                 command(self.cardinal, user, channel, message)
-                return
+                continue
 
         # Since we found something that matched a command regex, yet no plugins
         # that were loaded had a command matching, we can raise an exception.
