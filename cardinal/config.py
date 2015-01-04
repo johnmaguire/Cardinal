@@ -21,8 +21,8 @@ class ConfigSpec(object):
         """Adds an option to the spec
 
         Keyword arguments:
-          name    -- The name of the option to add to the spec.
-          type    -- An object representing the option's type.
+          name -- The name of the option to add to the spec.
+          type -- An object representing the option's type.
           default -- Optionally, what the option should default to.
 
         Raises:
@@ -124,7 +124,7 @@ class ConfigParser(object):
         need to convert them into UTF-8 encoded strings.
 
         Keyword arguments:
-          json_object    -- Dict object returned by json.load() / json.loads().
+          json_object -- Dict object returned by json.load() / json.loads().
           called_by_self -- Internal parameter only used for sanity checking.
 
         Returns:
