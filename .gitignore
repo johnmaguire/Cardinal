@@ -45,3 +45,6 @@ nosetests.xml
 
 # Database files
 *.db
+
+# OS X
+.DS_Store
