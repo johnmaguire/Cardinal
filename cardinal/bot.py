@@ -87,9 +87,10 @@ class CardinalBot(irc.IRCClient):
     def privmsg(self, user, channel, message):
         """Called when we receive a message in a channel or PM.
 
-        user -- Tuple containing IRC user info. Provided by Twisted.
-        channel -- Channel PRIVMSG was received on. Provided by Twisted.
-        message -- Message received. Provided by Twisted.
+        Keyword arguments:
+          user -- Tuple containing IRC user info. Provided by Twisted.
+          channel -- Channel PRIVMSG was received on. Provided by Twisted.
+          message -- Message received. Provided by Twisted.
         """
         # Breaks the user up into usable groups:
         #
@@ -123,8 +124,9 @@ class CardinalBot(irc.IRCClient):
     def userJoined(self, nick, channel):
         """Called when another user joins a channel we're in.
 
-        nick -- Nick of user who joined channel. Provided by Twisted.
-        channel -- Channel user joined. Provided by Twisted.
+        Keyword arguments:
+          nick -- Nick of user who joined channel. Provided by Twisted.
+          channel -- Channel user joined. Provided by Twisted.
         """
         self.logger.debug("%s joined %s" % (nick, channel))
 
@@ -133,8 +135,9 @@ class CardinalBot(irc.IRCClient):
     def userLeft(self, nick, channel):
         """Called when another user leaves a channel we're in.
 
-        nick -- Nick of user who left channel. Provided by Twisted.
-        channel -- Channel user left. Provided by Twisted.
+        Keyword arguments:
+          nick -- Nick of user who left channel. Provided by Twisted.
+          channel -- Channel user left. Provided by Twisted.
         """
         self.logger.debug("%s parted %s" % (nick, channel))
 
@@ -143,8 +146,9 @@ class CardinalBot(irc.IRCClient):
     def userQuit(self, nick, quitMessage):
         """Called when another user in a channel we're in quits.
 
-        nick -- Nick of user who quit. Provided by Twisted.
-        quitMessage -- Message in QUIT. Provided by Twisted.
+        Keyword arguments:
+          nick -- Nick of user who quit. Provided by Twisted.
+          quitMessage -- Message in QUIT. Provided by Twisted.
         """
         self.logger.debug("%s quit (Reason: %s)" % (nick, quitMessage))
 
@@ -153,21 +157,26 @@ class CardinalBot(irc.IRCClient):
     def userKicked(self, kicked, channel, kicker, message):
         """Called when another user is kicked from a channel we're in.
 
-        kicked -- Nick of user who was kicked. Provided by Twisted.
-        channel -- Channel user was kicked from. Provided by Twisted.
-        kicker -- Nick of user who triggered kick. Provided by Twisted.
-        message -- Message in KICK. Provided by Twisted.
+        Keyword arguments:
+          kicked -- Nick of user who was kicked. Provided by Twisted.
+          channel -- Channel user was kicked from. Provided by Twisted.
+          kicker -- Nick of user who triggered kick. Provided by Twisted.
+          message -- Message in KICK. Provided by Twisted.
         """
-        self.logger.debug("%s kicked %s from %s (Reason: %s)" % (kicker, kicked, channel, message))
+        self.logger.debug(
+            "%s kicked %s from %s (Reason: %s)" %
+            (kicker, kicked, channel, message)
+        )
 
         # TODO: Call matching plugin events
 
     def action(self, user, channel, data):
         """Called when a user does an action message in a channel we're in.
 
-        user -- Tuple containing IRC user info. Provided by Twisted.
-        channel -- Channel ACTION was received on. Provided by Twisted.
-        data -- Message in ACTION. Provided by Twisted.
+        Keyword arguments:
+          user -- Tuple containing IRC user info. Provided by Twisted.
+          channel -- Channel ACTION was received on. Provided by Twisted.
+          data -- Message in ACTION. Provided by Twisted.
         """
         # Break the user up into usable groups
         user = re.match(self.user_regex, user)
@@ -182,9 +191,10 @@ class CardinalBot(irc.IRCClient):
     def topicUpdated(self, nick, channel, newTopic):
         """Called when a user updates a topic in a channel we're in.
 
-        nick -- Nick of user who updated the topic. Provided by Twisted.
-        channel -- Channel TOPIC was received on. Provided by Twisted.
-        newTopic -- New channel topic. Provided by Twisted.
+        Keyword arguments:
+          nick -- Nick of user who updated the topic. Provided by Twisted.
+          channel -- Channel TOPIC was received on. Provided by Twisted.
+          newTopic -- New channel topic. Provided by Twisted.
         """
         self.logger.debug(
             "Topic updated in %s by %s: %s" % (channel, nick, newTopic)
@@ -195,8 +205,9 @@ class CardinalBot(irc.IRCClient):
     def userRenamed(self, oldNick, newNick):
         """Called when a user in a channel we're in changes their nick.
 
-        oldNick -- User's old nick. Provided by Twisted.
-        newNick -- User's new nick. Provided by Twisted.
+        Keyword arguments:
+          oldNick -- User's old nick. Provided by Twisted.
+          newNick -- User's new nick. Provided by Twisted.
         """
         self.logger.debug("%s changed nick to %s" % (oldNick, newNick))
 
@@ -205,9 +216,10 @@ class CardinalBot(irc.IRCClient):
     def irc_unknown(self, prefix, command, params):
         """Called when Twisted doesn't understand an IRC command.
 
-        prefix -- Message before unrecognized IRC command. Provided by Twisted.
-        command -- Command that wasn't recognized. Provided by Twisted.
-        params -- Message after IRC command. Provided by Twisted.
+        Keyword arguments:
+          prefix -- Message before IRC command. Provided by Twisted.
+          command -- Command that wasn't recognized. Provided by Twisted.
+          params -- Message after IRC command. Provided by Twisted.
         """
         # A user has invited us to a channel
         if command == "INVITE":
@@ -314,8 +326,9 @@ class CardinalBotFactory(protocol.ClientFactory):
     def clientConnectionLost(self, connector, reason):
         """Called when we lose connection to the server.
 
-        connector -- Twisted IRC connector. Provided by Twisted.
-        reason -- Reason for disconnect. Provided by Twisted.
+        Keyword arguments:
+          connector -- Twisted IRC connector. Provided by Twisted.
+          reason -- Reason for disconnect. Provided by Twisted.
         """
         # This flag tells us if Cardinal was told to disconnect by a user. If
         # not, we'll attempt to reconnect.
@@ -341,8 +354,9 @@ class CardinalBotFactory(protocol.ClientFactory):
     def clientConnectionFailed(self, connector, reason):
         """Called when a connection attempt fails.
 
-        connector -- Twisted IRC connector. Provided by Twisted.
-        reason -- Reason connection failed. Provided by Twisted.
+        Keyword arguments:
+          connector -- Twisted IRC connector. Provided by Twisted.
+          reason -- Reason connection failed. Provided by Twisted.
         """
         # If we disconnected on our first connection attempt, then we don't
         # need to calculate a wait time, we can just use the minimum time
