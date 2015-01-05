@@ -1,1 +1,0 @@
-OWNERS = ('nick@vhost',)

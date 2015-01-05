@@ -5,15 +5,16 @@ class HelpPlugin(object):
     # Cardinal instance, if exists
     def _get_owners(self, cardinal):
         owners = False
-        if 'admin' in cardinal.config:
+        admin_config = cardinal.config('admin')
+        if admin_config is not None and 'owners' in admin_config:
             owners = []
-            for owner in cardinal.config['admin'].OWNERS:
+            for owner in admin_config['owners']:
                 owner = owner.split('@')
                 owners.append(owner[0])
 
             owners = list(set(owners))
 
-        return ', '.join(owners) if owners else 'No registered owners.'
+        return ', '.join(owners) if owners else '(no registered owners)'
 
     # Pulls a list of all commands from Cardinal instance, using either the
     # first defined command alias or failing that, the command's name
@@ -21,8 +22,8 @@ class HelpPlugin(object):
         commands = []
 
         # Loop through commands registered in Cardinal
-        for name, module in cardinal.loaded_plugins.items():
-            for command in module['commands']:
+        for plugin in cardinal.plugin_manager:
+            for command in plugin['commands']:
                 if hasattr(command, 'commands'):
                     commands.append(command.commands[0])
                 elif hasattr(command, 'name'):
@@ -70,10 +71,10 @@ class HelpPlugin(object):
 
     # Given a number of seconds, converts it to a readable uptime string
     def _pretty_uptime(self, days, seconds):
-        hours, seconds   = divmod(seconds, 60 * 60)
+        hours, seconds = divmod(seconds, 60 * 60)
         minutes, seconds = divmod(seconds, 60)
-        uptime           = "%d days " % days if days else ""
-        uptime          += "%02d:%02d:%02d" % (hours, minutes, seconds)
+        uptime = "%d days " % days if days else ""
+        uptime += "%02d:%02d:%02d" % (hours, minutes, seconds)
 
         return uptime
 
@@ -100,8 +101,8 @@ class HelpPlugin(object):
 
     # Sends some basic meta information about the bot
     def info(self, cardinal, user, channel, msg):
-        owners   = self._get_owners(cardinal)
-        meta     = self._get_meta(cardinal)
+        owners = self._get_owners(cardinal)
+        meta = self._get_meta(cardinal)
 
         # Calculate uptime into readable format
         now    = datetime.now()
