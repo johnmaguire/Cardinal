@@ -230,25 +230,57 @@ class CardinalBot(irc.IRCClient):
 
             # TODO: Call matching plugin events
 
+    def config(self, plugin):
+        """Returns a given loaded plugin's config.
+
+        Keyword arguments:
+          plugin -- String containing a plugin name.
+
+        Returns:
+          dict -- Dictionary containing plugin config.
+
+        Raises:
+          ConfigNotFoundError - When config can't be found for the plugin.
+        """
+        if self.plugin_manager is None:
+            self.logger.error(
+                "PluginManager has not been initialized! Can't return config "
+                "for plugin: %s" % plugin
+            )
+            raise PluginError("PluginManager has not yet been initialized")
+
+        try:
+            config = self.plugin_manager.get_config(plugin)
+        except ConfigNotFoundError, e:
+            # Log and raise the exception again
+            self.logger.exception(
+                "Couldn't find config for plugin: %s" % plugin
+            )
+            raise
+
+        return config
+
+    def sendMsg(self, channel, message, length=None):
+        """Wrapper command to send messages.
+
+        Keyword arguments:
+          channel -- Channel to send message to.
+          message -- Message to send.
+          length -- Length of message. Twisted will calculate if None given.
+        """
+        self.logger.info("Sending in %s: %s" % (channel, message))
+        self.msg(channel, message, length)
+
     def disconnect(self, message=''):
         """Wrapper command to quit Cardinal.
 
-        message -- Message to insert into QUIT, if any.
+        Keyword arguments:
+          message -- Message to insert into QUIT, if any.
         """
         self.logger.info("Disconnecting from network")
         self.plugin_manager.unload_all()
         self.factory.disconnect = True
         self.quit(message)
-
-    def sendMsg(self, channel, message, length=None):
-        """Wrapper command to send messages.
-
-        channel -- Channel to send message to.
-        message -- Message to send.
-        length -- Length of message. Twisted will calculate if None given.
-        """
-        self.logger.info("Sending in %s: %s" % (channel, message))
-        self.msg(channel, message, length)
 
 # This interfaces CardinalBot with the Twisted library
 class CardinalBotFactory(protocol.ClientFactory):

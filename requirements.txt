@@ -1,2 +1,4 @@
-Twisted==13.2.0
 pyOpenSSL==0.13.1
+PyYAML==3.11
+Twisted==13.2.0
+zope.interface==4.1.2

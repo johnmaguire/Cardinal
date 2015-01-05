@@ -3,6 +3,8 @@ import logging
 import importlib
 import inspect
 import linecache
+import json
+import yaml
 
 from cardinal.exceptions import *
 
@@ -123,14 +125,16 @@ class PluginManager(object):
         elif isinstance(module, basestring):
             return importlib.import_module('plugins.%s.%s' % (module, type))
 
-    def _create_plugin_instance(self, module):
+    def _create_plugin_instance(self, module, config=None):
         """Creates an instance of the plugin module.
 
         If the setup() function of the plugin's module takes an argument then
-        we will provide the instance of CardinalBot to the plugin.
+        we will provide the instance of CardinalBot to the plugin. If it takes
+        two, we will provide Cardinal, and its config.
 
         Keyword arguments:
           module -- The module to instantiate.
+          config -- A config, if any, belonging to the plugin.
 
         Returns:
           object -- The instance of the plugin.
@@ -139,7 +143,7 @@ class PluginManager(object):
           PluginError -- When a plugin's setup function has more than one
             argument.
         """
-        if not hasattr(module, 'setup') or not inspect.ismethod(module.setup):
+        if not hasattr(module, 'setup') or not inspect.isfunction(module.setup):
             raise PluginError("Plugin does not have a setup function")
 
         # Check whether the setup method on the module accepts an argument. If
@@ -151,6 +155,8 @@ class PluginManager(object):
             instance = module.setup()
         elif len(argspec.args) == 1:
             instance = module.setup(self.cardinal)
+        elif len(argspec.args) == 2:
+            instance = module.setup(self.cardinal, config)
         else:
             raise PluginError("Unknown arguments for setup function")
 
@@ -194,19 +200,19 @@ class PluginManager(object):
                 raise PluginError("Unknown arguments for close function")
 
     def _load_plugin_config(self, plugin):
-        """Loads a JSON or YML config for a given plugin
+        """Loads a JSON or YAML config for a given plugin
 
         Keyword arguments:
           plugin -- Name of plugin to load config for.
 
         Raises:
-          AmbiguousConfigException -- Raised when two configs exist for plugin.
-          ConfigNotFoundException -- Raised when expected config isn't found.
+          AmbiguousConfigError -- Raised when two configs exist for plugin.
+          ConfigNotFoundError -- Raised when expected config isn't found.
 
         """
         # Initialize variable to hold plugin config
         json_config = False
-        yml_config = False
+        yaml_config = False
 
         # Attempt to load and parse JSON config file
         # FIXME: Use correct config directory.
@@ -226,12 +232,12 @@ class PluginManager(object):
                 "Invalid JSON in %s, skipping it" % file
             )
 
-        # Attempt to load and parse YML config file
+        # Attempt to load and parse YAML config file
         # FIXME: Use correct config directory.
-        file = 'plugins/' + plugin + '/config.yml'
+        file = 'plugins/' + plugin + '/config.yaml'
         try:
             f = open(file, 'r')
-           yml_config = yml.load(f)
+            yaml_config = yaml.load(f)
             f.close()
         except IOError:
             self.logger.debug(
@@ -239,27 +245,27 @@ class PluginManager(object):
             )
         except ValueError:
             self.logger.warning(
-                "Invalid YML in %s, skipping it" % file
+                "Invalid YAML in %s, skipping it" % file
             )
-        # Loaded YML successfully
+        # Loaded YAML successfully
         else:
             # If we already loaded JSON, this is a problem because we won't
             # know which config to use.
             if json_config:
-                raise AmbiguousConfigException(
-                    "Found both a JSON and YML config for plugin"
+                raise AmbiguousConfigError(
+                    "Found both a JSON and YAML config for plugin"
                 )
 
-            # No JSON config, found YML config, return it
-            return yml_config
+            # No JSON config, found YAML config, return it
+            return yaml_config
 
         # If neither config was found, raise an exception
-        if not yml_config and not json_config:
-            raise ConfigNotFoundException(
-                "No config found for plugin" % plugin
+        if not yaml_config and not json_config:
+            raise ConfigNotFoundError(
+                "No config found for plugin: %s" % plugin
             )
 
-        # Return JSON config, since YML config wasn't found
+        # Return JSON config, since YAML config wasn't found
         return json_config
 
     def _get_plugin_commands(self, instance):
@@ -403,48 +409,29 @@ class PluginManager(object):
 
                 continue
 
+            # Attempt to load the config file for the given plugin.
+            config = None
+            try:
+                config = self._load_plugin_config(plugin)
+            except AmbiguousConfigError, e:
+                # If two configs exist for the plugin, bail on loading
+                self.logger.exception("Could not load plugin: %s" % plugin)
+                failed_plugins.append(plugin)
+
+                continue
+            except ConfigNotFoundError:
+                self.logger.info(
+                    "No config found for plugin: %s" % plugin
+                )
+
             # Instance the plugin
             try:
-                instance = self._create_plugin_instance(module)
+                instance = self._create_plugin_instance(module, config)
             except Exception, e:
                 self.logger.exception("Could not instantiate plugin: %s" % plugin)
                 failed_plugins.append(plugin)
 
                 continue
-
-            # If the plugin instance has a config method, then it expects to
-            # receive a config. Try to load it and pass it in.
-            if (hasattr(instance, 'config') and
-                inspect.ismethod(instance.config)):
-                # Attempt to load the config file for the given plugin.
-                config = None
-                try:
-                    config = self._load_plugin_config(plugin)
-                except AmbiguousConfigException, e:
-                    # If two configs exist for the plugin, bail
-                    self.logger.exception("Could not load plugin: %s" % plugin)
-                    failed_plugins.append(plugin)
-
-                    continue
-                except ConfigNotFoundException, e:
-                    # Couldn't find a valid config, bail
-                    self.logger.exception(
-                        "Could not load plugin config: %s" % plugin
-                    )
-                    failed_plugins.append(plugin)
-
-                    continue
-
-                # Try to pass the config to the plugin instance
-                try:
-                    instance.config(config)
-                except Exception, e:
-                    self.logger.exception(
-                        "Unable to pass config to plugin: %s" % plugin
-                    )
-                    failed_plugins.append(plugin)
-
-                    continue
 
             commands = self._get_plugin_commands(instance)
             events = self._get_plugin_events(instance)
@@ -455,6 +442,7 @@ class PluginManager(object):
             self.plugins[plugin] = {
                 'module': module,
                 'instance': instance,
+                'config': config,
                 'commands': commands,
                 'events': events
             }
@@ -528,6 +516,32 @@ class PluginManager(object):
         self.logger.info("Unloading all plugins")
         self.unload([plugin for plugin, data in self.plugins.items()])
 
+    def get_config(self, plugin):
+        """Returns a loaded config for given plugin.
+
+        When a plugin is loaded, if a config is found, it will be stored in
+        PluginManager. This method returns a given plugin's config, so it can
+        be accessed elsewhere.
+
+        Keyword arguments:
+          plugin -- A string containing the name of a plugin.
+
+        Returns:
+          dict -- A dictionary containing the config.
+
+        Raises:
+          ConfigNotFoundError -- When no config exists for a given plugin name.
+        """
+
+        if plugin not in self.plugins:
+            raise ConfigNotFoundError("Couldn't find requested plugin config")
+
+        if self.plugins[plugin]['config'] is None:
+            raise ConfigNotFoundError("Couldn't find requested plugin config")
+
+        return self.plugins[plugin]['config']
+
+
     def call_command(self, user, channel, message):
         """Checks a message to see if it appears to be a command and calls it.
 
@@ -547,6 +561,9 @@ class PluginManager(object):
           CommandNotFoundError -- If the message appeared to be a command but
             no matching plugins are loaded.
         """
+        # Keep track of whether we called a command for logging purposes
+        called_command = False
+
         # Perform a regex match of the message to our command regexes, since
         # only one of these can match, and the matching groups are in the same
         # order, we only need to check the second one if the first fails, and
@@ -565,6 +582,7 @@ class PluginManager(object):
             # the command.
             if hasattr(command, 'regex') and re.search(command.regex, message):
                 command(self.cardinal, user, channel, message)
+                called_command = True
                 continue
 
             # If the message didn't match a typical command regex, then we can
@@ -578,12 +596,14 @@ class PluginManager(object):
             if (hasattr(command, 'commands') and
                 get_command.group(2) in command.commands):
                 # Matched this command, so call it.
+                called_command = True
                 command(self.cardinal, user, channel, message)
                 continue
 
         # Since standard command regex wasn't found, there's no need to raise
         # an exception - we weren't exactly expecting to find a command anyway.
-        if not get_command:
+        # Alternatively, if we called a command, no need to raise an exception.
+        if not get_command or called_command:
             return
 
         # Since we found something that matched a command regex, yet no plugins
