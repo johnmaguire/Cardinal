@@ -1,8 +1,5 @@
 *.py[cod]
 
-# Cardinal-specific
-config.json
-
 # C extensions
 *.so
 

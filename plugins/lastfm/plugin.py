@@ -3,21 +3,35 @@ import sys
 import sqlite3
 import json
 import urllib2
+import logging
+
 
 class LastfmPlugin(object):
-    # This will hold the connection to the sqlite database
-    conn = None
+    logger = None
+    """Logging object for LastfmPlugin"""
 
-    def __init__(self, cardinal):
+    conn = None
+    """Connection to SQLite database"""
+
+    api_key = None
+    """Last.fm API key"""
+
+    def __init__(self, cardinal, config):
+        # Initialize logger
+        self.logger = logging.getLogger(__name__)
+
         # Connect to or create the database
         self._connect_or_create_db(cardinal)
 
+        if config is not None and 'api_key' in config:
+            self.api_key = config['api_key']
+
     def _connect_or_create_db(self, cardinal):
         try:
-            self.conn = sqlite3.connect(os.path.join(cardinal.path, 'db', 'lastfm-%s.db' % cardinal.network))
+            self.conn = sqlite3.connect(os.path.join('db', 'lastfm-%s.db' % cardinal.network))
         except Exception, e:
             self.conn = None
-            print >> sys.stderr, "ERROR: Unable to access local Last.fm database (%s)" % e
+            self.logger.exception("Unable to access local Last.fm database")
             return
 
         c = self.conn.cursor()
@@ -55,7 +69,7 @@ class LastfmPlugin(object):
 
     def now_playing(self, cardinal, user, channel, msg):
         # Before we do anything, let's make sure we'll be able to query Last.fm
-        if not hasattr(cardinal.config['lastfm'], 'API_KEY') or cardinal.config['lastfm'].API_KEY == "API_KEY":
+        if self.api_key is None:
             cardinal.sendMsg(channel, "Last.fm plugin is not configured correctly. Please set API key.")
             return
 
@@ -68,7 +82,7 @@ class LastfmPlugin(object):
 
         # If they supplied user parameter, use that for the query instead
         message = msg.split()
-        
+
         if len(message) >= 2:
             nick = message[1]
             c.execute("SELECT username FROM users WHERE nick=?", (nick,))
@@ -88,15 +102,11 @@ class LastfmPlugin(object):
             username = result[0]
 
         try:
-            uh = urllib2.urlopen("http://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user=%s&api_key=%s&limit=1&format=json" % (username, cardinal.config['lastfm'].API_KEY))
+            uh = urllib2.urlopen("http://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user=%s&api_key=%s&limit=1&format=json" % (username, self.api_key))
             content = json.load(uh)
-        except urllib2.URLError, e:
-            cardinal.sendMsg(channel, "Unable to reach Last.fm.")
-            print >> sys.stderr, "ERROR: Failed to reach the server: %s" % e.reason
-            return
-        except urllib2.HTTPError, e:
-            cardinal.sendMsg(channel, "Unable to access Last.fm API.")
-            print >> sys.stderr, "ERROR: The server did not fulfill the request. (%s Error)" % e.code
+        except Exception, e:
+            cardinal.sendMsg(channel, "Unable to connect to Last.fm.")
+            self.logger.exception("Failed to connect to Last.fm")
             return
 
         if 'error' in content and content['error'] == 10:
@@ -126,7 +136,7 @@ class LastfmPlugin(object):
 
     def compare(self, cardinal, user, channel, msg):
         # Before we do anything, let's make sure we'll be able to query Last.fm
-        if not hasattr(cardinal.config['lastfm'], 'API_KEY') or cardinal.config['lastfm'].API_KEY == "API_KEY":
+        if self.api_key is None:
             cardinal.sendMsg(channel, "Last.fm plugin is not configured correctly. Please set API key.")
 
         if not self.conn:
@@ -166,22 +176,17 @@ class LastfmPlugin(object):
             username2 = result[0]
 
         try:
-            uh = urllib2.urlopen("http://ws.audioscrobbler.com/2.0/?method=tasteometer.compare&type1=user&type2=user&value1=%s&value2=%s&api_key=%s&format=json" % (username1, username2, cardinal.config['lastfm'].API_KEY))
+            uh = urllib2.urlopen("http://ws.audioscrobbler.com/2.0/?method=tasteometer.compare&type1=user&type2=user&value1=%s&value2=%s&api_key=%s&format=json" % (username1, username2, self.api_key))
             content = json.load(uh)
-        except urllib2.URLError, e:
-            cardinal.sendMsg(channel, "Unable to reach Last.fm.")
-            print >> sys.stderr, "ERROR: Failed to reach the server: %s" % e.reason
-            return
-        except urllib2.HTTPError, e:
-            cardinal.sendMsg(channel, "Unable to access Last.fm API.")
-            print >> sys.stderr, "ERROR: The server did not fulfill the request. (%s Error)" % e.code
+        except Exception, e:
+            cardinal.sendMsg(channel, "Unable to connect to Last.fm.")
+            self.logger.exception("Failed to connect to Last.fm")
             return
 
         if 'error' in content and content['error'] == 10:
             cardinal.sendMsg(channel, "Last.fm plugin is not configured correctly. Please set API key.")
             return
         elif 'error' in content and content['error'] == 7:
-            print content
             cardinal.sendMsg(channel, "One of the Last.fm usernames entered was invalid. Please try again.")
             return
 
@@ -192,7 +197,7 @@ class LastfmPlugin(object):
                 # Return early to avoid error on looping through artists
                 cardinal.sendMsg(channel, "According to Last.fm's Tasteometer, %s and %s share none of the same music." % (str(username1), str(username2)))
                 return
-            
+
             # Account for Last.fm giving a string instead of a list if only one artist is shared
             if not isinstance(content['comparison']['result']['artists']['artist'], list):
                 artists.append(str(content['comparison']['result']['artists']['artist']['name']))
@@ -212,5 +217,5 @@ class LastfmPlugin(object):
     def close(self):
         self.conn.close()
 
-def setup(cardinal):
-    return LastfmPlugin(cardinal)
+def setup(cardinal, config):
+    return LastfmPlugin(cardinal, config)

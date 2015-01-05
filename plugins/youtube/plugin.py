@@ -1,11 +1,29 @@
 import json
 import urllib
 import urllib2
+import logging
+
 
 class YouTubePlugin(object):
+    logger = None
+    """Logging object for YouTubePlugin"""
+
+    api_key = None
+    """API key for Youtube API"""
+
+    def __init__(self, cardinal, config):
+        # Initialize logging
+        self.logger = logging.getLogger(__name__)
+
+        if config is None:
+            return
+
+        if 'api_key' in config:
+            self.api_key = config['api_key']
+
     def search(self, cardinal, user, channel, msg):
         # Before we do anything, let's make sure we'll be able to query YouTube
-        if not hasattr(cardinal.config['youtube'], 'API_KEY') or cardinal.config['youtube'].API_KEY == "API_KEY":
+        if self.api_key is None:
             cardinal.sendMsg(channel, "YouTube plugin is not configured correctly. Please set API key.")
 
         # Grab the search query
@@ -16,19 +34,19 @@ class YouTubePlugin(object):
             return
 
         try:
-            yt_request = {'part': 'snippet', 'q': search_query, 'maxResults': 1, 'key': cardinal.config['youtube'].API_KEY}
+            yt_request = {'part': 'snippet', 'q': search_query, 'maxResults': 1, 'key': self.api_key}
             uh = urllib2.urlopen("https://www.googleapis.com/youtube/v3/search?" + urllib.urlencode(yt_request))
             content = json.load(uh)
-        except urllib2.URLError:
-            cardinal.sendMsg(channel, "Error accessing YouTube API. (URLError Exception occurred.)")
-            return
-        except urllib2.HTTPError:
-            cardinal.sendMsg(channel, "Error accessing YouTube API. (HTTPError Exception occurred.")
+        except Exception, e:
+            cardinal.sendMsg(channel, "Unable to connect to YouTube.")
+            self.logger.exception("Failed to connect to YouTube")
             return
 
         if 'error' in content:
             cardinal.sendMsg(channel, "An error occurred while attempting to search YouTube.")
-            print >> sys.stderr, "ERROR: Error attempting to search YouTube (%s)" % uh
+            self.logger.error(
+                "Error attempting to search YouTube: %s" % content['error']
+            )
             return
 
         try:
@@ -46,5 +64,5 @@ class YouTubePlugin(object):
     search.help = ["Get the first YouTube result for a given search.",
                    "Syntax: .youtube <search query>"]
 
-def setup():
-    return YouTubePlugin()
+def setup(cardinal, config):
+    return YouTubePlugin(cardinal, config)
