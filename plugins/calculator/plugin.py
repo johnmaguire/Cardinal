@@ -2,8 +2,16 @@ import sys
 import json
 import urllib
 import urllib2
+import logging
 
 class CalculatorPlugin(object):
+    logger = None
+    """Logging object for CalculatorPlugin"""
+
+    def __init__(self):
+        # Initialize logging
+        self.logger = logging.getLogger(__name__)
+
     def calculate(self, cardinal, user, channel, msg):
         # Grab the search query
         try:
@@ -15,13 +23,9 @@ class CalculatorPlugin(object):
         try:
             c_request = {'question': question}
             uh = urllib2.urlopen("http://dib.leftforliving.com:8080/query?" + urllib.urlencode(c_request))
-        except urllib2.URLError, e:
+        except Exception, e:
             cardinal.sendMsg(channel, "Unable to reach evaluation server.")
-            print >> sys.stderr, "ERROR: Failed to reach the server: %s" % e.reason
-            return
-        except urllib2.HTTPError, e:
-            cardinal.sendMsg(channel, "Unable to reach evaluation server.")
-            print >> sys.stderr, "ERROR: The server did not fulfill the request. (%s Error)" % e.code
+            self.logger.exception("Unable to connect to evaluation server")
             return
 
         try:
@@ -31,6 +35,7 @@ class CalculatorPlugin(object):
 
         if 'error' in response and response['error']:
             cardinal.sendMsg(channel, "Unable to evaluate '%s'." % question)
+            self.logger.warning("Unable to evaluate '%s'" % question)
             return
 
         try:

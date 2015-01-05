@@ -6,16 +6,21 @@ import sqlite3
 HELP_REGEX = re.compile(r'^!(.+?)')
 
 class NotesPlugin(object):
+    logger = None
+
     def __init__(self, cardinal):
+        # Initialize logging
+        self.logger = logging.getLogger(__name__)
+
         # Connect to or create the note database
         self._connect_or_create_db(cardinal)
 
     def _connect_or_create_db(self, cardinal):
         try:
-            self.conn = sqlite3.connect(os.path.join(cardinal.path, 'db', 'notes-%s.db' % cardinal.network))
+            self.conn = sqlite3.connect(os.path.join('db', 'notes-%s.db' % cardinal.network))
         except Exception, e:
             self.conn = None
-            print >> sys.stderr, "ERROR: Unable to access notes database (%s)" % e
+            self.logger.exception("Unable to access local notes database")
             return
 
         c = self.conn.cursor()
@@ -29,10 +34,10 @@ class NotesPlugin(object):
 
         message = msg.split('=', 1)
         title_message = message[0].split(' ', 1)
-        if (len(message) < 2 or 
-            len(title_message) < 2 or 
+        if (len(message) < 2 or
+            len(title_message) < 2 or
             len(message[1]) == 0):
-            
+
             cardinal.sendMsg(channel, "Syntax: .addnote <title>=<content>")
             return
 
