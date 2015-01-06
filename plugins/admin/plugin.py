@@ -64,10 +64,10 @@ class AdminPlugin(object):
 
             if len(plugins) == 0:
                 plugins = []
-                for name, module in cardinal.loaded_plugins.items():
-                    plugins.append(name)
+                for plugin in cardinal.plugin_manager:
+                    plugins.append(plugin['name'])
 
-            failed_plugins = cardinal._load_plugins(plugins)
+            failed_plugins = cardinal.plugin_manager.load(plugins)
 
             if failed_plugins:
                 successful_plugins = [plugin for plugin in plugins if plugin not in failed_plugins]

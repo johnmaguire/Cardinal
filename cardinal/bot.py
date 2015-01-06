@@ -94,20 +94,12 @@ class CardinalBot(irc.IRCClient):
         """
         self.logger.info("Joined %s" % channel)
 
-    def privmsg(self, user, channel, message):
-        """Called when we receive a message in a channel or PM.
-
-        Keyword arguments:
-          user -- Tuple containing IRC user info. Provided by Twisted.
-          channel -- Channel PRIVMSG was received on. Provided by Twisted.
-          message -- Message received. Provided by Twisted.
-        """
-        # Breaks the user up into usable groups:
-        #
-        # 1 - nick
-        # 2 - ident
-        # 3 - hostname
-        user = re.match(self.user_regex, user)
+    def irc_PRIVMSG(self, prefix, params):
+        """Called when we receive a message in a channel or PM."""
+        # Break down the user into usable groups
+        user = re.match(self.user_regex, prefix)
+        channel = params[0]
+        message = params[1]
 
         self.logger.debug(
             "%s!%s@%s to %s: %s" %
@@ -233,10 +225,11 @@ class CardinalBot(irc.IRCClient):
         """
         # A user has invited us to a channel
         if command == "INVITE":
-            nick = params[0]
+            # Break down the user into usable groups
+            user = re.match(self.user_regex, prefix)
             channel = params[1]
 
-            self.logger.debug("%s invited us to %s")
+            self.logger.debug("%s invited us to %s" % (user.group(1), channel))
 
             # TODO: Call matching plugin events
 

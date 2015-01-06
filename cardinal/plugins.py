@@ -398,7 +398,7 @@ class PluginManager(object):
             # Import each plugin's module with our own hacky function to reload
             # modules that have already been imported previously
             try:
-                if plugin in self.plugins:
+                if plugin in self.plugins.keys():
                     self.logger.info("Already loaded, reloading: %s" % plugin)
                     module_to_import = self.plugins[plugin]['module']
 
@@ -449,6 +449,7 @@ class PluginManager(object):
                 self.unload(plugin)
 
             self.plugins[plugin] = {
+                'name': plugin,
                 'module': module,
                 'instance': instance,
                 'config': config,
