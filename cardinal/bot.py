@@ -18,32 +18,42 @@ class CardinalBot(irc.IRCClient):
     """Logging object for CardinalBot"""
 
     factory = None
-    """Should contain an instance of `CardinalBotFactory`"""
+    """Should contain an instance of CardinalBotFactory"""
 
     network = None
-    """Currently connected network (e.g. irc.darchoods.net)"""
+    """Currently connected network (e.g. irc.freenode.net)"""
 
     @property
     def nickname(self):
-        """This is the `nickname` property of CardinalBot"""
+        """This is the nickname property of CardinalBot"""
         return self.factory.nickname
 
     user_regex = re.compile(r'^(.*?)!(.*?)@(.*?)$')
     """Regex for identifying a user's nick, ident, and vhost"""
 
     plugin_manager = None
-    """Holds an instance of `PluginManager`"""
+    """Instance of PluginManager"""
 
-    # Some meta info, keeping track of the uptime of the bot, the boot time
-    # (when the first instance of CardinalBot was brought online), and the
-    # number of reloads performed.
-    uptime  = None
+    storage_path = None
+    """Location of storage directory"""
+
+    uptime = None
+    """Time that Cardinal connected to the network"""
+
     booted  = None
+    """Time that Cardinal was first launched"""
+
     reloads = 0
+    """Number of plugin reloads performed"""
 
     def __init__(self):
-        """Initializes the logging"""
+        """Initializes the logging and sets storage directory"""
         self.logger = logging.getLogger(__name__)
+
+        self.storage_path = os.path.join(
+            os.path.dirname(os.path.realpath(sys.argv[0])),
+            'storage'
+        )
 
     def signedOn(self):
         """Called once we've connected to a network"""

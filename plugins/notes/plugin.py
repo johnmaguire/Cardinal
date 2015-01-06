@@ -17,7 +17,10 @@ class NotesPlugin(object):
 
     def _connect_or_create_db(self, cardinal):
         try:
-            self.conn = sqlite3.connect(os.path.join('db', 'notes-%s.db' % cardinal.network))
+            self.conn = sqlite3.connect(os.path.join(
+                cardinal.storage_path,
+                'notes-%s.db' % cardinal.network
+            ))
         except Exception, e:
             self.conn = None
             self.logger.exception("Unable to access local notes database")

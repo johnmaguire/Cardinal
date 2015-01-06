@@ -390,6 +390,9 @@ class PluginManager(object):
         linecache.clearcache()
 
         for plugin in plugins:
+            # Reload flag so we can update the reload counter if necessary
+            reload_flag = False
+
             self.logger.info("Attempting to load plugin: %s" % plugin)
 
             # Import each plugin's module with our own hacky function to reload
@@ -398,13 +401,17 @@ class PluginManager(object):
                 if plugin in self.plugins:
                     self.logger.info("Already loaded, reloading: %s" % plugin)
                     module_to_import = self.plugins[plugin]['module']
+
+                    reload_flag = True
                 else:
                     module_to_import = plugin
 
                 module = self._import_module(module_to_import)
             except Exception, e:
                 # Probably a syntax error in the plugin, log the exception
-                self.logger.exception("Could not load plugin module: %s" % plugin)
+                self.logger.exception(
+                    "Could not load plugin module: %s" % plugin
+                )
                 failed_plugins.append(plugin)
 
                 continue
@@ -428,7 +435,9 @@ class PluginManager(object):
             try:
                 instance = self._create_plugin_instance(module, config)
             except Exception, e:
-                self.logger.exception("Could not instantiate plugin: %s" % plugin)
+                self.logger.exception(
+                    "Could not instantiate plugin: %s" % plugin
+                )
                 failed_plugins.append(plugin)
 
                 continue
@@ -446,6 +455,9 @@ class PluginManager(object):
                 'commands': commands,
                 'events': events
             }
+
+            if reload_flag:
+                self.cardinal.reloads += 1
 
             self.logger.info("Plugin %s successfully loaded" % plugin)
 
