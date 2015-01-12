@@ -625,3 +625,133 @@ class PluginManager(object):
             "Command syntax detected, but no matching command found: %s" %
             message
         )
+
+class EventManager(object):
+    registered_events = {}
+    """Contains all the registered events"""
+
+    registered_callbacks = {}
+    """Contains all the registered callbacks"""
+
+    def __init__(self):
+        """Initializes the logger"""
+        self.logger = logging.getLogger(__name__)
+
+    def register(self, name, required_params):
+        """Registers a plugin's event so other events can set callbacks.
+
+        Keyword arguments:
+          name -- Name of the event.
+          required_params -- Number of parameters a callback must take.
+        """
+        self.logger.debug("Attempting to register event: %s" % name)
+
+        if name in self.registered_events:
+            self.logger.debug("Event already exists: %s" % name)
+            raise EventAlreadyExistsError("Event already exists: %s" % name)
+
+        if not isinstance(required_params, (int, long)):
+            self.logger.debug("Invalid required params: %s" % name)
+            raise TypeError("Required params must be an integer")
+
+        self.registered_events[name] = required_params
+        if name not in self.registered_callbacks:
+            self.registered_callbacks[name] = []
+
+        self.logger.info("Registered event: %s")
+
+    def remove(self, name):
+        """Removes a registered event."""
+        self.logger.debug("Attempting to unregister event: %s" % name)
+
+        if not name in self.registered_events:
+            self.logger.debug("Event does not exist: %s" % name)
+            raise EventDoesNotExistError(
+                "Can't remove nonexistent event: %s" % name
+            )
+
+        del self.registered_events[name]
+        del self.registered_callbacks[name]
+
+        self.logger.info("Removed event: %s")
+
+    def register_callback(self, name, callback):
+        """Registers a callback to be called when an event fires.
+
+        Keyword arguments:
+          name -- Event name to bind callback to.
+          callback -- Callable to bind.
+        """
+        self.logger.debug(
+            "Attempting to register callback for event: %s" % name
+        )
+
+        if not callable(callback):
+            self.logger.debug("Invalid callback for event: %s" % name)
+            raise EventCallbackError(
+                "Can't register callback that isn't callable"
+            )
+
+        # If no event is registered, we will still register the callback but
+        # we can't sanity check it since the event hasn't been registered yet
+        if not name in self.registered_events:
+            if name not in self.registered_callbacks:
+                self.registered_callbacks = []
+
+            self.registered_callbacks.append(callback)
+
+        argspec = inspect.getargspec(callback)
+        num_func_args = len(argspec.args)
+        if inspect.ismethod(callback):
+            num_func_args -= 1
+
+        if (num_func_args != self.registered_events[name] and
+            not len(argspec.varargs)):
+            self.logger.debug("Invalid callback for event: %s" % name)
+            raise EventCallbackError(
+                "Can't register callback with wrong number of arguments "
+                "(%d needed, %d given)" %
+                (self.registered_events[name], num_func_args)
+            )
+
+        self.registered_callbacks[name].append(callback)
+
+        self.logger.info("Registered callback for event: %s" % name)
+
+    def fire(self, name, *params):
+        """Calls all callbacks with given event name.
+
+        Keyword arguments:
+          name -- Event name to fire.
+          params -- Params to pass to callbacks.
+
+        Returns:
+          boolean -- Whether a callback (or multiple) was called successfully.
+        """
+        self.logger.debug("Attempting to fire event: %s" % name)
+
+        if not name in self.registered_events:
+            self.logger.debug("Event does not exist: %s" % name)
+            raise EventDoesNotExistError(
+                "Can't call an event that does not exist: %s" % name
+            )
+
+        self.logger.info("Calling callbacks for event: %s" % name)
+
+        called = False
+        for callback in self.registered_callbacks[name]:
+            try:
+                callback(*params)
+                called = True
+            # If this exception is received, the plugin told us not to set the
+            # called flag true, so we can just log it and continue on. This
+            # might happen if a plugin realizes the event does not apply to it
+            # and wants the original caller to handle it normally.
+            except EventRejectedMessage:
+                self.logger.debug("Callback rejected event")
+            except Exception, e:
+                self.logger.exception(
+                    "Exception during callback for event: %s" % name
+                )
+
+        return called
