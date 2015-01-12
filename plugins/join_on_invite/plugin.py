@@ -1,10 +1,9 @@
 class InviteJoinPlugin(object):
-    # A command to quickly check whether a user has permissions to access
-    # these commands.
-    def join_channel(self, cardinal, nick, channel):
-        if nick == cardinal.nickname:
-            cardinal.join(channel);
-    join_channel.on_invite = True
+    def __init__(self, cardinal):
+        cardinal.event_manager.register_callback("irc.invite", self.join_channel)
 
-def setup():
-    return InviteJoinPlugin()
+    def join_channel(self, cardinal, user, channel):
+        cardinal.join(channel);
+
+def setup(cardinal):
+    return InviteJoinPlugin(cardinal)
