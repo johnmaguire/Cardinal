@@ -26,5 +26,8 @@ class EventAlreadyExistsError(CardinalException):
 class EventDoesNotExistError(CardinalException):
 	"""Raised during attempt to register a callback for a nonexistent event."""
 
+class EventCallbackError(CardinalException):
+	"""Raised when there is an error with a callback."""
+
 class EventRejectedMessage(CardinalException):
 	"""Raised when an event callback wants to reject an event."""

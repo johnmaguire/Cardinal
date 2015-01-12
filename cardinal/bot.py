@@ -9,7 +9,7 @@ from datetime import datetime
 from twisted.words.protocols import irc
 from twisted.internet import protocol, reactor
 
-from cardinal.plugins import PluginManager
+from cardinal.plugins import PluginManager, EventManager
 from cardinal.exceptions import *
 
 
@@ -33,6 +33,9 @@ class CardinalBot(irc.IRCClient):
 
     plugin_manager = None
     """Instance of PluginManager"""
+
+    event_manager = None
+    """Instance of EventManager"""
 
     storage_path = None
     """Location of storage directory"""
@@ -75,6 +78,20 @@ class CardinalBot(irc.IRCClient):
             self.logger.info("Attempting to identify with NickServ")
             self.msg("NickServ", "IDENTIFY %s" % (self.factory.password,))
 
+        # Creates an instance of EventManager
+        self.event_manager = EventManager(self)
+
+        # Register events
+        self.event_manager.register("irc.invite", 2)
+        self.event_manager.register("irc.privmsg", 3)
+        self.event_manager.register("irc.notice", 3)
+        self.event_manager.register("irc.nick", 2)
+        self.event_manager.register("irc.mode", 3)
+        self.event_manager.register("irc.join", 2)
+        self.event_manager.register("irc.part", 3)
+        self.event_manager.register("irc.kick", 4)
+        self.event_manager.register("irc.quit", 2)
+
         # Create an instance of PluginManager, giving it an instance of ourself
         # to pass to plugins, as well as a list of initial plugins to load.
         self.plugin_manager = PluginManager(self, self.factory.plugins)
@@ -106,6 +123,8 @@ class CardinalBot(irc.IRCClient):
             (user.group(1), user.group(2), user.group(3), channel, message)
         )
 
+        self.event_manager.fire("irc.privmsg", user, channel, message)
+
         # If the channel is ourselves, this is actually a PM to us, and so
         # we'll update the channel variable to the sender's username to make
         # replying a little easier.
@@ -123,105 +142,131 @@ class CardinalBot(irc.IRCClient):
             # bad thing.
             self.logger.info("Unable to find a matching command", exc_info=True)
 
-    def userJoined(self, nick, channel):
-        """Called when another user joins a channel we're in.
-
-        Keyword arguments:
-          nick -- Nick of user who joined channel. Provided by Twisted.
-          channel -- Channel user joined. Provided by Twisted.
-        """
-        self.logger.debug("%s joined %s" % (nick, channel))
-
-        # TODO: Call matching plugin events
-
-    def userLeft(self, nick, channel):
-        """Called when another user leaves a channel we're in.
-
-        Keyword arguments:
-          nick -- Nick of user who left channel. Provided by Twisted.
-          channel -- Channel user left. Provided by Twisted.
-        """
-        self.logger.debug("%s parted %s" % (nick, channel))
-
-        # TODO: Call matching plugin events
-
-    def userQuit(self, nick, quitMessage):
-        """Called when another user in a channel we're in quits.
-
-        Keyword arguments:
-          nick -- Nick of user who quit. Provided by Twisted.
-          quitMessage -- Message in QUIT. Provided by Twisted.
-        """
-        self.logger.debug("%s quit (Reason: %s)" % (nick, quitMessage))
-
-        # TODO: Call matching plugin events
-
-    def userKicked(self, kicked, channel, kicker, message):
-        """Called when another user is kicked from a channel we're in.
-
-        Keyword arguments:
-          kicked -- Nick of user who was kicked. Provided by Twisted.
-          channel -- Channel user was kicked from. Provided by Twisted.
-          kicker -- Nick of user who triggered kick. Provided by Twisted.
-          message -- Message in KICK. Provided by Twisted.
-        """
-        self.logger.debug(
-            "%s kicked %s from %s (Reason: %s)" %
-            (kicker, kicked, channel, message)
-        )
-
-        # TODO: Call matching plugin events
-
-    def action(self, user, channel, data):
-        """Called when a user does an action message in a channel we're in.
-
-        Keyword arguments:
-          user -- Tuple containing IRC user info. Provided by Twisted.
-          channel -- Channel ACTION was received on. Provided by Twisted.
-          data -- Message in ACTION. Provided by Twisted.
-        """
-        # Break the user up into usable groups
-        user = re.match(self.user_regex, user)
+    def irc_NOTICE(self, prefix, params):
+        """Called when a notice is sent to a channel or privately"""
+        user = re.match(self.user_regex, prefix)
+        channel = params[0]
+        message = params[1]
 
         self.logger.debug(
-            "Action on %s: %s!%s@%s %s" %
-            (channel, user.group(1), user.group(2), user.group(3), data)
+            "%s!%s@%s sent notice to %s: %s" %
+            (user.group(1), user.group(2), user.group(3), channel, message)
         )
 
-        # TODO: Call matching plugin events
+        # Lots of NOTICE messages when connecting, and event manager may not be
+        # initialized yet.
+        if self.event_manager:
+            self.event_manager.fire("irc.notice", user, channel, message)
 
-    def topicUpdated(self, nick, channel, newTopic):
-        """Called when a user updates a topic in a channel we're in.
 
-        Keyword arguments:
-          nick -- Nick of user who updated the topic. Provided by Twisted.
-          channel -- Channel TOPIC was received on. Provided by Twisted.
-          newTopic -- New channel topic. Provided by Twisted.
-        """
+    def irc_NICK(self, prefix, params):
+        """Called when a user changes their nick"""
+        user = re.match(self.user_regex, prefix)
+        new_nick = params[0]
+
         self.logger.debug(
-            "Topic updated in %s by %s: %s" % (channel, nick, newTopic)
+            "%s!%s@%s changed nick to %s" %
+            (user.group(1), user.group(2), user.group(3), new_nick)
         )
 
-        # TODO: Call matching plugin events
+        self.event_manager.fire("irc.nick", user, new_nick)
 
-    def userRenamed(self, oldNick, newNick):
-        """Called when a user in a channel we're in changes their nick.
+    def irc_TOPIC(self, prefix, params):
+        """Called when a new topic is set"""
+        user = re.match(self.user_regex, prefix)
+        channel = params[0]
+        topic = params[1]
 
-        Keyword arguments:
-          oldNick -- User's old nick. Provided by Twisted.
-          newNick -- User's new nick. Provided by Twisted.
-        """
-        self.logger.debug("%s changed nick to %s" % (oldNick, newNick))
+        self.logger.debug(
+            "%s!%s@%s changed topic in %s to %s" %
+            (user.group(1), user.group(2), user.group(3), channel, topic)
+        )
 
-        # TODO: Call matching plugin events
+        self.event_manager.fire("irc.topic", user, channel, topic)
+
+    def irc_MODE(self, prefix, params):
+        """Called when a mode is set on a channel"""
+        user = re.match(self.user_regex, prefix)
+        channel = params[0]
+        mode = ' '.join(params[1:])
+
+        self.logger.debug(
+            "%s!%s@%s set mode on %s (%s)" %
+            (user.group(1), user.group(2), user.group(3), channel, mode)
+        )
+
+        # Can get called during connection, in which case EventManager won't be
+        # initialized yet
+        # if self.event_manager:
+        self.event_manager.fire("irc.mode", user, channel, mode)
+
+    def irc_JOIN(self, prefix, params):
+        """Called when a user joins a channel"""
+        user = re.match(self.user_regex, prefix)
+        channel = params[0]
+
+        self.logger.debug(
+            "%s!%s@%s joined %s" %
+            (user.group(1), user.group(2), user.group(3), channel)
+        )
+
+        self.event_manager.fire("irc.join", user, channel)
+
+    def irc_PART(self, prefix, params):
+        """Called when a user parts a channel"""
+        user = re.match(self.user_regex, prefix)
+        channel = params[0]
+        if len(params) == 1:
+            reason = "No Message"
+        else:
+            reason = params[1]
+
+        self.logger.debug(
+            "%s!%s@%s parted %s (%s)" %
+            (user.group(1), user.group(2), user.group(3), channel, reason)
+        )
+
+        self.event_manager.fire("irc.part", user, channel, reason)
+
+    def irc_KICK(self, prefix, params):
+        """Called when a user is kicked from a channel"""
+        user = re.match(self.user_regex, prefix)
+        nick = params[0]
+        channel = params[1]
+        if len(params) == 2:
+            reason = "No Message"
+        else:
+            reason = params[2]
+
+        self.logger.debug(
+            "%s!%s@%s kicked %s from %s (%s)" %
+            (user.group(1), user.group(2), user.group(3), nick, channel, reason)
+        )
+
+        self.event_manager.fire("irc.kick", user, nick, channel, reason)
+
+    def irc_QUIT(self, prefix, params):
+        """Called when a user quits the network"""
+        user = re.match(self.user_regex, prefix)
+        if len(params) == 0:
+            reason = "No Message"
+        else:
+            reason = params[0]
+
+        self.logger.debug(
+            "%s!%s@%s quit (%s)" %
+            (user.group(1), user.group(2), user.group(3), reason)
+        )
+
+        self.event_manager.fire("irc.quit", user, reason)
 
     def irc_unknown(self, prefix, command, params):
         """Called when Twisted doesn't understand an IRC command.
 
         Keyword arguments:
-          prefix -- Message before IRC command. Provided by Twisted.
+          prefix -- User sending command. Provided by Twisted.
           command -- Command that wasn't recognized. Provided by Twisted.
-          params -- Message after IRC command. Provided by Twisted.
+          params -- Params for command. Provided by Twisted.
         """
         # A user has invited us to a channel
         if command == "INVITE":
@@ -230,6 +275,9 @@ class CardinalBot(irc.IRCClient):
             channel = params[1]
 
             self.logger.debug("%s invited us to %s" % (user.group(1), channel))
+
+            # Fire invite event, so plugins can hook into it
+            self.event_manager.fire("irc.invite", user, channel)
 
             # TODO: Call matching plugin events
 

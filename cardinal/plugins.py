@@ -627,14 +627,18 @@ class PluginManager(object):
         )
 
 class EventManager(object):
+    cardinal = None
+    """Instance of CardinalBot"""
+
     registered_events = {}
     """Contains all the registered events"""
 
     registered_callbacks = {}
     """Contains all the registered callbacks"""
 
-    def __init__(self):
+    def __init__(self, cardinal):
         """Initializes the logger"""
+        self.cardinal = cardinal
         self.logger = logging.getLogger(__name__)
 
     def register(self, name, required_params):
@@ -702,16 +706,21 @@ class EventManager(object):
 
         argspec = inspect.getargspec(callback)
         num_func_args = len(argspec.args)
+        # Add one to needed args to account for CardinalBot being passed in
+        num_needed_args = self.registered_events[name] + 1
+
+        # If it's a method, it'll have an arbitrary "self" argument we don't
+        # want to include in our param count
         if inspect.ismethod(callback):
             num_func_args -= 1
 
-        if (num_func_args != self.registered_events[name] and
-            not len(argspec.varargs)):
+        if (num_func_args != num_needed_args and
+            not argspec.varargs):
             self.logger.debug("Invalid callback for event: %s" % name)
             raise EventCallbackError(
                 "Can't register callback with wrong number of arguments "
                 "(%d needed, %d given)" %
-                (self.registered_events[name], num_func_args)
+                (num_needed_args, num_func_args)
             )
 
         self.registered_callbacks[name].append(callback)
@@ -741,7 +750,7 @@ class EventManager(object):
         called = False
         for callback in self.registered_callbacks[name]:
             try:
-                callback(*params)
+                callback(self.cardinal, *params)
                 called = True
             # If this exception is received, the plugin told us not to set the
             # called flag true, so we can just log it and continue on. This
