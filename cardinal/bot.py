@@ -148,6 +148,13 @@ class CardinalBot(irc.IRCClient):
         channel = params[0]
         message = params[1]
 
+        # Sent by network, not a real user
+        if not user:
+            self.logger.debug(
+                "%s sent notice to %s: %s" % (prefix, channel, message)
+            )
+            return
+
         self.logger.debug(
             "%s!%s@%s sent notice to %s: %s" %
             (user.group(1), user.group(2), user.group(3), channel, message)
