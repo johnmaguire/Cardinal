@@ -1,5 +1,3 @@
-__author__ = 'tony'
-
 from urllib import urlopen
 import json
 
