@@ -66,7 +66,8 @@ https://github.com/JohnMaguire/Cardinal
         'lastfm',
         'remind',
         'weather',
-        'youtube'
+        'youtube',
+        'urbandict'
     ])
 
     # TODO: Write a get_parser() method for ConfigSpec that handles instancing
