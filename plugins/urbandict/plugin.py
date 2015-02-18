@@ -1,6 +1,8 @@
 from urllib import urlopen
 import json
 
+URBANDICT_API_PREFIX = 'http://api.urbandictionary.com/v0/define?term='
+
 
 class UrbanDictPlugin(object):
     def get_ud(self, cardinal, user, channel, msg):
@@ -11,7 +13,7 @@ class UrbanDictPlugin(object):
             return
 
         try:
-            url = 'http://api.urbandictionary.com/v0/define?term=' + word
+            url = URBANDICT_API_PREFIX + word
             f = urlopen(url).read()
             data = json.loads(f)
 
