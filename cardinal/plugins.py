@@ -664,7 +664,7 @@ class EventManager(object):
         if name not in self.registered_callbacks:
             self.registered_callbacks[name] = []
 
-        self.logger.info("Registered event: %s")
+        self.logger.info("Registered event: %s" % name)
 
     def remove(self, name):
         """Removes a registered event."""
@@ -679,7 +679,7 @@ class EventManager(object):
         del self.registered_events[name]
         del self.registered_callbacks[name]
 
-        self.logger.info("Removed event: %s")
+        self.logger.info("Removed event: %s" % name)
 
     def register_callback(self, name, callback):
         """Registers a callback to be called when an event fires.
