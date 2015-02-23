@@ -197,6 +197,13 @@ class CardinalBot(irc.IRCClient):
         channel = params[0]
         mode = ' '.join(params[1:])
 
+       # Sent by network, not a real user
+        if not user:
+            self.logger.debug(
+                "%s set mode on %s (%s)" % (prefix, channel, mode)
+            )
+            return
+
         self.logger.debug(
             "%s!%s@%s set mode on %s (%s)" %
             (user.group(1), user.group(2), user.group(3), channel, mode)
@@ -204,8 +211,8 @@ class CardinalBot(irc.IRCClient):
 
         # Can get called during connection, in which case EventManager won't be
         # initialized yet
-        # if self.event_manager:
-        self.event_manager.fire("irc.mode", user, channel, mode)
+        if self.event_manager:
+            self.event_manager.fire("irc.mode", user, channel, mode)
 
     def irc_JOIN(self, prefix, params):
         """Called when a user joins a channel"""
