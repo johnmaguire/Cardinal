@@ -36,10 +36,10 @@ class HelpPlugin(object):
         help_text = 'No help found for that command.'
 
         # Check each module for the command being searched for
-        for name, module in cardinal.loaded_plugins.items():
+        for plugin in cardinal.plugin_manager:
             found_command = False
 
-            for command in module['commands']:
+            for command in plugin['commands']:
                 # First check if the command responds to the requested command
                 if hasattr(command, 'commands') and help_command in command.commands:
                     found_command = command
