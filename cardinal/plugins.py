@@ -348,9 +348,6 @@ class PluginManager(object):
         """
         # Loop through each plugin we have loaded
         for name, plugin in self.plugins.items():
-            # Loop through each of the plugins' commands (these are actually
-            # class methods with attributes assigned to them, so they are all
-            # callable) and yield the command
             for event in plugin['events']:
                 yield event
 
@@ -647,6 +644,11 @@ class EventManager(object):
         Keyword arguments:
           name -- Name of the event.
           required_params -- Number of parameters a callback must take.
+
+        Raises:
+          EventAlreadyExistsError -- If register is attempted for an event name
+            already in use.
+          TypeError -- If required_params is not a number.
         """
         self.logger.debug("Attempting to register event: %s" % name)
 
@@ -685,6 +687,9 @@ class EventManager(object):
         Keyword arguments:
           name -- Event name to bind callback to.
           callback -- Callable to bind.
+
+        Raises:
+          EventCallbackError -- If an invalid callback is passed in.
         """
         self.logger.debug(
             "Attempting to register callback for event: %s" % name
@@ -733,6 +738,9 @@ class EventManager(object):
         Keyword arguments:
           name -- Event name to fire.
           params -- Params to pass to callbacks.
+
+        Raises:
+          EventDoesNotExistError -- If fire is called a nonexistent event.
 
         Returns:
           boolean -- Whether a callback (or multiple) was called successfully.
