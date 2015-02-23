@@ -20,11 +20,11 @@ class UrbanDictPlugin(object):
             word_def = data['list'][0]['definition']
             link = data['list'][0]['permalink']
 
-            response = '[ %s ]\n%s\n[ %s ]' % (word, word_def, link)
+            response = 'UD for %s: %s (%s)' % (word, word_def, link)
 
             cardinal.sendMsg(channel, response.encode('utf-8'))
         except IndexError:
-            cardinal.sendMsg(channel, 'Could not retrieve definition for "%s"' % word)
+            cardinal.sendMsg(channel, "Could not retrieve definition for %s" % word)
 
     get_ud.commands = ['ud']
     get_ud.help = ['Returns the top Urban Dictionary definition for a given word.',
