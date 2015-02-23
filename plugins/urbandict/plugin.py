@@ -28,7 +28,7 @@ class UrbanDictPlugin(object):
 
     get_ud.commands = ['ud']
     get_ud.help = ['Returns the top Urban Dictionary definition for a given word.',
-                   '.ud <word>']
+                   'Syntax: .ud <word>']
 
 
 def setup():
