@@ -56,7 +56,9 @@ class YouTubePlugin(object):
                 uploader = "(not available)"
             video_id = content['items'][0]['id']['videoId']
 
-            cardinal.sendMsg(channel, "[ Title: %s | Uploaded by: %s | https://www.youtube.com/watch?v=%s ]" % (str(title), str(uploader), str(video_id)))
+            cardinal.sendMsg(channel, "[ Title: %s | Uploaded by: %s | https://www.youtube.com/watch?v=%s ]" %
+                (str(title.encode('utf-8')), str(uploader), str(video_id))
+            )
         except IndexError:
             cardinal.sendMsg(channel, "No videos found matching that search.")
 
