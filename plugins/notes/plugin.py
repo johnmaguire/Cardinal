@@ -1,6 +1,7 @@
 import os
 import sys
 import re
+import logging
 import sqlite3
 
 HELP_REGEX = re.compile(r'^!(.+?)')
