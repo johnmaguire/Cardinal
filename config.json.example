@@ -1,0 +1,23 @@
+{
+        "nickname": "Cardinal",
+        "password": "REMOVE IF NO PASSWORD",
+        "network": "irc.darkscience.net",
+        "port": 6697,
+        "ssl": true,
+        "channels": [
+                "#bots"
+        ],
+        "plugins": [
+                "help",
+                "admin",
+                "ping",
+                "urls",
+                "notes",
+                "calculator",
+                "weather",
+                "remind",
+                "lastfm",
+                "youtube",
+                "join_on_invite"
+        ]
+}
