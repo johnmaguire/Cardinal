@@ -1,8 +1,10 @@
 import re
+import string
 import logging
 import importlib
 import inspect
 import linecache
+import random
 import json
 import yaml
 
@@ -120,6 +122,12 @@ class PluginManager(object):
           object -- The module that was loaded.
 
         """
+        # Sort of a hack... this helps with debugging, as uncaught exceptions
+        # can show the wrong data (line numbers / relevant code) if linecache
+        # doesn't get cleared when a module is reloaded. This is Python's
+        # internal cache of code files and line numbers.
+        linecache.clearcache()
+
         if inspect.ismodule(module):
             return reload(module)
         elif isinstance(module, basestring):
@@ -180,7 +188,6 @@ class PluginManager(object):
         """
 
         instance = self.plugins[plugin]['instance']
-        module = self.plugins[plugin]['module']
 
         if hasattr(instance, 'close') and inspect.ismethod(instance.close):
             # The plugin has a close method, so we now need to check how
@@ -189,13 +196,13 @@ class PluginManager(object):
             # us to pass in an instance of CardinalBot. If there are two
             # arguments, they expect CardinalBot. Anything else is invalid.
             argspec = inspect.getargspec(
-                sinstance.close
+                instance.close
             )
 
             if len(argspec.args) == 1:
-                module.close()
+                instance.close()
             elif len(argspec.args) == 2:
-                module.close(self.cardinal)
+                instance.close(self.cardinal)
             else:
                 raise PluginError("Unknown arguments for close function")
 
@@ -380,12 +387,6 @@ class PluginManager(object):
         # We'll keep track of plugins we failed to load (either because we)
         failed_plugins = []
 
-        # Sort of a hack... this helps with debugging, as uncaught exceptions
-        # can show the wrong data (line numbers / relevant code) if linecache
-        # doesn't get cleared when a module is reloaded. This is Python's
-        # internal cache of code files and line numbers.
-        linecache.clearcache()
-
         for plugin in plugins:
             # Reload flag so we can update the reload counter if necessary
             reload_flag = False
@@ -397,9 +398,15 @@ class PluginManager(object):
             try:
                 if plugin in self.plugins.keys():
                     self.logger.info("Already loaded, reloading: %s" % plugin)
-                    module_to_import = self.plugins[plugin]['module']
-
                     reload_flag = True
+
+                    try:
+                        self._close_plugin_instance(plugin)
+                    except Exception, e:
+                        self.logger.exception(
+                            "Didn't close plugin cleanly: %s" % plugin
+                        )
+                    module_to_import = self.plugins[plugin]['module']
                 else:
                     module_to_import = plugin
 
@@ -662,7 +669,7 @@ class EventManager(object):
 
         self.registered_events[name] = required_params
         if name not in self.registered_callbacks:
-            self.registered_callbacks[name] = []
+            self.registered_callbacks[name] = {}
 
         self.logger.info("Registered event: %s" % name)
 
@@ -681,38 +688,35 @@ class EventManager(object):
 
         self.logger.info("Removed event: %s" % name)
 
-    def register_callback(self, name, callback):
+    def register_callback(self, event_name, callback):
         """Registers a callback to be called when an event fires.
 
         Keyword arguments:
-          name -- Event name to bind callback to.
+          event_name -- Event name to bind callback to.
           callback -- Callable to bind.
 
         Raises:
           EventCallbackError -- If an invalid callback is passed in.
         """
         self.logger.debug(
-            "Attempting to register callback for event: %s" % name
+            "Attempting to register callback for event: %s" % event_name
         )
 
         if not callable(callback):
-            self.logger.debug("Invalid callback for event: %s" % name)
+            self.logger.debug("Invalid callback for event: %s" % event_name)
             raise EventCallbackError(
                 "Can't register callback that isn't callable"
             )
 
         # If no event is registered, we will still register the callback but
         # we can't sanity check it since the event hasn't been registered yet
-        if not name in self.registered_events:
-            if name not in self.registered_callbacks:
-                self.registered_callbacks = []
-
-            self.registered_callbacks.append(callback)
+        if not event_name in self.registered_events:
+            return self._add_callback(event_name, callback)
 
         argspec = inspect.getargspec(callback)
         num_func_args = len(argspec.args)
         # Add one to needed args to account for CardinalBot being passed in
-        num_needed_args = self.registered_events[name] + 1
+        num_needed_args = self.registered_events[event_name] + 1
 
         # If it's a method, it'll have an arbitrary "self" argument we don't
         # want to include in our param count
@@ -721,16 +725,42 @@ class EventManager(object):
 
         if (num_func_args != num_needed_args and
             not argspec.varargs):
-            self.logger.debug("Invalid callback for event: %s" % name)
+            self.logger.debug("Invalid callback for event: %s" % event_name)
             raise EventCallbackError(
                 "Can't register callback with wrong number of arguments "
                 "(%d needed, %d given)" %
                 (num_needed_args, num_func_args)
             )
 
-        self.registered_callbacks[name].append(callback)
+        return self._add_callback(event_name, callback)
 
-        self.logger.info("Registered callback for event: %s" % name)
+    def remove_callback(self, event_name, callback_id):
+        """Removes a callback with a given ID from an event's callback list.
+
+        Keyword arguments:
+          event_name -- Event name to remove the callback from.
+          callback_id -- The ID generated when the callback was added.
+        """
+        self.logger.debug(
+            "Removing callback %s from callback list for event: %s" %
+            (callback_id, event_name)
+        )
+
+        if not event_name in self.registered_callbacks:
+            self.logger.debug(
+                "Callback %s: Event has no callback list" % callback_id
+            )
+            return
+
+        if not callback_id in self.registered_callbacks[event_name]:
+            self.logger.debug(
+                "Callback %s: Callback does not exist in callback list" %
+                callback_id
+            )
+            return
+
+        del self.registered_callbacks[event_name][callback_id]
+        self.logger.debug("Removed callback: %s" % callback_id)
 
     def fire(self, name, *params):
         """Calls all callbacks with given event name.
@@ -755,20 +785,59 @@ class EventManager(object):
 
         self.logger.info("Calling callbacks for event: %s" % name)
 
-        called = False
-        for callback in self.registered_callbacks[name]:
+        accepted = False
+        for callback_id, callback in self.registered_callbacks[name].iteritems():
             try:
                 callback(self.cardinal, *params)
-                called = True
+                self.logger.debug(
+                    "Callback %s accepted event: %s" %
+                    (callback_id, name)
+                )
+                accepted = True
             # If this exception is received, the plugin told us not to set the
             # called flag true, so we can just log it and continue on. This
             # might happen if a plugin realizes the event does not apply to it
             # and wants the original caller to handle it normally.
             except EventRejectedMessage:
-                self.logger.debug("Callback rejected event")
+                self.logger.debug(
+                    "Callback %s rejected event: %s" %
+                    (callback_id, name)
+                )
             except Exception, e:
                 self.logger.exception(
-                    "Exception during callback for event: %s" % name
+                    "Exception during callback %s for event: %s" %
+                    (callback_id, name)
                 )
 
-        return called
+        return accepted
+
+    def _add_callback(self, event_name, callback):
+        """Adds a callback to the event's callback list and returns an ID.
+
+        Keyword arguments:
+          event_name -- Event name to add the callback to.
+          callback -- The callback to add.
+
+        Returns:
+          string -- A callback ID to reference the callback with for removal.
+        """
+        callback_id = self._generate_id()
+        while callback_id in self.registered_callbacks[event_name]:
+            callback_id = self._generate_id()
+
+        self.registered_callbacks[event_name][callback_id] = callback
+        self.logger.info(
+            "Registered callback %s for event: %s" %
+            (callback_id, event_name)
+        )
+
+        return callback_id
+
+    def _generate_id(size=6, chars=string.ascii_uppercase + string.digits):
+        """
+        Thank you StackOverflow: http://stackoverflow.com/a/2257449/242129
+
+        Generates a random, 6 character string of letters and numbers (by
+        default.)
+        """
+        return ''.join(random.choice(chars) for _ in range(6))
