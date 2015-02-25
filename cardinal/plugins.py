@@ -1,3 +1,5 @@
+import os
+import sys
 import re
 import string
 import logging
@@ -222,8 +224,12 @@ class PluginManager(object):
         yaml_config = False
 
         # Attempt to load and parse JSON config file
-        # FIXME: Use correct config directory.
-        file = 'plugins/' + plugin + '/config.json'
+        file = os.path.join(
+            os.path.dirname(os.path.realpath(sys.argv[0])),
+            'plugins',
+            plugin,
+            'config.json'
+        )
         try:
             f = open(file, 'r')
             json_config = json.load(f)
@@ -240,8 +246,12 @@ class PluginManager(object):
             )
 
         # Attempt to load and parse YAML config file
-        # FIXME: Use correct config directory.
-        file = 'plugins/' + plugin + '/config.yaml'
+        file = os.path.join(
+            os.path.dirname(os.path.realpath(sys.argv[0])),
+            'plugins',
+            plugin,
+            'config.yaml'
+        )
         try:
             f = open(file, 'r')
             yaml_config = yaml.load(f)

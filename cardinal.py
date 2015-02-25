@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import os
 import logging
 import argparse
 from getpass import getpass
@@ -30,9 +31,6 @@ https://github.com/JohnMaguire/Cardinal
 """, formatter_class=argparse.RawDescriptionHelpFormatter)
 
     # Add all the possible arguments
-    #
-    # TODO: Shorten this? Maybe some of these are unnecessary.
-    # TODO: Add option for a config file location.
     arg_parser.add_argument('-n', '--nickname', metavar='nickname',
         help='nickname to connect as')
     arg_parser.add_argument('--password', action='store_true',
@@ -47,6 +45,8 @@ https://github.com/JohnMaguire/Cardinal
         help='list of channels to connect to on startup')
     arg_parser.add_argument('-p', '--plugins', nargs='*', metavar='plugin',
         help='list of plugins to load on startup')
+    arg_parser.add_argument('--config', metavar='config',
+        help='custom config location')
 
     # Define the config spec and create a parser for our internal config
     spec = ConfigSpec()
@@ -70,21 +70,22 @@ https://github.com/JohnMaguire/Cardinal
         'urbandict'
     ])
 
-    # TODO: Write a get_parser() method for ConfigSpec that handles instancing
-    # and keeping track of the instance.
     parser = ConfigParser(spec)
 
-    # First attempt to load config.json for config options
-    #
-    # TODO: Make sure that we're looking for config.json in the user's current
-    # working directory, rather than relative to this file.
-    logger.debug("Attempting to load config.json if it existss")
-    parser.load_config('config.json')
-
-    # Parse command-line arguments last, as they should override both project
-    # defaults and the user config (if available)
+    # Parse command-line arguments
     logger.debug("Parsing command-line arguments")
     args = arg_parser.parse_args()
+
+    # Attempt to load config.json for config options
+    config_file = args.config
+    if config_file is None:
+        config_file = os.path.join(
+            os.path.dirname(os.path.realpath(__file__)),
+            'config.json'
+        )
+
+    logger.info("Attempting to load config: %s" % config_file)
+    parser.load_config(config_file)
 
     # If SSL is set to false, set it to None (small hack - action 'store_true'
     # in arg_parse defaults to False. False instead of None will overwrite our
