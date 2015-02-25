@@ -257,7 +257,7 @@ class CardinalBot(irc.IRCClient):
             (user.group(1), user.group(2), user.group(3), nick, channel, reason)
         )
 
-        self.event_manager.fire("irc.kick", user, nick, channel, reason)
+        self.event_manager.fire("irc.kick", user, channel, nick, reason)
 
     def irc_QUIT(self, prefix, params):
         """Called when a user quits the network"""

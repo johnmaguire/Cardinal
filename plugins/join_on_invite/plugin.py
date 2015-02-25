@@ -10,7 +10,7 @@ class InviteJoinPlugin(object):
 
     def join_channel(self, cardinal, user, channel):
         """Callback for irc.invite that joins a channel"""
-        cardinal.join(channel);
+        cardinal.join(channel)
 
     def close(self, cardinal):
         """When the plugin is closed, removes our callback"""

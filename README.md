@@ -12,16 +12,17 @@ What can Cardinal do?
 ----------------
 Out of the box Cardinal can...
 
-* Get the title of URLs in chat
-* Search for YouTube videos
-* Get the current weather for a given location
-* Give users' now playing track on Last.fm and compare Last.fm users
-* Send reminder messages
+* Grab the page titles for links
+* Search for YouTube videos and link them in chat
+* Tell you the weather
+* Show who's listening to what with Last.fm integration
+* Message you with a time-based reminder
 * Act as a calculator and unit/currency converter
 * Save "notes" -- effectively turns Cardinal into an info bot
+* Grab definitions from Urban Dictionary
 * ... and more!
 
-But Cardinal is still in active development! Features are being added as quickly as they can be thought up and coded. It's also easy to write your own plugins for added functionality!
+But Cardinal is still in active development! Features are being added as quickly as they can be thought up and coded. It's also easy to write your own plugins for even more functionality.
 
 Writing Plugins
 ---------------
@@ -65,12 +66,61 @@ The method `disconnect()` allows you to tell Cardinal to disconnect from the net
 
 Finally, the `config()` method allows you to access the config of a loaded plugin. This should not be called in the constructor of plugins, as `config()` will not work until initial setup is fully completed. It can however be called within other methods of your plugins (such as when responding to a command), to view the config values of other loaded plugins. You can find an example in the `help` plugin, where we look for bot owners, specified in the `admin` plugin's config.
 
+Event-based Plugins
+-------------------
+Cardinal now has supports for events, as of version 2.0. Built-in are the core IRC events:
+
+* irc.invite - 2 arguments (inviter, channel)
+* irc.privmsg - 3 arguments (sender, channel, message)
+* irc.notice - 3 arguments (sender, channel, message)
+* irc.nick - 2 arguments (changer, new nick)
+* irc.mode - 3 arguments(setter, channel, mode)
+* irc.join - 2 arguments (joiner, channel)
+* irc.part - 3 arguments (leaver, channel, message)
+* irc.kick - 4 arguments (kicker, channel, kicked nick, message)
+* irc.quit - 2 arguments (quitter, message)
+
+Except for "new nick" for the `irc.nick` event and "kicked nick" for the `irc.kick` event, the user arguments are the same as for commands: Three groups returned by `re.match` that contain a user's nick, user identity, and hostname. Also, similarly to commands, event handlers (callbacks triggered when an event fires) all must take an extra first parameter, that is the instance of `CardinalBot`. An event handler for `irc.invite` looks like this:
+
+```python
+class InviteJoinPlugin(object):
+    def join_channel(self, cardinal, user, channel):
+        """Callback for irc.invite that joins a channel"""
+        cardinal.join(channel)
+```
+
+This would cause Cardinal to join the channel that she was invited to. You should register handlers for events in the `__init__` method of your plugin, and remove handlers you registered in the `close` method of your plugin (called when your plugin is closed by Cardinal.) When registering handlers, you will receive a "callback ID" back from Cardinal. You must hold onto this in order to remove the callback later. For example:
+
+```python
+class InviteJoinPlugin(object):
+    def __init__(self, cardinal):
+        """Register our callback and save the callback ID"""
+        self.callback_id = cardinal.event_manager.register_callback("irc.invite", self.join_channel)
+
+    def close(self, cardinal):
+        """When the plugin is closed, removes our callback"""
+        cardinal.event_manager.remove_callback("irc.invite", self.callback_id)
+```
+
+Registering events is easy too. Simply call `cardinal.event_manager.register` with the name of your event, and the number of parameters that will be passed in when you fire the event. Preferably, your event should be prefixed with the name of your plugin, followed by a period. For example `urls.match` for a `urls` plugin that found a matching URL. For example:
+
+```python
+class URLsPlugin(object):
+    def __init__(self, cardinal):
+        """Register our event"""
+        cardinal.event_manager.register('urls.match', 1)
+
+    def close(self, cardinal):
+        "Remove the event"""
+        cardinal.event_manager.remove('urls.match')
+```
+
+It is important to remove the event in the `close` method of your plugin. If you don't, and your plugin is reloaded, you will not be able to re-register the event. Once you have your event registered in your plugin. You can call `cardinal.event_manager.fire`, with the first parameter as the name of your event, and the rest of the parameters the ones you want to pass to the event handlers. You may check the boolean return value of `cardinal.plugins.EventManager.fire()` in order to find out whether an event handler did something with your event.
+
+If your event handler is triggered by an event, but for some reason you would like to "refuse" the event (say you are looking for a specific type of URL, and the URL that was provided did not match), you can throw a `cardinal.exceptions.EventRejectedMessage` exception, and the return value of `cardinal.plugins.EventManager.fire()` will not be set to `True`.
+
 Contributing
 ------------
 If you have found a bug, feel free to submit a patch or simply open an issue on this repository and I will get to it as soon as possible. Be sure to add your name to the CONTRIBUTORS file in a separate commit on the same branch as your modification so that I can give credit where credit is due.
-
-If you have written a plugin that you feel could be useful to other users of Cardinal, open an issue with a link to a Github repository with your plugin in it, and I will consider adding it to the project as a [Git submodule](http://git-scm.com/book/en/Git-Tools-Submodules).
-
-If you simply have a suggestion on how to improve the bot, feel free to open an issue with your suggestion as well!
 
 Cardinal is a public, open-source project, and anyone may contribute.
