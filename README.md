@@ -60,25 +60,25 @@ Methods on CardinalBot
 ----------------------
 `CardinalBot` contains a few methods that are useful for plugin developers.
 
-The first, and most important is `sendMsg()`. This takes a parameter `channel` and a parameter `message` and sends the message to the specified channel. Additionally, a `length` parameter may be specified, denoting the length of the message, but this is completely unnecessary and will be taken care of for you if it's not passed in.
+The first, and most important is `CardinalBot.sendMsg()`. This takes a parameter `channel` and a parameter `message` and sends the message to the specified channel. Additionally, a `length` parameter may be specified, denoting the length of the message, but this is completely unnecessary and will be taken care of for you if it's not passed in.
 
-The method `disconnect()` allows you to tell Cardinal to disconnect from the network. It can accept a `message` parameter, which, if provided, will specificy a quit message.
+The method `CardinalBot.disconnect()` allows you to tell Cardinal to disconnect from the network. It can accept a `message` parameter, which, if provided, will specificy a quit message.
 
-Finally, the `config()` method allows you to access the config of a loaded plugin. This should not be called in the constructor of plugins, as `config()` will not work until initial setup is fully completed. It can however be called within other methods of your plugins (such as when responding to a command), to view the config values of other loaded plugins. You can find an example in the `help` plugin, where we look for bot owners, specified in the `admin` plugin's config.
+Finally, the `CardinalBot.config()` method allows you to access the config of a loaded plugin. This should not be called in the constructor of plugins, as `CardinalBot.config()` will not work until initial setup is fully completed. It can however be called within other methods of your plugins (such as when responding to a command), to view the config values of other loaded plugins. You can find an example in the `help` plugin, where we look for bot owners, specified in the `admin` plugin's config.
 
 Event-based Plugins
 -------------------
 Cardinal now has supports for events, as of version 2.0. Built-in are the core IRC events:
 
-* irc.invite - 2 arguments (inviter, channel)
-* irc.privmsg - 3 arguments (sender, channel, message)
-* irc.notice - 3 arguments (sender, channel, message)
-* irc.nick - 2 arguments (changer, new nick)
-* irc.mode - 3 arguments(setter, channel, mode)
-* irc.join - 2 arguments (joiner, channel)
-* irc.part - 3 arguments (leaver, channel, message)
-* irc.kick - 4 arguments (kicker, channel, kicked nick, message)
-* irc.quit - 2 arguments (quitter, message)
+* `irc.invite` - 2 arguments (inviter, channel)
+* `irc.privmsg` - 3 arguments (sender, channel, message)
+* `irc.notice` - 3 arguments (sender, channel, message)
+* `irc.nick` - 2 arguments (changer, new nick)
+* `irc.mode` - 3 arguments(setter, channel, mode)
+* `irc.join` - 2 arguments (joiner, channel)
+* `irc.part` - 3 arguments (leaver, channel, message)
+* `irc.kick` - 4 arguments (kicker, channel, kicked nick, message)
+* `irc.quit` - 2 arguments (quitter, message)
 
 Except for "new nick" for the `irc.nick` event and "kicked nick" for the `irc.kick` event, the user arguments are the same as for commands: Three groups returned by `re.match` that contain a user's nick, user identity, and hostname. Also, similarly to commands, event handlers (callbacks triggered when an event fires) all must take an extra first parameter, that is the instance of `CardinalBot`. An event handler for `irc.invite` looks like this:
 
@@ -102,7 +102,7 @@ class InviteJoinPlugin(object):
         cardinal.event_manager.remove_callback("irc.invite", self.callback_id)
 ```
 
-Registering events is easy too. Simply call `cardinal.event_manager.register` with the name of your event, and the number of parameters that will be passed in when you fire the event. Preferably, your event should be prefixed with the name of your plugin, followed by a period. For example `urls.match` for a `urls` plugin that found a matching URL. For example:
+Registering events is easy too. Simply call `EventManager.register()` (accessible from within an event handler or command method as `cardinal.event_manager.register()` with the name of your event, and the number of parameters that will be passed in when you fire the event. Preferably, your event should be prefixed with the name of your plugin, followed by a period. For example `urls.match` for a `urls` plugin that found a matching URL. For example:
 
 ```python
 class URLsPlugin(object):
