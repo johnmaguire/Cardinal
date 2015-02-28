@@ -88,7 +88,7 @@ class URLsPlugin(object):
                     title = re.sub('\s+', ' ', title.group(2)).strip()
 
                     h = HTMLParser.HTMLParser()
-                    title = str(h.unescape(title))
+                    title = str(h.unescape(title).encode('utf-8'))
 
                     # Truncate long titles to the first 200 characters.
                     title_to_send = title[:200] if len(title) >= 200 else title
