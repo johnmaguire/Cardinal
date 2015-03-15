@@ -1,87 +1,129 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2013 John Maguire <john@leftforliving.com>
-# 
-# Permission is hereby granted, free of charge, to any person obtaining a copy 
-# of this software and associated documentation files (the "Software"), to 
-# deal in the Software without restriction, including without limitation the 
-# rights to use, copy, modify, merge, publish, distribute, sublicense, and/or 
-# sell copies of the Software, and to permit persons to whom the Software is 
-# furnished to do so, subject to the following conditions:
-# 
-# The above copyright notice and this permission notice shall be included in 
-# all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING 
-# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS 
-# IN THE SOFTWARE.
-
+import os
+import logging
 import argparse
 from getpass import getpass
 
 from twisted.internet import reactor
-from CardinalBot import CardinalBotFactory
 
-DEFAULT_NICKNAME = 'Cardinal'
-DEFAULT_PASSWORD = None
-DEFAULT_NETWORK = 'irc.freenode.net'
-DEFAULT_PORT = 6667
-DEFAULT_CHANNELS = ('#bots',)
-DEFAULT_PLUGINS = (
-    'help',
-    'admin',
-    'ping',
-    'urls',
-    'calculator',
-    'weather',
-    'remind',
-    'lastfm',
-    'youtube',
-)
-DEFAULT_SSL = False
+from cardinal.config import ConfigParser, ConfigSpec
+from cardinal.bot import CardinalBotFactory
 
-parser = argparse.ArgumentParser(description="""
+if __name__ == "__main__":
+    # Set default log level to INFO and get some pretty formatting
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+
+    logger = logging.getLogger(__name__)
+
+    # Create a new instance of ArgumentParser with a description about Cardinal
+    arg_parser = argparse.ArgumentParser(description="""
 Cardinal IRC bot
 
 A Python/Twisted-powered modular IRC bot. Aimed to be simple to use, simple
 to develop. For information on developing plugins, visit the project page
 below.
 
-https://github.com/JohnMaguire2013/Cardinal
+https://github.com/JohnMaguire/Cardinal
 """, formatter_class=argparse.RawDescriptionHelpFormatter)
-parser.add_argument('-n', '--nickname', default=DEFAULT_NICKNAME,
-                    metavar='nickname', help='nickname to connect as')
-parser.add_argument('--password', default=None, action='store_true',
-                    help='set this flag to get a password prompt for identifying')
 
-parser.add_argument('-i', '--network', default=DEFAULT_NETWORK,
-                    metavar='network', help='network to connect to')
-parser.add_argument('-o', '--port', default=DEFAULT_PORT, type=int,
-                    metavar='port', help='network port to connect to')
+    # Add all the possible arguments
+    arg_parser.add_argument('-n', '--nickname', metavar='nickname',
+        help='nickname to connect as')
+    arg_parser.add_argument('--password', action='store_true',
+        help='set this flag to get a password prompt for identifying')
+    arg_parser.add_argument('-i', '--network', metavar='network',
+        help='network to connect to')
+    arg_parser.add_argument('-o', '--port', type=int, metavar='port',
+        help='network port to connect to')
+    arg_parser.add_argument('-s', '--ssl', action='store_true',
+        help='you must set this flag for SSL connections')
+    arg_parser.add_argument('-c', '--channels', nargs='*', metavar='channel',
+        help='list of channels to connect to on startup')
+    arg_parser.add_argument('-p', '--plugins', nargs='*', metavar='plugin',
+        help='list of plugins to load on startup')
+    arg_parser.add_argument('--config', metavar='config',
+        help='custom config location')
 
-parser.add_argument('-c', '--channels', default=DEFAULT_CHANNELS, nargs='*',
-                    metavar='channel', help='list of channels to connect to on startup')
-parser.add_argument('-p', '--plugins', default=DEFAULT_PLUGINS, nargs='*',
-                    metavar='plugin', help='list of plugins to load on startup')
+    # Define the config spec and create a parser for our internal config
+    spec = ConfigSpec()
+    spec.add_option('nickname', basestring, 'Cardinal')
+    spec.add_option('password', basestring, None)
+    spec.add_option('network', basestring, 'irc.freenode.net')
+    spec.add_option('port', int, 6667)
+    spec.add_option('ssl', bool, False)
+    spec.add_option('channels', list, ['#bots'])
+    spec.add_option('plugins', list, [
+        'ping',
+        'help',
+        'admin',
+        'join_on_invite',
+        'urls',
+        'calculator',
+        'lastfm',
+        'remind',
+        'weather',
+        'youtube',
+        'urbandict'
+    ])
 
-parser.add_argument('-s', '--ssl', default=DEFAULT_SSL, action='store_true',
-                    help='you must set this flag for SSL connections')
+    parser = ConfigParser(spec)
 
-if __name__ == "__main__":
-    args = parser.parse_args()
-    if args.password:
-        password = getpass('NickServ password: ')
-    else:
-        password = DEFAULT_PASSWORD
-    factory = CardinalBotFactory(args.network, args.channels, args.nickname, password, args.plugins)
+    # Parse command-line arguments
+    logger.debug("Parsing command-line arguments")
+    args = arg_parser.parse_args()
 
+    # Attempt to load config.json for config options
+    config_file = args.config
+    if config_file is None:
+        config_file = os.path.join(
+            os.path.dirname(os.path.realpath(__file__)),
+            'config.json'
+        )
+
+    logger.info("Attempting to load config: %s" % config_file)
+    parser.load_config(config_file)
+
+    # If SSL is set to false, set it to None (small hack - action 'store_true'
+    # in arg_parse defaults to False. False instead of None will overwrite our
+    # config settings.)
     if not args.ssl:
-        reactor.connectTCP(args.network, args.port, factory)
+        args.ssl = None
+
+    # If the password flag was set, let the user safely type in their password
+    if args.password:
+        args.password = getpass('NickServ password: ')
     else:
+        args.password = None
+
+    # Merge the args into the config object
+    logger.debug("Merging command-line arguments into config")
+    config = parser.merge_argparse_args_into_config(args)
+
+    # Instance a new factory, and connect with/without SSL
+    logger.debug("Instantiating CardinalBotFactory")
+    factory = CardinalBotFactory(config['network'], config['channels'],
+        config['nickname'], config['password'], config['plugins'])
+
+    if not config['ssl']:
+        logger.info(
+            "Connecting over plaintext to %s:%d" %
+                (config['network'], config['port'])
+        )
+        reactor.connectTCP(config['network'], config['port'], factory)
+    else:
+        logger.info(
+            "Connecting over SSL to %s:%d" %
+                (config['network'], config['port'])
+        )
+
+        # For SSL, we need to import the SSL module from Twisted
         from twisted.internet import ssl
-        reactor.connectSSL(args.network, args.port, factory, ssl.ClientContextFactory())
+        reactor.connectSSL(config['network'], config['port'], factory,
+            ssl.ClientContextFactory())
+
+    # Run the Twisted reactor
     reactor.run()

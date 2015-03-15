@@ -1,23 +1,3 @@
-# Copyright (c) 2013 John Maguire <john@leftforliving.com>
-# 
-# Permission is hereby granted, free of charge, to any person obtaining a copy 
-# of this software and associated documentation files (the "Software"), to 
-# deal in the Software without restriction, including without limitation the 
-# rights to use, copy, modify, merge, publish, distribute, sublicense, and/or 
-# sell copies of the Software, and to permit persons to whom the Software is 
-# furnished to do so, subject to the following conditions:
-# 
-# The above copyright notice and this permission notice shall be included in 
-# all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING 
-# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS 
-# IN THE SOFTWARE.
-
 class AdminPlugin(object):
     # A dictionary which will contain the owner nicks and vhosts
     owners = {}
@@ -25,10 +5,14 @@ class AdminPlugin(object):
     # A list of trusted vhosts
     trusted_vhosts = []
 
-    def __init__(self, cardinal):
+    def __init__(self, cardinal, config):
+        # If owners aren't defined, bail out
+        if not 'owners' in config:
+            return
+
         # Loop through the owners in the config file and add them to the
         # instance's owner array.
-        for owner in cardinal.config['admin'].OWNERS:
+        for owner in config['owners']:
             owner = owner.split('@')
             self.owners[owner[0]] = owner[1]
             self.trusted_vhosts.append(owner[1])
@@ -74,16 +58,16 @@ class AdminPlugin(object):
     def load_plugins(self, cardinal, user, channel, msg):
         if self.is_owner(user):
             cardinal.sendMsg(channel, "%s: Loading plugins..." % user.group(1))
-            
+
             plugins = msg.split()
             plugins.pop(0)
 
             if len(plugins) == 0:
                 plugins = []
-                for name, module in cardinal.loaded_plugins.items():
-                    plugins.append(name)
+                for plugin in cardinal.plugin_manager:
+                    plugins.append(plugin['name'])
 
-            failed_plugins = cardinal._load_plugins(plugins)
+            failed_plugins = cardinal.plugin_manager.load(plugins)
 
             if failed_plugins:
                 successful_plugins = [plugin for plugin in plugins if plugin not in failed_plugins]
@@ -106,7 +90,7 @@ class AdminPlugin(object):
             if len(plugins) == 0:
                 cardinal.sendMsg(channel, "%s: No plugins to unload." % user.group(1))
                 return
-            
+
             cardinal.sendMsg(channel, "%s: Unloading plugins..." % user.group(1))
             nonexistent_plugins = cardinal._unload_plugins(plugins)
 
@@ -156,5 +140,11 @@ class AdminPlugin(object):
     quit.help = ["Quits the network with a quit message, if one is defined. (admin only)",
                  "Syntax: .quit [message]"]
 
-def setup(cardinal):
-    return AdminPlugin(cardinal)
+def setup(cardinal, config):
+    """Returns an instance of the plugin.
+
+    Keyword arguments:
+      cardinal -- An instance of Cardinal. Passed in by PluginManager.
+      config -- A config for this plugin.
+    """
+    return AdminPlugin(cardinal, config)

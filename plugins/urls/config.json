@@ -1,0 +1,5 @@
+{
+	"timeout": 10,
+	"read_bytes": 524288,
+	"lookup_cooloff": 10
+}
