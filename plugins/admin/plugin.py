@@ -1,11 +1,14 @@
 class AdminPlugin(object):
     # A dictionary which will contain the owner nicks and vhosts
-    owners = {}
+    owners = None
 
     # A list of trusted vhosts
-    trusted_vhosts = []
+    trusted_vhosts = None
 
     def __init__(self, cardinal, config):
+        self.owners = {}
+        self.trusted_vhosts = []
+
         # If owners aren't defined, bail out
         if not 'owners' in config:
             return

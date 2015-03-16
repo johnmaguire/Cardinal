@@ -25,7 +25,7 @@ class PluginManager(object):
     cardinal = None
     """Holds an instance of `CardinalBot`"""
 
-    plugins = {}
+    plugins = None
     """List of loaded plugins"""
 
     command_regex = re.compile(r'\.(([A-Za-z0-9_-]+)\s?.*$)')
@@ -61,6 +61,9 @@ class PluginManager(object):
         """
         # Initialize logger
         self.logger = logging.getLogger(__name__)
+
+        # Set default to empty object
+        self.plugins = {}
 
         # To prevent circular dependencies, we can't sanity check this. Hope
         # for the best.
@@ -644,16 +647,19 @@ class EventManager(object):
     cardinal = None
     """Instance of CardinalBot"""
 
-    registered_events = {}
+    registered_events = None
     """Contains all the registered events"""
 
-    registered_callbacks = {}
+    registered_callbacks = None
     """Contains all the registered callbacks"""
 
     def __init__(self, cardinal):
         """Initializes the logger"""
         self.cardinal = cardinal
         self.logger = logging.getLogger(__name__)
+
+        self.registered_events = {}
+        self.registered_callbacks = {}
 
     def register(self, name, required_params):
         """Registers a plugin's event so other events can set callbacks.

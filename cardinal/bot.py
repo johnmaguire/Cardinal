@@ -79,21 +79,26 @@ class CardinalBot(irc.IRCClient):
             self.msg("NickServ", "IDENTIFY %s" % (self.factory.password,))
 
         # Creates an instance of EventManager
+        self.logger.debug("Creating new EventManager instance")
         self.event_manager = EventManager(self)
 
         # Register events
-        self.event_manager.register("irc.invite", 2)
-        self.event_manager.register("irc.privmsg", 3)
-        self.event_manager.register("irc.notice", 3)
-        self.event_manager.register("irc.nick", 2)
-        self.event_manager.register("irc.mode", 3)
-        self.event_manager.register("irc.join", 2)
-        self.event_manager.register("irc.part", 3)
-        self.event_manager.register("irc.kick", 4)
-        self.event_manager.register("irc.quit", 2)
+        try:
+            self.event_manager.register("irc.invite", 2)
+            self.event_manager.register("irc.privmsg", 3)
+            self.event_manager.register("irc.notice", 3)
+            self.event_manager.register("irc.nick", 2)
+            self.event_manager.register("irc.mode", 3)
+            self.event_manager.register("irc.join", 2)
+            self.event_manager.register("irc.part", 3)
+            self.event_manager.register("irc.kick", 4)
+            self.event_manager.register("irc.quit", 2)
+        except EventAlreadyExistsError, e:
+            self.logger.error("Could not register core IRC events", exc_info=True)
 
         # Create an instance of PluginManager, giving it an instance of ourself
         # to pass to plugins, as well as a list of initial plugins to load.
+        self.logger.debug("Creating new PluginManager instance")
         self.plugin_manager = PluginManager(self, self.factory.plugins)
 
         # Attempt to join channels

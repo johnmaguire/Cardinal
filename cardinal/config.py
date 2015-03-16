@@ -10,12 +10,14 @@ class ConfigSpec(object):
     logger = None
     """Logging object for ConfigSpec"""
 
-    options = {}
+    options = None
     """A dictionary holding tuples of the options"""
 
     def __init__(self):
         """Initializes the logging"""
         self.logger = logging.getLogger(__name__)
+
+        self.options = {}
 
     def add_option(self, name, type, default=None):
         """Adds an option to the spec
