@@ -28,7 +28,7 @@ class NotesPlugin(object):
             return
 
         c = self.conn.cursor()
-        c.execute("CREATE TABLE IF NOT EXISTS notes (title text collate nocase, content text collate nocase)")
+        c.execute("CREATE TABLE IF NOT EXISTS notes (title text collate nocase PRIMARY KEY, content text collate nocase)")
         self.conn.commit()
 
     def add_note(self, cardinal, user, channel, msg):
@@ -49,7 +49,7 @@ class NotesPlugin(object):
         content = message[1]
 
         c = self.conn.cursor()
-        c.execute("INSERT INTO notes (title, content) VALUES(?, ?)", (title, content))
+        c.execute("INSERT OR REPLACE INTO notes (title, content) VALUES(?, ?)", (title, content))
         self.conn.commit()
 
         cardinal.sendMsg(channel, "Saved note '%s'." % title)
@@ -83,14 +83,12 @@ class NotesPlugin(object):
             cardinal.sendMsg(channel, "No notes found under '%s'." % title)
             return
 
-        count = result[0]
-
-        c.execute("SELECT content FROM notes WHERE title=? ORDER BY RANDOM() LIMIT 1", (title,))
+        c.execute("SELECT content FROM notes WHERE title=?", (title,))
         result = c.fetchone()
 
         content = bytes(result[0])
 
-        cardinal.sendMsg(channel, "%s (%d): %s" % (title, count, content))
+        cardinal.sendMsg(channel, "%s: %s" % (title, content))
 
     get_note.commands = ["note"]
     get_note.regex = HELP_REGEX
