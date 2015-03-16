@@ -143,12 +143,12 @@ class AdminPlugin(object):
     quit.help = ["Quits the network with a quit message, if one is defined. (admin only)",
                  "Syntax: .quit [message]"]
 
-    def quit_debug(self, cardinal, user, channel, msg):
+    def debug_quit(self, cardinal, user, channel, msg):
         if self.is_owner(user):
             cardinal.quit('Debug disconnect')
-    quit_debug.commands = ['quit_dbg']
+    quit_debug.commands = ['dbg_quit']
     quit.help = ["Quits the network without setting disconnect flag (debug for reconnection, admin only)",
-                 "Syntax: .quit_dbg"]
+                 "Syntax: .dbg_quit"]
 
 def setup(cardinal, config):
     """Returns an instance of the plugin.
