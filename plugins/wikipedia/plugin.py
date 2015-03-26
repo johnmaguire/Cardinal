@@ -71,7 +71,8 @@ class WikipediaPlugin(object):
 
             return "Error parsing Wikipedia result for: %s" % name
 
-        return "[ Wikipedia: %s | %s | %s ]" % (title, first_paragraph, url)
+        return str(
+            "[ Wikipedia: %s | %s | %s ]" % (title, first_paragraph, url))
 
     def url_callback(self, cardinal, channel, url):
         match = re.match(ARTICLE_URL_REGEX, url)
@@ -87,7 +88,7 @@ class WikipediaPlugin(object):
         article_info = self._get_article_info(name)
         cardinal.sendMsg(channel, article_info)
 
-    lookup_article.commands = ['wiki']
+    lookup_article.commands = ['wiki', 'wikipedia']
     lookup_article.help = ["Gets a summary and link to a Wikipedia page",
                            "Syntax: .wiki <article>"]
 
