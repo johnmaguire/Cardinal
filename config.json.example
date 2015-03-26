@@ -8,16 +8,17 @@
                 "#bots"
         ],
         "plugins": [
-                "help",
                 "admin",
-                "ping",
-                "urls",
-                "notes",
                 "calculator",
-                "weather",
-                "remind",
-                "lastfm",
-                "youtube",
+                "help",
                 "join_on_invite"
+                "lastfm",
+                "notes",
+                "ping",
+                "remind",
+                "urls",
+                "weather",
+                "wikipedia",
+                "youtube",
         ]
 }
