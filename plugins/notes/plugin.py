@@ -1,10 +1,10 @@
 import os
-import sys
 import re
 import logging
 import sqlite3
 
 HELP_REGEX = re.compile(r'^!(.+?)')
+
 
 class NotesPlugin(object):
     logger = None
@@ -22,13 +22,15 @@ class NotesPlugin(object):
                 cardinal.storage_path,
                 'notes-%s.db' % cardinal.network
             ))
-        except Exception, e:
+        except Exception:
             self.conn = None
             self.logger.exception("Unable to access local notes database")
             return
 
         c = self.conn.cursor()
-        c.execute("CREATE TABLE IF NOT EXISTS notes (title text collate nocase PRIMARY KEY, content text collate nocase)")
+        c.execute("CREATE TABLE IF NOT EXISTS notes ("
+                  "title text collate nocase PRIMARY KEY, "
+                  "content text collate nocase)")
         self.conn.commit()
 
     def add_note(self, cardinal, user, channel, msg):
@@ -39,9 +41,8 @@ class NotesPlugin(object):
         message = msg.split('=', 1)
         title_message = message[0].split(' ', 1)
         if (len(message) < 2 or
-            len(title_message) < 2 or
-            len(message[1]) == 0):
-
+                len(title_message) < 2 or
+                len(message[1]) == 0):
             cardinal.sendMsg(channel, "Syntax: .addnote <title>=<content>")
             return
 
@@ -49,7 +50,8 @@ class NotesPlugin(object):
         content = message[1]
 
         c = self.conn.cursor()
-        c.execute("INSERT OR REPLACE INTO notes (title, content) VALUES(?, ?)", (title, content))
+        c.execute("INSERT OR REPLACE INTO notes (title, content) VALUES(?, ?)",
+                  (title, content))
         self.conn.commit()
 
         cardinal.sendMsg(channel, "Saved note '%s'." % title)
@@ -57,6 +59,33 @@ class NotesPlugin(object):
     add_note.commands = ['addnote']
     add_note.help = ["Saves a note to the database for retrieval later.",
                      "Syntax: .addnote <title>=<content>"]
+
+    def delete_note(self, cardinal, user, channel, msg):
+        if not self.conn:
+            cardinal.sendMsg(channel, "Unable to access notes database.")
+            return
+
+        msg = msg.split(' ', 1)
+        if len(msg) < 2 or len(msg[1]) == 0:
+            cardinal.sendMsg(channel, "Syntax: .delnote <title>")
+            return
+
+        title = msg[1]
+        c = self.conn.cursor()
+        c.execute("SELECT COUNT(title) FROM notes WHERE title=?", (title,))
+        result = c.fetchone()
+
+        if not result[0]:
+            cardinal.sendMsg(channel, "No note found under '%s'." % title)
+            return
+
+        c.execute("DELETE FROM notes WHERE title=?", (title,))
+
+        cardinal.sendMsg(channel, "Deleted note saved under '%s'." % title)
+
+    delete_note.commands = ['delnote']
+    delete_note.help = ["Deletes a note from the database.",
+                        "Syntax: .delnote <title>"]
 
     def get_note(self, cardinal, user, channel, msg):
         if not self.conn:
@@ -76,11 +105,11 @@ class NotesPlugin(object):
             title = message[1]
 
         c = self.conn.cursor()
-        c.execute("SELECT COUNT(title)t FROM notes WHERE title=?", (title,))
+        c.execute("SELECT COUNT(title) FROM notes WHERE title=?", (title,))
         result = c.fetchone()
 
         if not result[0]:
-            cardinal.sendMsg(channel, "No notes found under '%s'." % title)
+            cardinal.sendMsg(channel, "No note found under '%s'." % title)
             return
 
         c.execute("SELECT content FROM notes WHERE title=?", (title,))
@@ -94,6 +123,7 @@ class NotesPlugin(object):
     get_note.regex = HELP_REGEX
     get_note.syntax = ["Retrieve a saved note.",
                        "Syntax: .note <title>"]
+
 
 def setup(cardinal):
     return NotesPlugin(cardinal)
