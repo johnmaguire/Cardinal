@@ -9,12 +9,23 @@ HELP_REGEX = re.compile(r'^!(.+?)')
 class NotesPlugin(object):
     logger = None
 
-    def __init__(self, cardinal):
+    def __init__(self, cardinal, config):
         # Initialize logging
         self.logger = logging.getLogger(__name__)
 
+        if config is not None:
+            if config['shout_nick_notes_on_join']:
+                self.callback_id = cardinal.event_manager.register_callback(
+                    'irc.join', self.join_callback
+                )
+
         # Connect to or create the note database
         self._connect_or_create_db(cardinal)
+
+    def join_callback(self, cardinal, user, channel):
+        content = self._get_note_from_db(user.group(1))
+        if content:
+            cardinal.sendMsg(channel, "[%s] %s" % (user.group(1), content))
 
     def _connect_or_create_db(self, cardinal):
         try:
@@ -104,18 +115,10 @@ class NotesPlugin(object):
             # Grab title for .note syntax.
             title = message[1]
 
-        c = self.conn.cursor()
-        c.execute("SELECT COUNT(title) FROM notes WHERE title=?", (title,))
-        result = c.fetchone()
-
-        if not result[0]:
+        content = self._get_note_from_db(title)
+        if not content:
             cardinal.sendMsg(channel, "No note found under '%s'." % title)
             return
-
-        c.execute("SELECT content FROM notes WHERE title=?", (title,))
-        result = c.fetchone()
-
-        content = bytes(result[0])
 
         cardinal.sendMsg(channel, "%s: %s" % (title, content))
 
@@ -124,6 +127,20 @@ class NotesPlugin(object):
     get_note.syntax = ["Retrieve a saved note.",
                        "Syntax: .note <title>"]
 
+    def _get_note_from_db(self, title):
+        c = self.conn.cursor()
+        c.execute("SELECT content FROM notes WHERE title=?", (title,))
+        result = c.fetchone()
+        if not result[0]:
+            return False
+        else:
+            return bytes(result[0])
 
-def setup(cardinal):
-    return NotesPlugin(cardinal)
+    def close(self, cardinal):
+        if hasattr(self, 'callback_id'):
+            cardinal.event_manager.remove_callback('irc.join',
+                                                   self.callback_id)
+
+
+def setup(cardinal, config):
+    return NotesPlugin(cardinal, config)
