@@ -131,7 +131,7 @@ class NotesPlugin(object):
         c = self.conn.cursor()
         c.execute("SELECT content FROM notes WHERE title=?", (title,))
         result = c.fetchone()
-        if not result[0]:
+        if not result:
             return False
         else:
             return bytes(result[0])
