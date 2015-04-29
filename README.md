@@ -1,21 +1,6 @@
 # Meet Cardinal.
 Cardinal is your new best friend and personal assistant on IRC. A modular, Twisted-based Python IRC bot, Cardinal has plenty of common features (such as a calculator, fetching of page titles, etc.) as well as some more interesting ones (integration with Last.fm and YouTube searching.) If you're a developer, it's easy to create your own plugins in a matter of minutes.
 
-## Basic Usage
-Running Cardinal is as simple as typing `./cardinal.py`. Before running Cardinal, you should ensure that you have set your network settings in the `config.json` file, or run `./cardinal.py -h` to use command line arguments to set the network and channels you would like Cardinal to connect to.
-
-Before running Cardinal, you should add your nick and vhost to the `plugins/admin/config.json` file in the format `nick@vhost` in order to take advantage of admin-only commands.
-
-### Installation Note
-Make sure you have Python 2.7 installed, and run `pip install -r requirements.txt` to install any Python dependencies.
-
-It is recommended that you install and use Cardinal inside of a [Python virtualenv](http://docs.python-guide.org/en/latest/dev/virtualenvs/). You can do so by running the following commands inside of your cloned repository.
-
-`virtualenv -p /usr/bin/python2.7 .`
-`source bin/activate`
-
-In the future, you will just have to remember to call `source bin/activate`.
-
 ## What can Cardinal do?
 Out of the box Cardinal can...
 
@@ -30,6 +15,21 @@ Out of the box Cardinal can...
 * ... and more!
 
 But Cardinal is still in active development! Features are being added as quickly as they can be thought up and coded. It's also easy to write your own plugins for even more functionality.
+
+## Basic Usage
+Running Cardinal is as simple as typing `./cardinal.py`. Before running Cardinal, you should ensure that you have set your network settings in the `config.json` file, or run `./cardinal.py -h` to use command line arguments to set the network and channels you would like Cardinal to connect to.
+
+Before running Cardinal, you should add your nick and vhost to the `plugins/admin/config.json` file in the format `nick@vhost` in order to take advantage of admin-only commands.
+
+### Installation Note
+Make sure you have Python 2.7 installed, and run `pip install -r requirements.txt` to install any Python dependencies.
+
+It is recommended that you install and use Cardinal inside of a [Python virtualenv](http://docs.python-guide.org/en/latest/dev/virtualenvs/). You can do so by running the following commands inside of your cloned repository.
+
+`virtualenv -p /usr/bin/python2.7 .`
+`source bin/activate`
+
+In the future, you will just have to remember to call `source bin/activate`.
 
 ## Writing Plugins
 Writing plugins is simple and quick! Simply create a folder in the `plugins/` directory, add an empty `__init__.py` file, and create a `plugin.py` file to contain your plugin.
