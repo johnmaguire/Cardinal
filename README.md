@@ -8,7 +8,7 @@ Make sure you have Python 2.7 installed, and use `pip install -r requirements.tx
 
 Running Cardinal is as simple as typing `./cardinal.py`. Before running Cardinal, you should ensure that you have set your network settings in the `cardinal.py` file, or run `./cardinal.py -h` to use command line arguments to set the network and channels you would like Cardinal to connect to.
 
-Before running Cardinal, you should add your nick and vhost to the `plugins/admin/config.py` file in the format `nick@vhost` in order to take advantage of admin-only commands.
+Before running Cardinal, you should add your nick and vhost to the `plugins/admin/config.json` file in the format `nick@vhost` in order to take advantage of admin-only commands.
 
 What can Cardinal do?
 ----------------
