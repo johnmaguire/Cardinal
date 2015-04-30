@@ -1,7 +1,8 @@
 {
         "nickname": "Cardinal",
-        "password": "REMOVE IF NO PASSWORD",
+        "password": "NICKSERV PASSWORD",
         "network": "irc.darkscience.net",
+        "server_password": "SERVER PASSWORD (IF NECESSARY)"
         "port": 6697,
         "ssl": true,
         "channels": [
