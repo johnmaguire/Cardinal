@@ -93,6 +93,7 @@ class CardinalBot(irc.IRCClient):
             self.event_manager.register("irc.notice", 3)
             self.event_manager.register("irc.nick", 2)
             self.event_manager.register("irc.mode", 3)
+            self.event_manager.register("irc.topic", 3)
             self.event_manager.register("irc.join", 2)
             self.event_manager.register("irc.part", 3)
             self.event_manager.register("irc.kick", 4)
