@@ -28,6 +28,10 @@ class CardinalBot(irc.IRCClient):
         """This is the nickname property of CardinalBot"""
         return self.factory.nickname
 
+    @property
+    def password(self):
+        return self.factory.server_password
+
     user_regex = re.compile(r'^(.*?)!(.*?)@(.*?)$')
     """Regex for identifying a user's nick, ident, and vhost"""
 
@@ -366,6 +370,9 @@ class CardinalBotFactory(protocol.ClientFactory):
     network = None
     """Network to connect to"""
 
+    server_password = None
+    """Network password, if any"""
+
     nickname = None
     """Nick to connect with"""
 
@@ -393,7 +400,8 @@ class CardinalBotFactory(protocol.ClientFactory):
     booted = None
     """Datetime object holding time Cardinal first started up"""
 
-    def __init__(self, network, channels, nickname='Cardinal', password=None, plugins=[]):
+    def __init__(self, network, server_password=None, channels=None,
+                 nickname='Cardinal', password=None, plugins=None):
         """Boots the bot, triggers connection, and initializes logging.
 
         Keyword arguments:
@@ -403,8 +411,15 @@ class CardinalBotFactory(protocol.ClientFactory):
           password -- A string with NickServ password, if any.
           plugins -- A list of plugins to load on boot.
         """
+        if plugins is None:
+            plugins = []
+
+        if channels is None:
+            channels = []
+
         self.logger = logging.getLogger(__name__)
         self.network = network.lower()
+        self.server_password = server_password
         self.password = password
         self.channels = channels
         self.nickname = nickname
