@@ -47,7 +47,6 @@ class PluginManager(object):
     (additional arguments) which will be up to the plugin for handling.
     """
 
-
     def __init__(self, cardinal, plugins=None):
         """Creates a new instance, optionally with a list of plugins to load
 
@@ -338,10 +337,14 @@ class PluginManager(object):
 
         for method in dir(instance):
             method = getattr(instance, method)
-            if callable(method) and (hasattr(method, 'on_join') or hasattr(method, 'on_part') or
-                                     hasattr(method, 'on_quit') or hasattr(method, 'on_kick') or
-                                     hasattr(method, 'on_action') or hasattr(method, 'on_topic') or
-                                     hasattr(method, 'on_nick') or hasattr(method, 'on_invite')):
+            if callable(method) and (hasattr(method, 'on_join') or
+                                     hasattr(method, 'on_part') or
+                                     hasattr(method, 'on_quit') or
+                                     hasattr(method, 'on_kick') or
+                                     hasattr(method, 'on_action') or
+                                     hasattr(method, 'on_topic') or
+                                     hasattr(method, 'on_nick') or
+                                     hasattr(method, 'on_invite')):
                 events.append(method)
 
         return events
@@ -571,7 +574,6 @@ class PluginManager(object):
 
         return self.plugins[plugin]['config']
 
-
     def call_command(self, user, channel, message):
         """Checks a message to see if it appears to be a command and calls it.
 
@@ -624,7 +626,7 @@ class PluginManager(object):
             # Check if the plugin defined any standard commands and whether any
             # of them match the command we found in the message.
             if (hasattr(command, 'commands') and
-                get_command.group(2) in command.commands):
+                    get_command.group(2) in command.commands):
                 # Matched this command, so call it.
                 called_command = True
                 command(self.cardinal, user, channel, message)
@@ -642,6 +644,7 @@ class PluginManager(object):
             "Command syntax detected, but no matching command found: %s" %
             message
         )
+
 
 class EventManager(object):
     cardinal = None
@@ -693,7 +696,7 @@ class EventManager(object):
         """Removes a registered event."""
         self.logger.debug("Attempting to unregister event: %s" % name)
 
-        if not name in self.registered_events:
+        if name not in self.registered_events:
             self.logger.debug("Event does not exist: %s" % name)
             raise EventDoesNotExistError(
                 "Can't remove nonexistent event: %s" % name
@@ -726,7 +729,7 @@ class EventManager(object):
 
         # If no event is registered, we will still register the callback but
         # we can't sanity check it since the event hasn't been registered yet
-        if not event_name in self.registered_events:
+        if event_name not in self.registered_events:
             return self._add_callback(event_name, callback)
 
         argspec = inspect.getargspec(callback)
@@ -740,7 +743,7 @@ class EventManager(object):
             num_func_args -= 1
 
         if (num_func_args != num_needed_args and
-            not argspec.varargs):
+                not argspec.varargs):
             self.logger.debug("Invalid callback for event: %s" % event_name)
             raise EventCallbackError(
                 "Can't register callback with wrong number of arguments "
@@ -762,13 +765,13 @@ class EventManager(object):
             (callback_id, event_name)
         )
 
-        if not event_name in self.registered_callbacks:
+        if event_name not in self.registered_callbacks:
             self.logger.debug(
                 "Callback %s: Event has no callback list" % callback_id
             )
             return
 
-        if not callback_id in self.registered_callbacks[event_name]:
+        if callback_id not in self.registered_callbacks[event_name]:
             self.logger.debug(
                 "Callback %s: Callback does not exist in callback list" %
                 callback_id
@@ -793,7 +796,7 @@ class EventManager(object):
         """
         self.logger.debug("Attempting to fire event: %s" % name)
 
-        if not name in self.registered_events:
+        if name not in self.registered_events:
             self.logger.debug("Event does not exist: %s" % name)
             raise EventDoesNotExistError(
                 "Can't call an event that does not exist: %s" % name
