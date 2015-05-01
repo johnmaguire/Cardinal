@@ -349,7 +349,7 @@ class PluginManager(object):
 
         return events
 
-    def itercommands(self):
+    def itercommands(self, channel=None):
         """Simple generator to iterate through all commands of loaded plugins.
 
         Returns:
@@ -357,14 +357,20 @@ class PluginManager(object):
         """
         # Loop through each plugin we have loaded
         for name, plugin in self.plugins.items():
+            if channel is not None and channel in plugin['blacklist']:
+                continue
+
             # Loop through each of the plugins' commands (these are actually
             # class methods with attributes assigned to them, so they are all
             # callable) and yield the command
             for command in plugin['commands']:
                 yield command
 
-    def iterevents(self):
+    def iterevents(self, channel=None):
         """Simple generator to iterate through all events of loaded plugins.
+
+        Keywword arguments:
+          channel -- Optionally ignore plugins with the channel blacklisted.
 
         Returns:
           iterator -- Iterator for looping through commands
@@ -472,9 +478,10 @@ class PluginManager(object):
                 'name': plugin,
                 'module': module,
                 'instance': instance,
-                'config': config,
                 'commands': commands,
-                'events': events
+                'events': events,
+                'config': config,
+                'blacklist': [],
             }
 
             if reload_flag:
@@ -549,6 +556,62 @@ class PluginManager(object):
         self.logger.info("Unloading all plugins")
         self.unload([plugin for plugin, data in self.plugins.items()])
 
+    def blacklist(self, plugin, channels):
+        """Blacklists a plugin from given channels.
+
+        Keyword arguments:
+          plugin -- Name of plugin whose blacklist to operate on
+          channels -- A list of channels to add to the blacklist
+
+        Returns:
+          bool -- False if plugin doesn't exist.
+        """
+        # If they passed in a string, convert it to a list (and encode the
+        # name as UTF-8.)
+        if isinstance(channels, basestring):
+            channels = [channels.encode('utf-8')]
+        if not isinstance(channels, list):
+            raise TypeError("Plugins must be a string or list of plugins")
+
+        if plugin not in self.plugins:
+            return False
+
+        self.plugins[plugin]['blacklist'].extend(channels)
+
+        return True
+
+    def unblacklist(self, plugin, channels):
+        """Removes channels from a plugin's blacklist.
+
+        Keyword arguments:
+          plugin -- Name of plugin whose blacklist to operate on
+          channels -- A list of channels to remove from the blacklist
+
+        Returns:
+          list/bool -- False if plugin doesn't exist, list of channels that
+            weren't blacklisted in the first place if it does.
+        """
+        # If they passed in a string, convert it to a list (and encode the
+        # name as UTF-8.)
+        if isinstance(channels, basestring):
+            channels = [channels.encode('utf-8')]
+        if not isinstance(channels, list):
+            raise TypeError("Plugins must be a string or list of plugins")
+
+        if plugin not in self.plugins:
+            return False
+
+        not_blacklisted = []
+
+        for channel in channels:
+            if channel not in self.plugins[plugin]['blacklist']:
+                not_blacklisted.append(channel)
+                continue
+
+            self.plugins[plugin]['blacklist'].remove(channel)
+
+        return not_blacklisted
+
     def get_config(self, plugin):
         """Returns a loaded config for given plugin.
 
@@ -608,7 +671,7 @@ class PluginManager(object):
             )
 
         # Iterate through all loaded commands
-        for command in self.itercommands():
+        for command in self.itercommands(channel):
             # Check whether the current command has a regex to match by, and if
             # it does, and the message given to us matches the regex, then call
             # the command.

@@ -128,6 +128,72 @@ class AdminPlugin(object):
     unload_plugins.help = ["Unload selected plugins. (admin only)",
                            "Syntax: .unload <plugin [plugin ...]>"]
 
+    def disable_plugins(self, cardinal, user, channel, msg):
+        if not self.is_owner(user):
+            return
+
+        channels = msg.split()
+        channels.pop(0)
+
+        if len(channels) < 2:
+            cardinal.sendMsg(channel,
+                             "Syntax: .disable <plugin> <channel [channel ...]>")
+            return
+
+        cardinal.sendMsg(channel, "%s: Disabling plugins..." % user.group(1))
+
+        # First argument is plugin
+        plugin = channels.pop(0)
+
+        blacklisted = cardinal.plugin_manager.blacklist(plugin, channels)
+        if not blacklisted:
+            cardinal.sendMsg(channel, "Plugin %s does not exist" % plugin)
+            return
+
+        cardinal.sendMsg(channel, "Added to blacklist: %s." %
+                                  ', '.join(sorted(channels)))
+
+    disable_plugins.commands = ['disable']
+    disable_plugins.help = ["Disable plugins in a channel. (admin only)",
+                            "Syntax: .disable <plugin> <channel [channel ...]>"]
+
+    def enable_plugins(self, cardinal, user, channel, msg):
+        if not self.is_owner(user):
+            return
+
+        channels = msg.split()
+        channels.pop(0)
+
+        if len(channels) < 2:
+            cardinal.sendMsg(channel,
+                             "Syntax: .enable <plugin> <channel [channel ...]>")
+            return
+
+        cardinal.sendMsg(channel, "%s: Enabling plugins..." % user.group(1))
+
+        # First argument is plugin
+        plugin = channels.pop(0)
+
+        not_blacklisted = cardinal.plugin_manager.unblacklist(plugin, channels)
+        if not_blacklisted is False:
+            cardinal.sendMsg("Plugin %s does not exist" % plugin)
+
+        successful = [
+            channel for channel in channels if channel not in not_blacklisted
+        ]
+
+        if len(successful) > 0:
+            cardinal.sendMsg(channel, "Removed from blacklist: %s." %
+                                      ', '.join(sorted(successful)))
+
+        if len(not_blacklisted) > 0:
+            cardinal.sendMsg(channel, "Wasn't in blacklist: %s." %
+                                      ', '.join(sorted(not_blacklisted)))
+
+    enable_plugins.commands = ['enable']
+    enable_plugins.help = ["Enable plugins in a channel. (admin only)",
+                           "Syntax: .enable <plugin> <channel [channel ...]>"]
+
     def join(self, cardinal, user, channel, msg):
         if self.is_owner(user):
             channels = msg.split()
