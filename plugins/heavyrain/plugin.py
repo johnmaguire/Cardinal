@@ -1,4 +1,6 @@
 import random
+import time
+from twisted.internet import reactor
 
 class HeavyRain(object):
 	# A dictionary which will contain the owner nicks and vhosts
@@ -37,7 +39,8 @@ class HeavyRain(object):
 	def handle_rain(self, user_list):
 		for i in range(5):
 			random_user = random.choice(user_list[self.heavy_channel])
-			self.cardinal.sendMsg(self.heavy_channel, "&tip %s %s" % (random_user[0], 0.0001))
+			reactor.callLater(random.randint(1,8), self.cardinal.sendMsg, self.heavy_channel, "&tip %s %s" % (random_user[0], 0.0001))
+			#self.cardinal.sendMsg(self.heavy_channel, )
 
 	def rain(self, cardinal, user, channel, msg):
 		if self.is_owner(user):
