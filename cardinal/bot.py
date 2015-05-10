@@ -61,6 +61,7 @@ class CardinalBot(irc.IRCClient):
             os.path.dirname(os.path.realpath(sys.argv[0])),
             'storage'
         )
+        self.userlist = {}
 
     def signedOn(self):
         """Called once we've connected to a network"""
@@ -155,8 +156,6 @@ class CardinalBot(irc.IRCClient):
     def who(self, channel, callback):
         "List the users in 'channel', usage: cardinal.who('#testroom', my_callback_function)"
         self.userlist_callback = callback
-        if(!self.userlist)
-            self.userlist = {}
         # clear the user list to get rid of non-existant users
         self.userlist[channel] = []
         self.sendLine('WHO %s' % channel)
@@ -176,7 +175,7 @@ class CardinalBot(irc.IRCClient):
 
     def irc_RPL_ENDOFWHO(self, *nargs):
         "Called when WHO output is complete"
-        userlist_callback(self.userlist)
+        self.userlist_callback(self.userlist)
         print 'WHO COMPLETE'
 
     def irc_NOTICE(self, prefix, params):
