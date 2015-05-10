@@ -24,10 +24,9 @@ Before running Cardinal, you should add your nick and vhost to the `plugins/admi
 ### Installation Note
 Make sure you have Python 2.7 installed, and run `pip install -r requirements.txt` to install any Python dependencies.
 
-It is recommended that you install and use Cardinal inside of a [Python virtualenv](http://docs.python-guide.org/en/latest/dev/virtualenvs/). You can do so by running the following commands inside of your cloned repository.
+It is recommended that you install and use Cardinal inside of a [Python virtualenv](http://docs.python-guide.org/en/latest/dev/virtualenvs/). You can do so by running the following command inside of your cloned repository.
 
-`virtualenv -p /usr/bin/python2.7 .`
-`source bin/activate`
+`virtualenv -p /usr/bin/python2.7 . && source bin/activate`
 
 In the future, you will just have to remember to call `source bin/activate`.
 
