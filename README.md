@@ -49,7 +49,7 @@ def setup():
 
 ### Adding commands to a plugin
 
-**Note**: The default command symbol is `.`. To change this, you must modify the `command_regex` variable in `CardinalBot.py`.
+**Note**: The default command symbol is `.`. To change this, you must modify the `command_regex` variable in `cardinal/bot.py`.
 
 Plugins objects should be comprised of two different types of methods (though neither are required to exist within a plugin.) Private methods, which should be prefixed with an underscore and can only be used internally, and public methods which are typically how you will define commands.
 
