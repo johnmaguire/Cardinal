@@ -152,6 +152,33 @@ class CardinalBot(irc.IRCClient):
             # bad thing.
             self.logger.info("Unable to find a matching command", exc_info=True)
 
+    def who(self, channel, callback):
+        "List the users in 'channel', usage: cardinal.who('#testroom', my_callback_function)"
+        self.userlist_callback = callback
+        if(!self.userlist)
+            self.userlist = {}
+        # clear the user list to get rid of non-existant users
+        self.userlist[channel] = []
+        self.sendLine('WHO %s' % channel)
+
+    def irc_RPL_WHOREPLY(self, *nargs):
+        "Receive WHO reply from server"
+        who_data = nargs[1]
+        who_user = [
+            who_data[5], # nickname
+            who_data[3], # hostname
+            who_data[2] # realname
+        ]
+        self.userlist[who_data[1]].append(who_user)
+        print 'WHO:', who_user
+        who_user = None
+        who_data = None
+
+    def irc_RPL_ENDOFWHO(self, *nargs):
+        "Called when WHO output is complete"
+        userlist_callback(self.userlist)
+        print 'WHO COMPLETE'
+
     def irc_NOTICE(self, prefix, params):
         """Called when a notice is sent to a channel or privately"""
         user = re.match(self.user_regex, prefix)
