@@ -28,6 +28,10 @@ class CardinalBot(irc.IRCClient):
         """This is the nickname property of CardinalBot"""
         return self.factory.nickname
 
+    @property
+    def password(self):
+        return self.factory.server_password
+
     user_regex = re.compile(r'^(.*?)!(.*?)@(.*?)$')
     """Regex for identifying a user's nick, ident, and vhost"""
 
@@ -79,21 +83,27 @@ class CardinalBot(irc.IRCClient):
             self.msg("NickServ", "IDENTIFY %s" % (self.factory.password,))
 
         # Creates an instance of EventManager
+        self.logger.debug("Creating new EventManager instance")
         self.event_manager = EventManager(self)
 
         # Register events
-        self.event_manager.register("irc.invite", 2)
-        self.event_manager.register("irc.privmsg", 3)
-        self.event_manager.register("irc.notice", 3)
-        self.event_manager.register("irc.nick", 2)
-        self.event_manager.register("irc.mode", 3)
-        self.event_manager.register("irc.join", 2)
-        self.event_manager.register("irc.part", 3)
-        self.event_manager.register("irc.kick", 4)
-        self.event_manager.register("irc.quit", 2)
+        try:
+            self.event_manager.register("irc.invite", 2)
+            self.event_manager.register("irc.privmsg", 3)
+            self.event_manager.register("irc.notice", 3)
+            self.event_manager.register("irc.nick", 2)
+            self.event_manager.register("irc.mode", 3)
+            self.event_manager.register("irc.topic", 3)
+            self.event_manager.register("irc.join", 2)
+            self.event_manager.register("irc.part", 3)
+            self.event_manager.register("irc.kick", 4)
+            self.event_manager.register("irc.quit", 2)
+        except EventAlreadyExistsError, e:
+            self.logger.error("Could not register core IRC events", exc_info=True)
 
         # Create an instance of PluginManager, giving it an instance of ourself
         # to pass to plugins, as well as a list of initial plugins to load.
+        self.logger.debug("Creating new PluginManager instance")
         self.plugin_manager = PluginManager(self, self.factory.plugins)
 
         # Attempt to join channels
@@ -361,6 +371,9 @@ class CardinalBotFactory(protocol.ClientFactory):
     network = None
     """Network to connect to"""
 
+    server_password = None
+    """Network password, if any"""
+
     nickname = None
     """Nick to connect with"""
 
@@ -388,7 +401,8 @@ class CardinalBotFactory(protocol.ClientFactory):
     booted = None
     """Datetime object holding time Cardinal first started up"""
 
-    def __init__(self, network, channels, nickname='Cardinal', password=None, plugins=[]):
+    def __init__(self, network, server_password=None, channels=None,
+                 nickname='Cardinal', password=None, plugins=None):
         """Boots the bot, triggers connection, and initializes logging.
 
         Keyword arguments:
@@ -398,8 +412,15 @@ class CardinalBotFactory(protocol.ClientFactory):
           password -- A string with NickServ password, if any.
           plugins -- A list of plugins to load on boot.
         """
+        if plugins is None:
+            plugins = []
+
+        if channels is None:
+            channels = []
+
         self.logger = logging.getLogger(__name__)
         self.network = network.lower()
+        self.server_password = server_password
         self.password = password
         self.channels = channels
         self.nickname = nickname

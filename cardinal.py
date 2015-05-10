@@ -39,6 +39,8 @@ https://github.com/JohnMaguire/Cardinal
         help='network to connect to')
     arg_parser.add_argument('-o', '--port', type=int, metavar='port',
         help='network port to connect to')
+    arg_parser.add_argument('-P', '--spassword', metavar='server_password',
+        help='password to connect to the network with')
     arg_parser.add_argument('-s', '--ssl', action='store_true',
         help='you must set this flag for SSL connections')
     arg_parser.add_argument('-c', '--channels', nargs='*', metavar='channel',
@@ -54,6 +56,7 @@ https://github.com/JohnMaguire/Cardinal
     spec.add_option('password', basestring, None)
     spec.add_option('network', basestring, 'irc.freenode.net')
     spec.add_option('port', int, 6667)
+    spec.add_option('server_password', basestring, None)
     spec.add_option('ssl', bool, False)
     spec.add_option('channels', list, ['#bots'])
     spec.add_option('plugins', list, [
@@ -105,7 +108,7 @@ https://github.com/JohnMaguire/Cardinal
 
     # Instance a new factory, and connect with/without SSL
     logger.debug("Instantiating CardinalBotFactory")
-    factory = CardinalBotFactory(config['network'], config['channels'],
+    factory = CardinalBotFactory(config['network'], config['server_password'], config['channels'],
         config['nickname'], config['password'], config['plugins'])
 
     if not config['ssl']:

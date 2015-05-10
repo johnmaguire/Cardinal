@@ -48,6 +48,8 @@ class URLsPlugin(object):
         if 'lookup_cooloff' in config:
             self.lookup_cooloff = config['lookup_cooloff']
 
+        cardinal.event_manager.register('urls.detection', 2)
+
     def get_title(self, cardinal, user, channel, msg):
         # Find every URL within the message
         urls = re.findall(URL_REGEX, msg)
@@ -63,6 +65,12 @@ class URLsPlugin(object):
 
             self.last_url = url
             self.last_url_at = datetime.now()
+
+            # Check if another plugin has hooked into this URL and wants to
+            # provide information itself
+            hooked = cardinal.event_manager.fire('urls.detection', channel, url)
+            if hooked:
+                return
 
             # Attempt to load the page, timing out after a default of ten seconds
             try:
@@ -97,6 +105,9 @@ class URLsPlugin(object):
                     continue
 
     get_title.regex = URL_REGEX
+
+    def close(self, cardinal):
+        cardinal.event_manager.remove('urls.detection')
 
 def setup(cardinal, config):
     return URLsPlugin(cardinal, config)

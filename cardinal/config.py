@@ -10,12 +10,14 @@ class ConfigSpec(object):
     logger = None
     """Logging object for ConfigSpec"""
 
-    options = {}
+    options = None
     """A dictionary holding tuples of the options"""
 
     def __init__(self):
         """Initializes the logging"""
         self.logger = logging.getLogger(__name__)
+
+        self.options = {}
 
     def add_option(self, name, type, default=None):
         """Adds an option to the spec
@@ -63,11 +65,11 @@ class ConfigSpec(object):
             raise KeyError("%s is not a valid option" % name)
 
         # Separate the type and default from the tuple
-        type, default = self.options[name]
+        type_check, default = self.options[name]
 
         # Return the default if the value passed in was wrong, otherwise return
         # the value passed in
-        if not isinstance(value, type):
+        if not isinstance(value, type_check):
             if value is not None:
                 self.logger.warning(
                     "Value passed in for option %s was invalid -- ignoring" % name
@@ -220,7 +222,7 @@ class ConfigParser(object):
                     self.config[option] = value
             except AttributeError:
                 self.logger.debug(
-                    "Option %s not in CLI arguments -- not updated" % name
+                    "Option %s not in CLI arguments -- not updated" % option
                 )
 
         return self.config

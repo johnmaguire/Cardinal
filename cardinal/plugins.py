@@ -25,7 +25,7 @@ class PluginManager(object):
     cardinal = None
     """Holds an instance of `CardinalBot`"""
 
-    plugins = {}
+    plugins = None
     """List of loaded plugins"""
 
     command_regex = re.compile(r'\.(([A-Za-z0-9_-]+)\s?.*$)')
@@ -47,7 +47,6 @@ class PluginManager(object):
     (additional arguments) which will be up to the plugin for handling.
     """
 
-
     def __init__(self, cardinal, plugins=None):
         """Creates a new instance, optionally with a list of plugins to load
 
@@ -61,6 +60,9 @@ class PluginManager(object):
         """
         # Initialize logger
         self.logger = logging.getLogger(__name__)
+
+        # Set default to empty object
+        self.plugins = {}
 
         # To prevent circular dependencies, we can't sanity check this. Hope
         # for the best.
@@ -335,15 +337,19 @@ class PluginManager(object):
 
         for method in dir(instance):
             method = getattr(instance, method)
-            if callable(method) and (hasattr(method, 'on_join') or hasattr(method, 'on_part') or
-                                     hasattr(method, 'on_quit') or hasattr(method, 'on_kick') or
-                                     hasattr(method, 'on_action') or hasattr(method, 'on_topic') or
-                                     hasattr(method, 'on_nick') or hasattr(method, 'on_invite')):
+            if callable(method) and (hasattr(method, 'on_join') or
+                                     hasattr(method, 'on_part') or
+                                     hasattr(method, 'on_quit') or
+                                     hasattr(method, 'on_kick') or
+                                     hasattr(method, 'on_action') or
+                                     hasattr(method, 'on_topic') or
+                                     hasattr(method, 'on_nick') or
+                                     hasattr(method, 'on_invite')):
                 events.append(method)
 
         return events
 
-    def itercommands(self):
+    def itercommands(self, channel=None):
         """Simple generator to iterate through all commands of loaded plugins.
 
         Returns:
@@ -351,14 +357,20 @@ class PluginManager(object):
         """
         # Loop through each plugin we have loaded
         for name, plugin in self.plugins.items():
+            if channel is not None and channel in plugin['blacklist']:
+                continue
+
             # Loop through each of the plugins' commands (these are actually
             # class methods with attributes assigned to them, so they are all
             # callable) and yield the command
             for command in plugin['commands']:
                 yield command
 
-    def iterevents(self):
+    def iterevents(self, channel=None):
         """Simple generator to iterate through all events of loaded plugins.
+
+        Keywword arguments:
+          channel -- Optionally ignore plugins with the channel blacklisted.
 
         Returns:
           iterator -- Iterator for looping through commands
@@ -466,9 +478,10 @@ class PluginManager(object):
                 'name': plugin,
                 'module': module,
                 'instance': instance,
-                'config': config,
                 'commands': commands,
-                'events': events
+                'events': events,
+                'config': config,
+                'blacklist': [],
             }
 
             if reload_flag:
@@ -543,6 +556,62 @@ class PluginManager(object):
         self.logger.info("Unloading all plugins")
         self.unload([plugin for plugin, data in self.plugins.items()])
 
+    def blacklist(self, plugin, channels):
+        """Blacklists a plugin from given channels.
+
+        Keyword arguments:
+          plugin -- Name of plugin whose blacklist to operate on
+          channels -- A list of channels to add to the blacklist
+
+        Returns:
+          bool -- False if plugin doesn't exist.
+        """
+        # If they passed in a string, convert it to a list (and encode the
+        # name as UTF-8.)
+        if isinstance(channels, basestring):
+            channels = [channels.encode('utf-8')]
+        if not isinstance(channels, list):
+            raise TypeError("Plugins must be a string or list of plugins")
+
+        if plugin not in self.plugins:
+            return False
+
+        self.plugins[plugin]['blacklist'].extend(channels)
+
+        return True
+
+    def unblacklist(self, plugin, channels):
+        """Removes channels from a plugin's blacklist.
+
+        Keyword arguments:
+          plugin -- Name of plugin whose blacklist to operate on
+          channels -- A list of channels to remove from the blacklist
+
+        Returns:
+          list/bool -- False if plugin doesn't exist, list of channels that
+            weren't blacklisted in the first place if it does.
+        """
+        # If they passed in a string, convert it to a list (and encode the
+        # name as UTF-8.)
+        if isinstance(channels, basestring):
+            channels = [channels.encode('utf-8')]
+        if not isinstance(channels, list):
+            raise TypeError("Plugins must be a string or list of plugins")
+
+        if plugin not in self.plugins:
+            return False
+
+        not_blacklisted = []
+
+        for channel in channels:
+            if channel not in self.plugins[plugin]['blacklist']:
+                not_blacklisted.append(channel)
+                continue
+
+            self.plugins[plugin]['blacklist'].remove(channel)
+
+        return not_blacklisted
+
     def get_config(self, plugin):
         """Returns a loaded config for given plugin.
 
@@ -567,7 +636,6 @@ class PluginManager(object):
             raise ConfigNotFoundError("Couldn't find requested plugin config")
 
         return self.plugins[plugin]['config']
-
 
     def call_command(self, user, channel, message):
         """Checks a message to see if it appears to be a command and calls it.
@@ -603,7 +671,7 @@ class PluginManager(object):
             )
 
         # Iterate through all loaded commands
-        for command in self.itercommands():
+        for command in self.itercommands(channel):
             # Check whether the current command has a regex to match by, and if
             # it does, and the message given to us matches the regex, then call
             # the command.
@@ -621,7 +689,7 @@ class PluginManager(object):
             # Check if the plugin defined any standard commands and whether any
             # of them match the command we found in the message.
             if (hasattr(command, 'commands') and
-                get_command.group(2) in command.commands):
+                    get_command.group(2) in command.commands):
                 # Matched this command, so call it.
                 called_command = True
                 command(self.cardinal, user, channel, message)
@@ -640,20 +708,24 @@ class PluginManager(object):
             message
         )
 
+
 class EventManager(object):
     cardinal = None
     """Instance of CardinalBot"""
 
-    registered_events = {}
+    registered_events = None
     """Contains all the registered events"""
 
-    registered_callbacks = {}
+    registered_callbacks = None
     """Contains all the registered callbacks"""
 
     def __init__(self, cardinal):
         """Initializes the logger"""
         self.cardinal = cardinal
         self.logger = logging.getLogger(__name__)
+
+        self.registered_events = {}
+        self.registered_callbacks = {}
 
     def register(self, name, required_params):
         """Registers a plugin's event so other events can set callbacks.
@@ -687,7 +759,7 @@ class EventManager(object):
         """Removes a registered event."""
         self.logger.debug("Attempting to unregister event: %s" % name)
 
-        if not name in self.registered_events:
+        if name not in self.registered_events:
             self.logger.debug("Event does not exist: %s" % name)
             raise EventDoesNotExistError(
                 "Can't remove nonexistent event: %s" % name
@@ -720,7 +792,7 @@ class EventManager(object):
 
         # If no event is registered, we will still register the callback but
         # we can't sanity check it since the event hasn't been registered yet
-        if not event_name in self.registered_events:
+        if event_name not in self.registered_events:
             return self._add_callback(event_name, callback)
 
         argspec = inspect.getargspec(callback)
@@ -734,7 +806,7 @@ class EventManager(object):
             num_func_args -= 1
 
         if (num_func_args != num_needed_args and
-            not argspec.varargs):
+                not argspec.varargs):
             self.logger.debug("Invalid callback for event: %s" % event_name)
             raise EventCallbackError(
                 "Can't register callback with wrong number of arguments "
@@ -756,13 +828,13 @@ class EventManager(object):
             (callback_id, event_name)
         )
 
-        if not event_name in self.registered_callbacks:
+        if event_name not in self.registered_callbacks:
             self.logger.debug(
                 "Callback %s: Event has no callback list" % callback_id
             )
             return
 
-        if not callback_id in self.registered_callbacks[event_name]:
+        if callback_id not in self.registered_callbacks[event_name]:
             self.logger.debug(
                 "Callback %s: Callback does not exist in callback list" %
                 callback_id
@@ -787,7 +859,7 @@ class EventManager(object):
         """
         self.logger.debug("Attempting to fire event: %s" % name)
 
-        if not name in self.registered_events:
+        if name not in self.registered_events:
             self.logger.debug("Event does not exist: %s" % name)
             raise EventDoesNotExistError(
                 "Can't call an event that does not exist: %s" % name
