@@ -36,9 +36,24 @@ Writing plugins is simple and quick! Simply create a folder in the `plugins/` di
 
 The `plugin.py` file must contain two things: a plugin object, and a function called `setup()` which creates and returns an instance of your plugin object. `setup()` may accept zero, one, or two arguments. If one argument is specified, the instance of `CardinalBot` will be passed into it, allowing you to pass it to the plugin instance. If two arguments are specified, the second argument will receive your plugin's config (this should be either `config.json` or `config.yaml` within the plugin directory.)
 
-Plugins objects should be comprised of two different types of methods (though neither are required to exist within a plugin.) Private methods, which should be prefixed with an underscore, which can be used only internally by your plugin, and public methods.
+Additionally, a `close()` function may be defined on the returned object, which will be called whenever the plugin is unloaded (this includes during reloads.)
 
-Public methods act as commands for Cardinal. These are the methods that Cardinal will route messages to when it detects that a command has been called. They should accept four arguments. The first argument passed in will be the instance of `CardinalBot`. The second is a `re.match()` return value, with the first group containing the sending user's nick, the second group containing the sending user's ident, and the third group containing the sending user's vhost. The third argument will be the channel the message was sent to (however, if the message was sent in a PM to Cardinal, this will contain the sending user's nick instead. This allows you to send messages to the correct location easily.) And finally, the fourth argument will be the full message received.
+### The simplest valid plugin
+```python
+class HelloWorldPlugin(object):
+    pass
+
+def setup():
+    return HelloWorldPlugin()
+```
+
+### Adding commands to a plugin
+
+**Note**: The default command symbol is `.`. To change this, you must modify the `command_regex` variable in `CardinalBot.py`.
+
+Plugins objects should be comprised of two different types of methods (though neither are required to exist within a plugin.) Private methods, which should be prefixed with an underscore and can only be used internally, and public methods which are typically how you will define commands.
+
+Commands are just the methods that Cardinal will route messages to when it detects that a command has been called. They should accept four arguments. The first argument passed in will be the instance of `CardinalBot`. The second is the return from a `re.match()` call, containing three groups (nick, ident, and vhost). The third argument will be the channel to respond to. This is typically the channel the message was received in. However, if the message occurred in a PM, it will hold the sender's nick. Finally, the fourth argument will be the full message received.
 
 An example of a function definition for a command is as follows:
 
@@ -46,7 +61,9 @@ An example of a function definition for a command is as follows:
 def hello(self, cardinal, user, channel, msg):
 ```
 
-Command methods should also contain a couple of attributes. The first is a `commands` attribute, which should be a list of commands that Cardinal should respond to. For example, if Cardinal should respond to ".hello" or "Cardinal: hello", the list should contain the term `hello`. The second is the `help` attribute. This may be either a string, or a list of strings, to be sent when the included `help` command is called, with the command function as its parameter. If the attribute is a list of strings, each string will be sent separately. It is recommended that you use a list of two strings, with one briefly describing the command, and the second providing syntax. An example is below:
+### Command attributes
+
+Command methods should also contain a couple of attributes. The first is a `commands` attribute, which should be a list of commands that Cardinal should respond to. For example, if Cardinal should respond to ".hello" or "Cardinal: hello", the list should contain the term `hello`. The second is the `help` attribute. This may be either a string, or a list of strings, to be sent when the included `help` command is called, with the command function as its parameter. If the attribute is a list of strings, each string will be sent separately. It is recommended that you use a list of two strings, with one briefly describing the command, and the second providing syntax.
 
 ```python
 hello.commands = ['hello', 'hi']
@@ -58,11 +75,25 @@ Note: Square bracket notation should be used for optional parameters, while angl
 
 Lastly, they may contain a `regex` attribute, either as an alternative to a `command` attribute, or in addition to the `command` attribute. If the regex is detected in any received message, the command will be called.
 
-Additionally, a `close()` function may be defined at the module level, which will be called whenever the plugin is unloaded (this includes during reloads.)
+```python
+hello.regex = r'^hello$'
+```
 
-The default command symbol is `.`. To change this, you must modify the `command_regex` variable in `CardinalBot.py`.
+### Putting it all together
+```python
+class HelloWorldPlugin(object):
+    def hello(self, cardinal, user, channel, msg):
+        nick, ident, vhost = user.group(1), user.group(2), user.group(3)
+        cardinal.sendMsg(channel, "Hello %s!" % nick)
+    hello.commands = ['hello', 'hi']
+    hello.help = ["Responds to the user with a greeting.",
+                  "Syntax: .hello [user to greet]"]
 
-## Methods on CardinalBot
+def setup():
+    return HelloWorldPlugin()
+```
+
+### Methods on CardinalBot
 `CardinalBot` contains a few methods that are useful for plugin developers.
 
 The first, and most important is `CardinalBot.sendMsg()`. This takes a parameter `channel` and a parameter `message` and sends the message to the specified channel. Additionally, a `length` parameter may be specified, denoting the length of the message, but this is completely unnecessary and will be taken care of for you if it's not passed in.
