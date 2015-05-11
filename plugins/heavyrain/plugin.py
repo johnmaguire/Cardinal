@@ -39,7 +39,7 @@ class HeavyRain(object):
 	def handle_rain(self, user_list):
 		for i in range(5):
 			random_user = random.choice(user_list[self.heavy_channel])
-			reactor.callLater(random.randint(1,8), self.cardinal.sendMsg, self.heavy_channel, "&tip %s %s" % (random_user[0], 0.0001))
+			reactor.callLater(i*2, self.cardinal.sendMsg, self.heavy_channel, "&tip %s %s" % (random_user[0], 0.0001))
 			#self.cardinal.sendMsg(self.heavy_channel, )
 
 	def rain(self, cardinal, user, channel, msg):
