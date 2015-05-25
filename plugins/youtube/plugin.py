@@ -7,6 +7,7 @@ import logging
 from cardinal.exceptions import EventRejectedMessage
 
 VIDEO_URL_REGEX = re.compile(r'https?:\/\/(?:www\.)?youtube\..{2,4}\/watch\?.*(?:v=(.+?))(?:(?:&.*)|$)', flags=re.IGNORECASE)
+VIDEO_URL_SHORT_REGEX = re.compile(r'https?:\/\/(?:www\.)?youtu\.be\/(.+?)(?:(?:\?.*)|$)', flags=re.IGNORECASE)
 
 
 class YouTubePlugin(object):
@@ -71,7 +72,9 @@ class YouTubePlugin(object):
     def _get_video_info(self, cardinal, channel, url):
         match = re.match(VIDEO_URL_REGEX, url)
         if not match:
-            raise EventRejectedMessage
+            match = re.match(VIDEO_URL_SHORT_REGEX, url)
+            if not match:
+                raise EventRejectedMessage
 
         video_id = match.group(1)
         params = {'id': video_id, 'maxResults': 1, 'part': 'snippet'}
