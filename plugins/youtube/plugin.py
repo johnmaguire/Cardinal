@@ -43,7 +43,7 @@ class YouTubePlugin(object):
             cardinal.sendMsg(channel, "Syntax: .youtube <search query>")
             return
 
-        params = {'q': search_query, 'part': 'snippet', 'maxResults': 1}
+        params = {'q': search_query, 'part': 'snippet', 'maxResults': 1, 'type': 'video'}
 
         try:
             result = self._form_request("search", params)
