@@ -13,7 +13,7 @@ from cardinal.bot import CardinalBotFactory
 if __name__ == "__main__":
     # Set default log level to INFO and get some pretty formatting
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.DEBUG,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
 
