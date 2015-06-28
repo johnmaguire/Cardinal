@@ -3,7 +3,7 @@ import re
 import logging
 import sqlite3
 
-HELP_REGEX = re.compile(r'^!(.+?)')
+NOTE_REGEX = re.compile(r'!([^\s]+.*)')
 
 
 class NotesPlugin(object):
@@ -51,14 +51,15 @@ class NotesPlugin(object):
 
         message = msg.split('=', 1)
         title_message = message[0].split(' ', 1)
-        if (len(message) < 2 or
-                len(title_message) < 2 or
-                len(message[1]) == 0):
+        if len(message) < 2 or len(title_message) < 2:
             cardinal.sendMsg(channel, "Syntax: .addnote <title>=<content>")
             return
 
-        title = title_message[1]
-        content = message[1]
+        title = title_message[1].strip()
+        content = message[1].strip()
+        if len(title) == 0 or len(content) == 0:
+            cardinal.sendMsg(channel, "Syntax: .addnote <title>=<content>")
+            return
 
         c = self.conn.cursor()
         c.execute("INSERT OR REPLACE INTO notes (title, content) VALUES(?, ?)",
@@ -123,7 +124,7 @@ class NotesPlugin(object):
         cardinal.sendMsg(channel, "%s: %s" % (title, content))
 
     get_note.commands = ["note"]
-    get_note.regex = HELP_REGEX
+    get_note.regex = NOTE_REGEX
     get_note.syntax = ["Retrieve a saved note.",
                        "Syntax: .note <title>"]
 
