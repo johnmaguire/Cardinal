@@ -62,6 +62,11 @@ class CardinalBot(irc.IRCClient):
             'storage'
         )
 
+        # State variables for the WHO command
+        self.who_lock = {}
+        self.who_cache = {}
+        self.who_callbacks = {}
+
     def signedOn(self):
         """Called once we've connected to a network"""
         self.logger.info("Signed on as %s" % self.nickname)
@@ -151,6 +156,59 @@ class CardinalBot(irc.IRCClient):
             # This is just an info, since anyone can trigger it, not really a
             # bad thing.
             self.logger.info("Unable to find a matching command", exc_info=True)
+
+    def who(self, channel, callback):
+        """Lists the users in a channel.
+
+        Keyword arguments:
+          channel -- Channel to list users of.
+          callback -- A callback that will receive the list of users.
+
+        Returns:
+          None. However, the callback will receive a single argument,
+          which is the list of users.
+        """
+        if channel not in self.who_callbacks:
+            self.who_callbacks[channel] = []
+        self.who_callbacks[channel].append(callback)
+
+        self.logger.info("WHO list requested for %s" % channel)
+
+        if channel not in self.who_lock:
+            self.logger.info("Making WHO request to server")
+            # Set a lock to prevent trying to track responses from the server
+            self.who_lock[channel] = True
+
+            # Empty the cache to ensure no old users show up.
+            # TODO: Add actual caching and user tracking.
+            self.who_cache[channel] = []
+
+            # Send the actual WHO command to the server. irc_RPL_WHOREPLY will
+            # receive a response when the server sends one.
+            self.sendLine("WHO %s" % channel)
+
+    def irc_RPL_WHOREPLY(self, *nargs):
+        "Receives reply from WHO command and sends to caller"
+        response = nargs[1]
+
+        # Same format as other events (nickname!ident@hostname)
+        user = (
+            response[5], # nickname
+            response[2], # ident
+            response[3], # hostname
+        )
+        channel = response[1]
+
+        self.who_cache[channel].append(user)
+
+    def irc_RPL_ENDOFWHO(self, *nargs):
+        "Called when WHO output is complete"
+        response = nargs[1]
+        channel = response[1]
+
+        self.logger.info("Calling WHO callbacks for %s" % channel)
+        for callback in self.who_callbacks[channel]:
+            callback(self.who_cache[channel])
 
     def irc_NOTICE(self, prefix, params):
         """Called when a notice is sent to a channel or privately"""
