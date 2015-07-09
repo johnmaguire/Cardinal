@@ -4,6 +4,8 @@ import urllib
 import urllib2
 import logging
 
+MATHJS_API = "http://math.leftforliving.com"
+
 class CalculatorPlugin(object):
     logger = None
     """Logging object for CalculatorPlugin"""
@@ -22,7 +24,7 @@ class CalculatorPlugin(object):
 
         try:
             c_request = {'question': question}
-            uh = urllib2.urlopen("http://dib.leftforliving.com:8080/query?" + urllib.urlencode(c_request))
+            uh = urllib2.urlopen(MATHJS_API + "/query?" + urllib.urlencode(c_request))
         except Exception, e:
             cardinal.sendMsg(channel, "Unable to reach evaluation server.")
             self.logger.exception("Unable to connect to evaluation server")
