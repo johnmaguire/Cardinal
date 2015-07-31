@@ -9,3 +9,4 @@ PyYAML==3.11
 six==1.9.0
 Twisted==13.2.0
 zope.interface==4.1.2
+requests==2.2.1
