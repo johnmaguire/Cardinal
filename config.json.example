@@ -2,7 +2,7 @@
         "nickname": "Cardinal",
         "password": "NICKSERV PASSWORD",
         "network": "irc.darkscience.net",
-        "server_password": "SERVER PASSWORD (IF NECESSARY)"
+        "server_password": "SERVER PASSWORD (IF NECESSARY)",
         "port": 6697,
         "ssl": true,
         "channels": [
@@ -12,7 +12,7 @@
                 "admin",
                 "calculator",
                 "help",
-                "join_on_invite"
+                "join_on_invite",
                 "lastfm",
                 "notes",
                 "ping",
@@ -21,5 +21,6 @@
                 "weather",
                 "wikipedia",
                 "youtube",
+                "timezone"
         ]
 }
