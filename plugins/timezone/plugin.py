@@ -1,49 +1,49 @@
 import logging
-from pytz import timezone
 from datetime import datetime
+
 import pytz
 from pytz.exceptions import UnknownTimeZoneError
 
+TIME_FORMAT = '%m/%d %H:%M:%s %z'
+
+
 class TimezonePlugin(object):
     def get_time(self, cardinal, user, channel, msg):
-        #
         utc = pytz.utc
-        utc_dt = utc.localize(datetime.now()).replace(tzinfo=utc)
-        fmt = '%m/%d %H:%M'
-        
+        now = datetime.now(utc)
+
         try:
-            time_zone_input = msg.split(' ', 1)[1]
+            tz_input = msg.split(' ', 1)[1].strip()
         except IndexError:
-            cardinal.sendMsg(channel, utc_dt.strftime(fmt))# user didn't specify a time, return GMT
-            return
-        
+            # no timezone specified, default to UTC
+            return cardinal.sendMsg(channel, now.strftime(fmt))
+
+        offset = None
         try:
-            offset = int(time_zone_input)
+            offset = int(tz_input)
         except ValueError:
-            offset = None
-            time_zone_input = time_zone_input.strip()
-        
-        if not offset is None:
+            pass
+
+        if offset is not None:
             try:
                 if offset < 0:
-                    user_tz = timezone('Etc/GMT+{0}'.format(offset * -1))#for some reason the GMT+4 == America/Eastern, and GMT-4 is over in Asia
+                    # for some reason the GMT+4 == America/Eastern, and GMT-4 is over in Asia
+                    user_tz = pytz.timezone('Etc/GMT+{0}'.format(offset * -1))
                 elif offset > 0:
-                    user_tz = timezone('Etc/GMT{0}'.format(offset * -1))
+                    user_tz = pytz.timezone('Etc/GMT{0}'.format(offset * -1))
                 else:
                     user_tz = utc
             except UnknownTimeZoneError:
-                cardinal.sendMsg(channel, 'Invalid GMT offset')
-                return
+                return cardinal.sendMsg(channel, 'Invalid UTC offset')
         else:
             try:
-                user_tz = timezone(time_zone_input)
+                user_tz = pytz.timezone(tz_input)
             except UnknownTimeZoneError:
-                cardinal.sendMsg(channel, 'Invalid Timezone')
-                return
-                
-        user_dt = user_tz.normalize(utc_dt.astimezone(user_tz))
-        cardinal.sendMsg(channel, user_dt.strftime(fmt))
-        
+                return cardinal.sendMsg(channel, 'Invalid timezone')
+
+        now = user_tz.normalize(now)
+        cardinal.sendMsg(channel, now.strftime(TIME_FORMAT))
+
     get_time.commands = ['time']
     get_time.help = ['Returns the current time in a given time zone or GMT offset. Syntax: time <GMT offset or timzone>']
 
