@@ -4,7 +4,7 @@ from datetime import datetime
 import pytz
 from pytz.exceptions import UnknownTimeZoneError
 
-TIME_FORMAT = '%m/%d %H:%M:%s %z'
+TIME_FORMAT = '%b %d, %I:%M:%S %p UTC%z'
 
 
 class TimezonePlugin(object):
