@@ -21,6 +21,7 @@
                 "weather",
                 "wikipedia",
                 "youtube",
+                "google",
                 "timezone"
         ]
 }
