@@ -57,7 +57,7 @@ class GoogleSearch(object):
 
             return cardinal.sendMsg(channel, "Couldn't find any results for your query :(")
 
-    search.commands = ['lmgtfy', 'google', 'search-for']
+    search.commands = ['google', 'lmgtfy',  'g']
     search.help = ['Returns the URL of the top result for a given search query']
 
 def setup():
