@@ -1,3 +1,4 @@
+import logging
 import requests
 import re
 from urllib import quote_plus
@@ -7,6 +8,9 @@ from bs4 import BeautifulSoup
 
 class GoogleSearch(object):
     """Original author: Adam 'Flarf' Straub"""
+
+    def __init__(self):
+        self.logger = logging.getLogger(__name__)
 
     def search(self, cardinal, user, channel, msg):
         # gets search string from message, and makes it url safe
@@ -45,10 +49,12 @@ class GoogleSearch(object):
                         href = result.find("a")['href']
                         result = url.match(href).group(1)
 
-                        return cardinal.sendMsg(channel, "Top result is: %s" % result)
+                        return cardinal.sendMsg(channel, "Top result is: {0}".format(result))
 
             return cardinal.sendMsg(channel, "Couldn't find any results for your query :(")
         except:
+            self.logger.error("An error occurred searching", exc_info=True)
+
             return cardinal.sendMsg(channel, "Couldn't find any results for your query :(")
 
     search.commands = ['lmgtfy', 'google', 'search-for']
