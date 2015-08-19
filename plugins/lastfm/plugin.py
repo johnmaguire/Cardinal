@@ -119,9 +119,13 @@ class LastfmPlugin(object):
         # Open the cursor for the query to find a saved Last.fm username
         c = self.conn.cursor()
 
-        # If they supplied user parameter, use that for the query instead
         message = msg.split()
 
+        # If using natural syntax, remove Cardinal's name
+        if message[0] != '.np' and message[0] != '.nowplaying':
+            message.pop(0)
+
+        # If they supplied user parameter, use that for the query instead
         if len(message) >= 2:
             nick = message[1]
             c.execute("SELECT username FROM users WHERE nick=?", (nick,))
