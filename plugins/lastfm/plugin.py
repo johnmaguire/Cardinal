@@ -59,6 +59,10 @@ class LastfmPlugin(object):
             return
 
         message = msg.split()
+        # If using natural syntax, remove Cardinal's name
+        if message[0] != '.setlastfm':
+            message.pop(0)
+
         if len(message) < 2:
             cardinal.sendMsg(channel, "Syntax: .setlastfm <username>")
             return
@@ -235,6 +239,10 @@ class LastfmPlugin(object):
 
         # If they supplied user parameter, use that for the query instead
         message = msg.split()
+
+        if message[0] != '.compare':
+            message.pop(0)
+
         if len(message) < 2:
             cardinal.sendMsg(channel, "Syntax: .compare <username> [username]")
 
