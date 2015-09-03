@@ -125,7 +125,7 @@ class NotesPlugin(object):
 
     get_note.commands = ["note"]
     get_note.regex = NOTE_REGEX
-    get_note.syntax = ["Retrieve a saved note.",
+    get_note.help  = ["Retrieve a saved note.",
                        "Syntax: .note <title>"]
 
     def _get_note_from_db(self, title):
