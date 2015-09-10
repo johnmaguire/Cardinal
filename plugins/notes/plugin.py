@@ -91,7 +91,8 @@ class NotesPlugin(object):
             cardinal.sendMsg(channel, "No note found under '%s'." % title)
             return
 
-        c.execute("DELETE FROM notes WHERE title=?", (title,))
+        c.execute("DELETE FROM notes WHERE title = ?", (title,))
+        self.conn.commit()
 
         cardinal.sendMsg(channel, "Deleted note saved under '%s'." % title)
 
