@@ -13,7 +13,7 @@ from cardinal.plugins import PluginManager, EventManager
 from cardinal.exceptions import *
 
 
-class CardinalBot(irc.IRCClient):
+class CardinalBot(irc.IRCClient, object):
     logger = None
     """Logging object for CardinalBot"""
 
@@ -22,15 +22,6 @@ class CardinalBot(irc.IRCClient):
 
     network = None
     """Currently connected network (e.g. irc.freenode.net)"""
-
-    @property
-    def nickname(self):
-        """This is the nickname property of CardinalBot"""
-        return self.factory.nickname
-
-    @property
-    def password(self):
-        return self.factory.server_password
 
     user_regex = re.compile(r'^(.*?)!(.*?)@(.*?)$')
     """Regex for identifying a user's nick, ident, and vhost"""
@@ -50,8 +41,21 @@ class CardinalBot(irc.IRCClient):
     booted  = None
     """Time that Cardinal was first launched"""
 
-    reloads = 0
-    """Number of plugin reloads performed"""
+    @property
+    def nickname(self):
+        return self.factory.nickname
+
+    @nickname.setter
+    def nickname(self, value):
+        self.factory.nickname = value
+
+    @property
+    def reloads(self):
+        return self.factory.reloads
+
+    @reloads.setter
+    def reloads(self, value):
+        self.factory.reloads = value
 
     def __init__(self):
         """Initializes the logging and sets storage directory"""
@@ -458,6 +462,9 @@ class CardinalBotFactory(protocol.ClientFactory):
 
     booted = None
     """Datetime object holding time Cardinal first started up"""
+
+    reloads = 0
+    """Keeps track of plugin reloads from within Cardinal"""
 
     def __init__(self, network, server_password=None, channels=None,
                  nickname='Cardinal', password=None, plugins=None):
