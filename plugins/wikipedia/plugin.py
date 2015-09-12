@@ -51,18 +51,17 @@ class WikipediaPlugin(object):
 
         try:
             # Title of the Wikipedia page
-            title = str(soup.find("h1").contents[0])
+            title = soup.find("h1").get_text()
 
             # Manipulation to get first paragraph without HTML markup
             content = soup.find_all("div", id="mw-content-text")[0]
-            first_paragraph = content.p
-            for tag in content.p.find_all():
-                tag.unwrap()
-            first_paragraph = str(first_paragraph)[3:-4]
+            first_paragraph = content.p.get_text()
 
             if len(first_paragraph) > self._max_description_length:
-                first_paragraph = (first_paragraph[:self._max_description_length] +
-                    '...')
+                first_paragraph = first_paragraph[:self._max_description_length] + \
+                    '...'
+            else:
+                first_paragraph = first_paragraph
         except Exception, e:
             self.logger.error(
                 "Error parsing Wikipedia result for: %s" % name,
@@ -71,8 +70,7 @@ class WikipediaPlugin(object):
 
             return "Error parsing Wikipedia result for: %s" % name
 
-        return str(
-            "[ Wikipedia: %s | %s | %s ]" % (title, first_paragraph, url))
+        return ("[ Wikipedia: %s | %s | %s ]" % (title, first_paragraph, url)).encode('utf-8')
 
     def url_callback(self, cardinal, channel, url):
         match = re.match(ARTICLE_URL_REGEX, url)
