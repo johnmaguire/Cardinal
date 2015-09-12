@@ -96,9 +96,10 @@ class URLsPlugin(object):
                     title = re.sub('\s+', ' ', title.group(2)).strip()
 
                     h = HTMLParser.HTMLParser()
-                    title = str(h.unescape(title)
-                                 .decode('ascii', 'replace')
-                                 .replace(u"\ufffd\ufffd", '?'))
+
+                    # Twisted needs a str. encode needs a unicode string to
+                    # encode into UTF-8, or it will try to encode from ASCII
+                    title = str(unicode(h.unescape(title), 'utf-8').encode('utf-8'))
 
                     # Truncate long titles to the first 200 characters.
                     title_to_send = title[:200] if len(title) >= 200 else title
