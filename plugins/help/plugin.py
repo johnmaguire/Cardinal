@@ -70,7 +70,8 @@ class HelpPlugin(object):
         }
 
     # Given a number of seconds, converts it to a readable uptime string
-    def _pretty_uptime(self, days, seconds):
+    def _pretty_uptime(self, seconds):
+        days, seconds = divmod(seconds, 60 * 60 * 24)
         hours, seconds = divmod(seconds, 60 * 60)
         minutes, seconds = divmod(seconds, 60)
         uptime = "%d days " % days if days else ""
@@ -106,8 +107,8 @@ class HelpPlugin(object):
 
         # Calculate uptime into readable format
         now = datetime.now()
-        uptime = self._pretty_uptime((now - meta['uptime']).days, (now - meta['uptime']).seconds)
-        booted = self._pretty_uptime((now - meta['uptime']).days, (now - meta['booted']).seconds)
+        uptime = self._pretty_uptime((now - meta['uptime']).total_seconds())
+        booted = self._pretty_uptime((now - meta['booted']).total_seconds())
 
         cardinal.sendMsg(
             channel,

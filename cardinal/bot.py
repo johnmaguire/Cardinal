@@ -38,7 +38,7 @@ class CardinalBot(irc.IRCClient, object):
     uptime = None
     """Time that Cardinal connected to the network"""
 
-    booted  = None
+    booted = None
     """Time that Cardinal was first launched"""
 
     @property
