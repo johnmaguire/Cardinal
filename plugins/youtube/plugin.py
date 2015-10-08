@@ -77,7 +77,7 @@ class YouTubePlugin(object):
                 raise EventRejectedMessage
 
         video_id = match.group(1)
-        params = {'id': video_id, 'maxResults': 1, 'part': 'snippet'}
+        params = {'id': video_id, 'maxResults': 1, 'part': 'snippet,statistics'}
 
         try:
             result = self._form_request("videos", params)
@@ -88,7 +88,7 @@ class YouTubePlugin(object):
             message = self._parse_item(result['items'][0])
             cardinal.sendMsg(channel, message)
         except IndexError:
-            raise EventRejectedMessage
+            raise EventRejectedMessage, e
 
     def _form_request(self, endpoint, params):
         # Add API key to all requests
@@ -104,6 +104,7 @@ class YouTubePlugin(object):
     def _parse_item(self, item):
         title = item['snippet']['title']
         uploader = item['snippet']['channelTitle']
+        views = item['statistics']['viewCount']
         if len(uploader) == 0:
             uploader = "(not available)"
 
@@ -118,8 +119,8 @@ class YouTubePlugin(object):
         uploader = str(uploader.encode('utf-8'))
         video_id = str(video_id.encode('utf-8'))
 
-        return ("[ Title: %s | Uploaded by: %s | https://www.youtube.com/watch?v=%s ]" %
-            (title, uploader, video_id))
+        return ("[ Title: %s | Uploaded by: %s | %s Views | https://www.youtube.com/watch?v=%s ]" %
+            (title, uploader, views, video_id))
 
     def close(self, cardinal):
         cardinal.event_manager.remove_callback('urls.detection', self.callback_id)
