@@ -60,10 +60,32 @@ class YouTubePlugin(object):
             return
 
         try:
+            video_id = str(result['items'][0]['id']['videoId'].encode('utf-8'))
+
+            params = {
+                'id': video_id,
+                'maxResults': 1,
+                'part': 'snippet,statistics'
+            }
+        except IndexError:
+            cardinal.sendMsg(channel, "No videos found matching that search.")
+            return
+
+        try:
+            result = self._form_request("videos", params)
+        except Exception, e:
+            cardinal.sendMsg(channel, "Unable to connect to YouTube.")
+            self.logger.exception("Failed to connect to YouTube")
+            return
+
+        try:
             message = self._parse_item(result['items'][0])
             cardinal.sendMsg(channel, message)
         except IndexError:
             cardinal.sendMsg(channel, "No videos found matching that search.")
+        except Exception, e:
+            self.logger.exception("Failed to parse info for %s'" % video_id)
+            raise EventRejectedMessage
 
     search.commands = ['youtube', 'yt']
     search.help = ["Get the first YouTube result for a given search.",
@@ -73,8 +95,8 @@ class YouTubePlugin(object):
         match = re.match(VIDEO_URL_REGEX, url)
         if not match:
             match = re.match(VIDEO_URL_SHORT_REGEX, url)
-            if not match:
-                raise EventRejectedMessage
+        if not match:
+            raise EventRejectedMessage
 
         video_id = match.group(1)
         params = {'id': video_id, 'maxResults': 1, 'part': 'snippet,statistics'}
@@ -82,13 +104,15 @@ class YouTubePlugin(object):
         try:
             result = self._form_request("videos", params)
         except Exception, e:
+            self.logger.exception("Failed to fetch info for %s'" % video_id)
             raise EventRejectedMessage
 
         try:
             message = self._parse_item(result['items'][0])
             cardinal.sendMsg(channel, message)
-        except IndexError:
-            raise EventRejectedMessage, e
+        except Exception, e:
+            self.logger.exception("Failed to parse info for %s'" % video_id)
+            raise EventRejectedMessage
 
     def _form_request(self, endpoint, params):
         # Add API key to all requests
@@ -102,25 +126,18 @@ class YouTubePlugin(object):
         return json.load(uh)
 
     def _parse_item(self, item):
-        title = item['snippet']['title']
-        uploader = item['snippet']['channelTitle']
-        views = item['statistics']['viewCount']
+        title = str(item['snippet']['title'].encode('utf-8'))
+        views = int(item['statistics']['viewCount'].encode('utf-8'))
+        uploader = str(item['snippet']['channelTitle'].encode('utf-8'))
         if len(uploader) == 0:
             uploader = "(not available)"
 
-        # Sometimes this is item['id'], other times it's item['id']['videoId']
-        video_id = item['id']
-        try:
-            video_id = video_id['videoId']
-        except TypeError:
-            pass
+        # TODO: Verify no videos return the ID as item['id']['videoId']
+        # (Hint: If this breaks, that's probably why.)
+        video_id = str(item['id'].encode('utf-8'))
 
-        title = str(title.encode('utf-8'))
-        uploader = str(uploader.encode('utf-8'))
-        video_id = str(video_id.encode('utf-8'))
-
-        return ("[ Title: %s | Uploaded by: %s | %s Views | https://www.youtube.com/watch?v=%s ]" %
-            (title, uploader, views, video_id))
+        return ("[ Title: %s | Uploaded by: %s | %s views | https://www.youtube.com/watch?v=%s ]" %
+                (title, uploader, "{:,}".format(views), video_id))
 
     def close(self, cardinal):
         cardinal.event_manager.remove_callback('urls.detection', self.callback_id)
