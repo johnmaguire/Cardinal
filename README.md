@@ -43,7 +43,7 @@ class HelloWorldPlugin(object):
         cardinal.sendMsg(channel, "Hello %s!" % nick)
     hello.commands = ['hello', 'hi']
     hello.help = ["Responds to the user with a greeting.",
-                  "Syntax: .hello [user to greet]"]
+                  "Syntax: .hello"]
 
 def setup():
     return HelloWorldPlugin()
