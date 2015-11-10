@@ -22,6 +22,7 @@
                 "wikipedia",
                 "youtube",
                 "google",
-                "timezone"
+                "timezone",
+                "github"
         ]
 }
