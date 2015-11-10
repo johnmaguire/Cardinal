@@ -65,7 +65,7 @@ class GithubPlugin(object):
     def _format_issue(self, issue):
         message = "#%s: %s" % (issue['number'], issue['title'])
         if issue['state'] == 'closed':
-            message = u'\u2713 ' + message
+            message = u"\u2713 %s" % message
         elif issue['state'] == 'open':
             message = "! " + message
         if issue['assignee']:
@@ -79,7 +79,13 @@ class GithubPlugin(object):
 
     def _show_repo(self, cardinal, channel, repo):
         repo = self._form_request('repos/' + repo)
-        cardinal.sendMsg(channel, ("%s - %s" % (repo['full_name'], repo['description'])).encode('utf8'))
+        message = "%s - %s" % (repo['full_name'], repo['description'])
+        if repo['stargazers_count'] > 0:
+            message += u" | \u2605 %s" % repo['stargazers_count']
+
+        if repo['open_issues_count'] > 0:
+            message += " | %s open issues" % repo['open_issues_count']
+        cardinal.sendMsg(channel, message.encode('utf8'))
 
     def _get_repo_info(self, cardinal, channel, url):
         match = re.match(ISSUE_URL_REGEX, url)
