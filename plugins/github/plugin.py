@@ -14,9 +14,15 @@ class GithubPlugin(object):
     logger = None
     """Logging object for YouTubePlugin"""
 
-    def __init__(self, cardinal):
+    default_repo = None
+    """Default repository to select the issues from"""
+
+    def __init__(self, cardinal, config):
         # Initialize logging
         self.logger = logging.getLogger(__name__)
+
+        if config['default_repo']:
+            self.default_repo = config['default_repo'].encode('utf8')
 
         self.callback_id = cardinal.event_manager.register_callback(
             'urls.detection', self._get_repo_info
@@ -28,7 +34,11 @@ class GithubPlugin(object):
             repo = msg.split(' ', 2)[1]
 
             if not REPO_NAME_REGEX.match(repo):
-                repo = "JohnMaguire/Cardinal" # @TODO: config.json
+                if not self.default_repo:
+                    cardinal.sendMsg(channel, "Syntax: .issue <user/repo> <id or search query>")
+                    return
+
+                repo = self.default_repo
                 query = msg.split(' ', 1)[1]
             else:
                 query = msg.split(' ', 2)[2]
@@ -39,14 +49,33 @@ class GithubPlugin(object):
         try:
             self._show_issue(cardinal, channel, repo, int(query))
         except ValueError:
-            cardinal.sendMsg(channel, "Searching for '%s' in %s" % (query, repo))
+            res = self._form_request('search/issues', {'q': "repo:%s %s" % (repo, query)})
+            num = 0
+            for issue in res['items']:
+                cardinal.sendMsg(channel, self._format_issue(issue))
+                if num == 4: break
+                num += 1
+            if res['total_count'] > 5:
+                cardinal.sendMsg(channel, "...and %d more" % (res['total_count'] - 5))
 
     search.commands = ['issue']
     search.help = ["Find a Github repo or issue (or combination thereof)",
                    "Syntax: .issue [repo] <id or search query>"]
 
-    def _show_issue(self, cardinal, channel, repo, id):
-        cardinal.sendMsg(channel, "show %s#%d" % (repo, id))
+    def _format_issue(self, issue):
+        message = "#%s: %s" % (issue['number'], issue['title'])
+        if issue['state'] == 'closed':
+            message = u'\u2713 ' + message
+        elif issue['state'] == 'open':
+            message = "! " + message
+        if issue['assignee']:
+            message += " @%s" % issue['assignee']['login']
+        message += " " + issue['html_url']
+        return message.encode('utf8')
+
+    def _show_issue(self, cardinal, channel, repo, number):
+        issue = self._form_request('repos/%s/issues/%d' % (repo, number))
+        cardinal.sendMsg(channel, self._format_issue(issue))
 
     def _show_repo(self, cardinal, channel, repo):
         cardinal.sendMsg(channel, "show repo %s" % repo)
@@ -69,7 +98,7 @@ class GithubPlugin(object):
         elif len(groups) == 1:
             self._show_user(cardinal, channel, groups[1])
 
-    def _form_request(self, endpoint, params):
+    def _form_request(self, endpoint, params={}):
         # Make request to specified endpoint and return JSON decoded result
         uh = urllib2.urlopen("https://api.github.com/" +
             endpoint + "?" +
@@ -80,5 +109,5 @@ class GithubPlugin(object):
     def close(self, cardinal):
         cardinal.event_manager.remove_callback('urls.detection', self.callback_id)
 
-def setup(cardinal):
-    return GithubPlugin(cardinal)
+def setup(cardinal, config):
+    return GithubPlugin(cardinal, config)
