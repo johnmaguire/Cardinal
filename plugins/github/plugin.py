@@ -57,6 +57,10 @@ class GithubPlugin(object):
                 num += 1
             if res['total_count'] > 5:
                 cardinal.sendMsg(channel, "...and %d more" % (res['total_count'] - 5))
+            elif res['total_count'] == 0:
+                cardinal.sendMsg(channel, "no matching issues found in %s" % repo)
+        except urllib2.HTTPError:
+            cardinal.sendMsg(channel, "couldn't find %s#%d" % (repo, int(query)))
 
     search.commands = ['issue']
     search.help = ["Find a Github repo or issue (or combination thereof)",
