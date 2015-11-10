@@ -6,7 +6,7 @@ import logging
 
 from cardinal.exceptions import EventRejectedMessage
 
-REPO_URL_REGEX  = re.compile(r'https://(?:www\.)?github\..{2,4}/([^/]+)(?:/([^/]+))?', flags=re.IGNORECASE)
+REPO_URL_REGEX  = re.compile(r'https://(?:www\.)?github\..{2,4}/([^/]+)/([^/]+)', flags=re.IGNORECASE)
 ISSUE_URL_REGEX = re.compile(r'https://(?:www\.)?github\..{2,4}/([^/]+)/([^/]+)/issues/([0-9]+)', flags=re.IGNORECASE)
 REPO_NAME_REGEX = re.compile(r'^[a-z0-9-]+/[a-z0-9_-]+$', flags=re.IGNORECASE)
 
@@ -78,10 +78,8 @@ class GithubPlugin(object):
         cardinal.sendMsg(channel, self._format_issue(issue))
 
     def _show_repo(self, cardinal, channel, repo):
-        cardinal.sendMsg(channel, "show repo %s" % repo)
-
-    def _show_user(self, cardinal, channel, user):
-        cardinal.sendMsg(channel, "show user %s" % user)
+        repo = self._form_request('repos/' + repo)
+        cardinal.sendMsg(channel, ("%s - %s" % (repo['full_name'], repo['description'])).encode('utf8'))
 
     def _get_repo_info(self, cardinal, channel, url):
         match = re.match(ISSUE_URL_REGEX, url)
@@ -91,12 +89,13 @@ class GithubPlugin(object):
             raise EventRejectedMessage
 
         groups = match.groups()
-        if len(groups) == 3:
-            self._show_issue(cardinal, channel, '%s/%s' % (groups[0], groups[1]), int(groups[2]))
-        elif len(groups) == 2:
-            self._show_repo(cardinal, channel, '%s/%s' % (groups[0], groups[1]))
-        elif len(groups) == 1:
-            self._show_user(cardinal, channel, groups[1])
+        try:
+            if len(groups) == 3:
+                self._show_issue(cardinal, channel, '%s/%s' % (groups[0], groups[1]), int(groups[2]))
+            elif len(groups) == 2:
+                self._show_repo(cardinal, channel, '%s/%s' % (groups[0], groups[1]))
+        except urllib2.HTTPError:
+            raise EventRejectedMessage
 
     def _form_request(self, endpoint, params={}):
         # Make request to specified endpoint and return JSON decoded result
