@@ -17,12 +17,20 @@ class GithubPlugin(object):
     default_repo = None
     """Default repository to select the issues from"""
 
+    max_show_issues = 1
+    """Max number of issues to show for a search. -1 means all"""
+
     def __init__(self, cardinal, config):
         # Initialize logging
         self.logger = logging.getLogger(__name__)
 
-        if config['default_repo']:
-            self.default_repo = config['default_repo'].encode('utf8')
+        if config.has_key('default_repo'):
+            if config['default_repo']:
+                self.default_repo = config['default_repo'].encode('utf8')
+
+        if config.has_key('max_show_issues'):
+            if config['max_show_issues']:
+                self.max_show_issues = config['max_show_issues']
 
         self.callback_id = cardinal.event_manager.register_callback(
             'urls.detection', self._get_repo_info
@@ -53,10 +61,10 @@ class GithubPlugin(object):
             num = 0
             for issue in res['items']:
                 cardinal.sendMsg(channel, self._format_issue(issue))
-                if num == 4: break
                 num += 1
-            if res['total_count'] > 5:
-                cardinal.sendMsg(channel, "...and %d more" % (res['total_count'] - 5))
+                if num == self.max_show_issues: break
+            if res['total_count'] > self.max_show_issues:
+                cardinal.sendMsg(channel, "...and %d more" % (res['total_count'] - self.max_show_issues))
             elif res['total_count'] == 0:
                 cardinal.sendMsg(channel, "no matching issues found in %s" % repo)
         except urllib2.HTTPError:
