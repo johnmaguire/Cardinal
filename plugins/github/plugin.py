@@ -12,7 +12,7 @@ REPO_NAME_REGEX = re.compile(r'^[a-z0-9-]+/[a-z0-9_-]+$', flags=re.IGNORECASE)
 
 class GithubPlugin(object):
     logger = None
-    """Logging object for YouTubePlugin"""
+    """Logging object for GithubPlugin"""
 
     default_repo = None
     """Default repository to select the issues from"""
