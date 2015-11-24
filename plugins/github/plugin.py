@@ -43,7 +43,7 @@ class GithubPlugin(object):
 
             if not REPO_NAME_REGEX.match(repo):
                 if not self.default_repo:
-                    cardinal.sendMsg(channel, "Syntax: .issue <user/repo> <id or search query>")
+                    cardinal.sendMsg(channel, "Syntax: .issue <username/repository> <id or search query>")
                     return
 
                 repo = self.default_repo
@@ -51,7 +51,7 @@ class GithubPlugin(object):
             else:
                 query = msg.split(' ', 2)[2]
         except IndexError:
-            cardinal.sendMsg(channel, "Syntax: .issue [repo] <id or search query>")
+            cardinal.sendMsg(channel, "Syntax: .issue [username/repository] <id or search query>")
             return
 
         try:
@@ -66,13 +66,13 @@ class GithubPlugin(object):
             if res['total_count'] > self.max_show_issues:
                 cardinal.sendMsg(channel, "...and %d more" % (res['total_count'] - self.max_show_issues))
             elif res['total_count'] == 0:
-                cardinal.sendMsg(channel, "no matching issues found in %s" % repo)
+                cardinal.sendMsg(channel, "No matching issues found in %s" % repo)
         except urllib2.HTTPError:
-            cardinal.sendMsg(channel, "couldn't find %s#%d" % (repo, int(query)))
+            cardinal.sendMsg(channel, "Couldn't find %s#%d" % (repo, int(query)))
 
     search.commands = ['issue']
     search.help = ["Find a Github repo or issue (or combination thereof)",
-                   "Syntax: .issue [repo] <id or search query>"]
+                   "Syntax: .issue [username/repository] <id or search query>"]
 
     def _format_issue(self, issue):
         message = "#%s: %s" % (issue['number'], issue['title'])
@@ -91,12 +91,15 @@ class GithubPlugin(object):
 
     def _show_repo(self, cardinal, channel, repo):
         repo = self._form_request('repos/' + repo)
-        message = "%s - %s" % (repo['full_name'], repo['description'])
+        message = "[ %s - %s " % (repo['full_name'], repo['description'])
         if repo['stargazers_count'] > 0:
-            message += u" | \u2605 %s" % repo['stargazers_count']
+            message += u"| \u2605 %s stars " % repo['stargazers_count']
 
         if repo['open_issues_count'] > 0:
-            message += " | %s open issues" % repo['open_issues_count']
+            message += "| %s open issues " % repo['open_issues_count']
+
+        message += "]"
+
         cardinal.sendMsg(channel, message.encode('utf8'))
 
     def _get_repo_info(self, cardinal, channel, url):
