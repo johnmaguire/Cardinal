@@ -313,42 +313,6 @@ class PluginManager(object):
 
         return commands
 
-    def _get_plugin_events(self, instance):
-        """Find the events in a plugin and return them as callables.
-
-        Valid events are as follows:
-          on_join   -- When a user joins a channel.
-          on_part   -- When a user parts a channel.
-          on_kick   -- When a user is kicked from a channel.
-          on_invite -- When a user invites another user to a channel.
-          on_quit   -- When a user quits a channel.
-          on_nick   -- When a user changes their nick.
-          on_topic  -- When a user sets the topic of a channel.
-          on_action -- When a user performs an ACTION on a channel.
-
-        Keyword arguments:
-          instance -- An instance of a plugin.
-
-        Returns:
-          list -- A list of callable events.
-
-        """
-        events = []
-
-        for method in dir(instance):
-            method = getattr(instance, method)
-            if callable(method) and (hasattr(method, 'on_join') or
-                                     hasattr(method, 'on_part') or
-                                     hasattr(method, 'on_quit') or
-                                     hasattr(method, 'on_kick') or
-                                     hasattr(method, 'on_action') or
-                                     hasattr(method, 'on_topic') or
-                                     hasattr(method, 'on_nick') or
-                                     hasattr(method, 'on_invite')):
-                events.append(method)
-
-        return events
-
     def itercommands(self, channel=None):
         """Simple generator to iterate through all commands of loaded plugins.
 
@@ -365,20 +329,6 @@ class PluginManager(object):
             # callable) and yield the command
             for command in plugin['commands']:
                 yield command
-
-    def iterevents(self, channel=None):
-        """Simple generator to iterate through all events of loaded plugins.
-
-        Keywword arguments:
-          channel -- Optionally ignore plugins with the channel blacklisted.
-
-        Returns:
-          iterator -- Iterator for looping through commands
-        """
-        # Loop through each plugin we have loaded
-        for name, plugin in self.plugins.items():
-            for event in plugin['events']:
-                yield event
 
     def load(self, plugins):
         """Takes either a plugin name or a list of plugins and loads them.
@@ -469,7 +419,6 @@ class PluginManager(object):
                 continue
 
             commands = self._get_plugin_commands(instance)
-            events = self._get_plugin_events(instance)
 
             if plugin in self.plugins:
                 self.unload(plugin)
@@ -479,7 +428,6 @@ class PluginManager(object):
                 'module': module,
                 'instance': instance,
                 'commands': commands,
-                'events': events,
                 'config': config,
                 'blacklist': [],
             }
