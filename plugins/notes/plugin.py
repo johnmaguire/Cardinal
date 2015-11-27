@@ -3,7 +3,7 @@ import re
 import logging
 import sqlite3
 
-NOTE_REGEX = re.compile(r'!([^\s]+.*)')
+NOTE_REGEX = re.compile(r'^!([^\s]+.*)')
 
 
 class NotesPlugin(object):
