@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from cardinal.decorators import command, help
 
 class HelpPlugin(object):
     # Gets a list of owners from the admin plugin instantiated within the
@@ -81,7 +82,10 @@ class HelpPlugin(object):
 
     # Give the user a list of valid commands in the bot if no command is
     # provided. If a valid command is provided, return its help text
-    def help(self, cardinal, user, channel, msg):
+    @command(['help'])
+    @help("Shows loaded commands if no command is given. Otherwise, returns that command's help string.")
+    @help("Syntax: .help [command]")
+    def cmd_help(self, cardinal, user, channel, msg):
         parameters = msg.split()
         if len(parameters) == 1:
             cardinal.sendMsg(channel, "Loaded commands: %s" % ', '.join(self._get_commands(cardinal)))
@@ -96,12 +100,11 @@ class HelpPlugin(object):
             else:
                 cardinal.sendMsg(channel, "Unable to handle help string returned by module.")
 
-    help.commands = ['help']
-    help.help = ["Shows loaded commands if no command is given. Otherwise, returns that command's help string.",
-                 "Syntax: .help [command]"]
-
     # Sends some basic meta information about the bot
-    def info(self, cardinal, user, channel, msg):
+    @command('info')
+    @help("Gives some basic information about the bot.")
+    @help("Syntax: .info")
+    def cmd_info(self, cardinal, user, channel, msg):
         owners = self._get_owners(cardinal)
         meta = self._get_meta(cardinal)
 
