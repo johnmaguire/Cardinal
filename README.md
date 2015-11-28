@@ -49,6 +49,8 @@ Running Cardinal is as simple as typing `./cardinal.py`.
 
 Cardinal plugins are designed to be simple to write while still providing tons of power. Here's a sample to show what a very simple plugin might look like:
 ```python
+from cardinal.decorators import command, help
+
 class HelloWorldPlugin(object):
 	@command(['hello', 'hi'])
 	@help("Responds to the user with a greeting.")
