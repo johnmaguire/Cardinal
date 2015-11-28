@@ -1,6 +1,8 @@
 # Meet Cardinal.
 Cardinal is your new best friend and personal assistant on IRC. A modular, Twisted-based Python IRC bot, Cardinal has plenty of common features (such as a calculator, fetching of page titles, etc.) as well as some more interesting ones (integration with Last.fm and YouTube searching.) If you're a developer, it's easy to create your own plugins in a matter of minutes.
 
+Cardinal development channel on IRC: [irc.darkscience.org:+6697/cardinal](irc://irc.darkscience.org:+6697/cardinal)
+
 ## What can Cardinal do?
 Out of the box Cardinal can...
 
