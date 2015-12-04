@@ -1,6 +1,9 @@
 import functools
 
 def command(triggers):
+    if isinstance(triggers, basestring):
+        triggers = [triggers]
+
     def wrap(f):
         @functools.wraps(f)
         def inner(*args, **kwargs):
