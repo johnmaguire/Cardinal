@@ -127,9 +127,5 @@ class HelpPlugin(object):
             "then." % (uptime, booted, meta['reloads'])
         )
 
-    info.commands = ['info']
-    info.help = ["Gives some basic information about the bot.",
-                 "Syntax: .info"]
-
 def setup():
     return HelpPlugin()
