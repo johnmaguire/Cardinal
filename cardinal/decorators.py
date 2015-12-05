@@ -4,6 +4,9 @@ def command(triggers):
     if isinstance(triggers, basestring):
         triggers = [triggers]
 
+    if not isinstance(triggers, list):
+        raise TypeError("Command must be a trigger string or list of triggers")
+
     def wrap(f):
         @functools.wraps(f)
         def inner(*args, **kwargs):
@@ -15,6 +18,9 @@ def command(triggers):
     return wrap
 
 def help(line):
+    if not isinstance(line, basestring):
+        raise TypeError("Help line must be a string")
+
     def wrap(f):
         @functools.wraps(f)
         def inner(*args, **kwargs):
