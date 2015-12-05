@@ -28,6 +28,7 @@ pip-selfcheck.json
 .coverage
 .tox
 nosetests.xml
+.cache
 
 # Translations
 *.mo
