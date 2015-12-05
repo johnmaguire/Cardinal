@@ -25,6 +25,14 @@ def test_command():
 
     assert foo.commands == ['foo']
 
+    # test that the decorator doesn't break the function
+    @decorators.command('foo')
+    def foo(bar, baz):
+        return bar + baz
+
+    assert foo(3, baz=4) == 7
+    assert foo(5, 5) == 10
+
     # only allow strings and lists
     with pytest.raises(TypeError):
         @decorators.command(True)
@@ -59,6 +67,14 @@ def test_help():
         "This is the first help line",
         "This is the second help line",
     ]
+
+    # test that the decorator doesn't break the function
+    @decorators.help('foo')
+    def foo(bar, baz):
+        return bar + baz
+
+    assert foo(3, baz=4) == 7
+    assert foo(5, 5) == 10
 
     # only allow strings
     with pytest.raises(TypeError):
