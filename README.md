@@ -1,6 +1,10 @@
 # Meet Cardinal.
 
-Another IRC bot, you say? Just what the world needed! Cardinal is a modular, Twisted-based IRC bot written in Python. Batteries included!
+[![Build Status](https://travis-ci.org/JohnMaguire/Cardinal.svg?branch=test%2Ftravis-ci)](https://travis-ci.org/JohnMaguire/Cardinal)
+
+Another IRC bot, you say? Just what the world needed!
+
+Cardinal is a modular, Twisted-based IRC bot written in Python. Batteries included!
 
 Cardinal's goal is to make plugin development easy and powerful, and to fill in the gaps where other Python IRC bots fall short.
 
