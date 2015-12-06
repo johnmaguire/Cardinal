@@ -33,6 +33,7 @@ def test_command():
     assert foo(3, baz=4) == 7
     assert foo(5, 5) == 10
 
+def test_command_exceptions():
     # only allow strings and lists
     with pytest.raises(TypeError):
         @decorators.command(True)
@@ -76,6 +77,7 @@ def test_help():
     assert foo(3, baz=4) == 7
     assert foo(5, 5) == 10
 
+def test_help_exceptions():
     # only allow strings
     with pytest.raises(TypeError):
         @decorators.help(["This should raise an exception"])
