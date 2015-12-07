@@ -1,6 +1,6 @@
 # Meet Cardinal.
 
-[![Build Status](https://travis-ci.org/JohnMaguire/Cardinal.svg?branch=test%2Ftravis-ci)](https://travis-ci.org/JohnMaguire/Cardinal) [![Coverage Status](https://coveralls.io/repos/JohnMaguire/Cardinal/badge.svg?branch=master&service=github)](https://coveralls.io/github/JohnMaguire/Cardinal?branch=master)
+[![Build Status](https://travis-ci.org/JohnMaguire/Cardinal.svg?branch=master)](https://travis-ci.org/JohnMaguire/Cardinal) [![Coverage Status](https://coveralls.io/repos/JohnMaguire/Cardinal/badge.svg?branch=master&service=github)](https://coveralls.io/github/JohnMaguire/Cardinal?branch=master)
 
 Another IRC bot, you say? Just what the world needed!
 
