@@ -10,7 +10,16 @@ import random
 import json
 import yaml
 
-from cardinal.exceptions import *
+from cardinal.exceptions import (
+    AmbiguousConfigError,
+    CommandNotFoundError,
+    ConfigNotFoundError,
+    EventAlreadyExistsError,
+    EventCallbackError,
+    EventDoesNotExistError,
+    EventRejectedMessage,
+    PluginError,
+)
 
 
 class PluginManager(object):
@@ -155,7 +164,8 @@ class PluginManager(object):
           PluginError -- When a plugin's setup function has more than one
             argument.
         """
-        if not hasattr(module, 'setup') or not inspect.isfunction(module.setup):
+        if (not hasattr(module, 'setup') or
+                not inspect.isfunction(module.setup)):
             raise PluginError("Plugin does not have a setup function")
 
         # Check whether the setup method on the module accepts an argument. If
@@ -374,7 +384,7 @@ class PluginManager(object):
 
                     try:
                         self._close_plugin_instance(plugin)
-                    except Exception, e:
+                    except Exception:
                         self.logger.exception(
                             "Didn't close plugin cleanly: %s" % plugin
                         )
@@ -383,7 +393,7 @@ class PluginManager(object):
                     module_to_import = plugin
 
                 module = self._import_module(module_to_import)
-            except Exception, e:
+            except Exception:
                 # Probably a syntax error in the plugin, log the exception
                 self.logger.exception(
                     "Could not load plugin module: %s" % plugin
@@ -396,7 +406,7 @@ class PluginManager(object):
             config = None
             try:
                 config = self._load_plugin_config(plugin)
-            except AmbiguousConfigError, e:
+            except AmbiguousConfigError:
                 # If two configs exist for the plugin, bail on loading
                 self.logger.exception("Could not load plugin: %s" % plugin)
                 failed_plugins.append(plugin)
@@ -410,7 +420,7 @@ class PluginManager(object):
             # Instance the plugin
             try:
                 instance = self._create_plugin_instance(module, config)
-            except Exception, e:
+            except Exception:
                 self.logger.exception(
                     "Could not instantiate plugin: %s" % plugin
                 )
@@ -477,7 +487,7 @@ class PluginManager(object):
 
                 try:
                     self._close_plugin_instance(plugin)
-                except Exception, e:
+                except Exception:
                     # Log the exception that came from trying to unload the
                     # plugin, but don't skip over the plugin. We'll still
                     # unload it.
@@ -813,10 +823,14 @@ class EventManager(object):
                 "Can't call an event that does not exist: %s" % name
             )
 
-        self.logger.info("Calling callbacks for event: %s" % name)
+        callbacks = self.registered_callbacks[name]
+        self.logger.info(
+            "Calling %d callbacks for event: %s" %
+            (len(callbacks), name)
+        )
 
         accepted = False
-        for callback_id, callback in self.registered_callbacks[name].iteritems():
+        for callback_id, callback in callbacks.iteritems():
             try:
                 callback(self.cardinal, *params)
                 self.logger.debug(
@@ -833,7 +847,7 @@ class EventManager(object):
                     "Callback %s rejected event: %s" %
                     (callback_id, name)
                 )
-            except Exception, e:
+            except Exception:
                 self.logger.exception(
                     "Exception during callback %s for event: %s" %
                     (callback_id, name)

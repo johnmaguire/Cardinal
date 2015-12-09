@@ -32,23 +32,32 @@ https://github.com/JohnMaguire/Cardinal
 
     # Add all the possible arguments
     arg_parser.add_argument('-n', '--nickname', metavar='nickname',
-        help='nickname to connect as')
+                            help='nickname to connect as')
+
     arg_parser.add_argument('--password', action='store_true',
-        help='set this flag to get a password prompt for identifying')
+                            help='set this flag to get a password prompt for '
+                                 'identifying')
+
     arg_parser.add_argument('-i', '--network', metavar='network',
-        help='network to connect to')
+                            help='network to connect to')
+
     arg_parser.add_argument('-o', '--port', type=int, metavar='port',
-        help='network port to connect to')
+                            help='network port to connect to')
+
     arg_parser.add_argument('-P', '--spassword', metavar='server_password',
-        help='password to connect to the network with')
+                            help='password to connect to the network with')
+
     arg_parser.add_argument('-s', '--ssl', action='store_true',
-        help='you must set this flag for SSL connections')
+                            help='you must set this flag for SSL connections')
+
     arg_parser.add_argument('-c', '--channels', nargs='*', metavar='channel',
-        help='list of channels to connect to on startup')
+                            help='list of channels to connect to on startup')
+
     arg_parser.add_argument('-p', '--plugins', nargs='*', metavar='plugin',
-        help='list of plugins to load on startup')
+                            help='list of plugins to load on startup')
+
     arg_parser.add_argument('--config', metavar='config',
-        help='custom config location')
+                            help='custom config location')
 
     # Define the config spec and create a parser for our internal config
     spec = ConfigSpec()
@@ -108,25 +117,28 @@ https://github.com/JohnMaguire/Cardinal
 
     # Instance a new factory, and connect with/without SSL
     logger.debug("Instantiating CardinalBotFactory")
-    factory = CardinalBotFactory(config['network'], config['server_password'], config['channels'],
-        config['nickname'], config['password'], config['plugins'])
+    factory = CardinalBotFactory(config['network'], config['server_password'],
+                                 config['channels'],
+                                 config['nickname'], config['password'],
+                                 config['plugins'])
 
     if not config['ssl']:
         logger.info(
             "Connecting over plaintext to %s:%d" %
-                (config['network'], config['port'])
+            (config['network'], config['port'])
         )
+
         reactor.connectTCP(config['network'], config['port'], factory)
     else:
         logger.info(
             "Connecting over SSL to %s:%d" %
-                (config['network'], config['port'])
+            (config['network'], config['port'])
         )
 
         # For SSL, we need to import the SSL module from Twisted
         from twisted.internet import ssl
         reactor.connectSSL(config['network'], config['port'], factory,
-            ssl.ClientContextFactory())
+                           ssl.ClientContextFactory())
 
     # Run the Twisted reactor
     reactor.run()

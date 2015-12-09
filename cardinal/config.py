@@ -1,6 +1,5 @@
 import logging
 import json
-import argparse
 import inspect
 
 
@@ -72,16 +71,17 @@ class ConfigSpec(object):
         if not isinstance(value, type_check):
             if value is not None:
                 self.logger.warning(
-                    "Value passed in for option %s was invalid -- ignoring" % name
+                    "Value passed in for option %s was invalid -- ignoring" %
+                    name
                 )
             else:
                 self.logger.debug(
-                    "No value set for option %s -- using default" % name
-                )
+                    "No value set for option %s -- using default" % name)
 
             return default
         else:
             return value
+
 
 class ConfigParser(object):
     """A class to make parsing of JSON configs easier.
@@ -118,7 +118,7 @@ class ConfigParser(object):
         self.logger = logging.getLogger(__name__)
         self.spec = spec
 
-    def _convert_json(self, json_object, called_by_self=False):
+    def _utf8_json(self, json_object, called_by_self=False):
         """Converts json.load() or json.loads() return to UTF-8.
 
         By default, json.load() will return an object with unicode strings.
@@ -141,11 +141,14 @@ class ConfigParser(object):
 
         if isinstance(json_object, dict):
             return {
-                self._convert_json(key, True): self._convert_json(value, True) for key, value in json_object.iteritems()
+                self._utf8_json(key, True):
+                    self._utf8_json(value, True)
+                    for key, value in json_object.iteritems()
             }
         elif isinstance(json_object, list):
             return [
-                self._convert_json(element, True) for element in json_object
+                self._utf8_json(element, True)
+                for element in json_object
             ]
         elif isinstance(json_object, unicode):
             return json_object.encode('utf-8')
@@ -171,7 +174,7 @@ class ConfigParser(object):
         # Attempt to load and parse the config file
         try:
             f = open(file, 'r')
-            json_config = self._convert_json(json.load(f))
+            json_config = self._utf8_json(json.load(f))
             f.close()
         # File did not exist or we can't open it for another reason
         except IOError:
@@ -181,19 +184,22 @@ class ConfigParser(object):
         # Thrown by json.load() when the content isn't valid JSON
         except ValueError:
             self.logger.warning(
-                "Invalid JSON in %s, (using defaults / command-line values" % file
+                "Invalid JSON in %s, (using defaults / command-line values" %
+                file
             )
         else:
             # For every option,
             for option in self.spec.options:
                 try:
-                    # If the option wasn't defined in the config, ensure default
+                    # If the option wasn't defined in the config, default
                     if option not in json_config:
                         json_config[option] = None
 
-                    self.config[option] = self.spec.return_value_or_default(option, json_config[option])
+                    self.config[option] = self.spec.return_value_or_default(
+                        option, json_config[option])
                 except KeyError:
-                    self.logger.warning("Option %s not in spec -- ignored" % option)
+                    self.logger.warning("Option %s not in spec -- ignored" %
+                                        option)
 
         # If we didn't load the config earlier, or there was nothing in it...
         if self.config == {} and self.spec.options != {}:

@@ -16,6 +16,7 @@ def test_command(input, expected):
 
     assert foo.commands == expected
 
+
 def test_command_overwrites():
     # test that only one decorator can add commands
     @decorators.command('foo')
@@ -24,6 +25,7 @@ def test_command_overwrites():
         pass
 
     assert foo.commands == ['foo']
+
 
 def test_command_function_wrap():
     # test that the decorator doesn't break the function
@@ -34,6 +36,7 @@ def test_command_function_wrap():
 
     assert foo(3, baz=4) == 7
     assert foo(5, 5) == 10
+
 
 @pytest.mark.parametrize("value", [
     True,
@@ -51,6 +54,7 @@ def test_command_exceptions(value):
         def foo():
             pass
 
+
 def test_help():
     # ensure help is a list with the line added
     @decorators.help("This is a help line")
@@ -58,6 +62,7 @@ def test_help():
         pass
 
     assert foo.help == ["This is a help line"]
+
 
 def test_help_order():
     # test the order of the help lines
@@ -71,6 +76,7 @@ def test_help_order():
         "This is the second help line",
     ]
 
+
 def test_help_function_wrap():
     # test that the decorator doesn't break the function
     @decorators.help('foo')
@@ -79,6 +85,7 @@ def test_help_function_wrap():
 
     assert foo(3, baz=4) == 7
     assert foo(5, 5) == 10
+
 
 @pytest.mark.parametrize("value", [
     True,

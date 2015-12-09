@@ -10,10 +10,18 @@ from twisted.words.protocols import irc
 from twisted.internet import protocol, reactor
 
 from cardinal.plugins import PluginManager, EventManager
-from cardinal.exceptions import *
+from cardinal.exceptions import (
+    CommandNotFoundError,
+    ConfigNotFoundError,
+    EventAlreadyExistsError,
+    InternalError,
+    PluginError,
+)
 
 
 class CardinalBot(irc.IRCClient, object):
+    """Cardinal, in all its glory"""
+
     logger = None
     """Logging object for CardinalBot"""
 
@@ -107,8 +115,9 @@ class CardinalBot(irc.IRCClient, object):
             self.event_manager.register("irc.part", 3)
             self.event_manager.register("irc.kick", 4)
             self.event_manager.register("irc.quit", 2)
-        except EventAlreadyExistsError, e:
-            self.logger.error("Could not register core IRC events", exc_info=True)
+        except EventAlreadyExistsError:
+            self.logger.error(
+                "Could not register core IRC events", exc_info=True)
 
         # Create an instance of PluginManager, giving it an instance of ourself
         # to pass to plugins, as well as a list of initial plugins to load.
@@ -159,7 +168,8 @@ class CardinalBot(irc.IRCClient, object):
         except CommandNotFoundError:
             # This is just an info, since anyone can trigger it, not really a
             # bad thing.
-            self.logger.info("Unable to find a matching command", exc_info=True)
+            self.logger.info(
+                "Unable to find a matching command", exc_info=True)
 
     def who(self, channel, callback):
         """Lists the users in a channel.
@@ -197,9 +207,9 @@ class CardinalBot(irc.IRCClient, object):
 
         # Same format as other events (nickname!ident@hostname)
         user = (
-            response[5], # nickname
-            response[2], # ident
-            response[3], # hostname
+            response[5],  # nickname
+            response[2],  # ident
+            response[3],  # hostname
         )
         channel = response[1]
 
@@ -237,7 +247,6 @@ class CardinalBot(irc.IRCClient, object):
         if self.event_manager:
             self.event_manager.fire("irc.notice", user, channel, message)
 
-
     def irc_NICK(self, prefix, params):
         """Called when a user changes their nick"""
         user = re.match(self.user_regex, prefix)
@@ -269,7 +278,7 @@ class CardinalBot(irc.IRCClient, object):
         channel = params[0]
         mode = ' '.join(params[1:])
 
-       # Sent by network, not a real user
+        # Sent by network, not a real user
         if not user:
             self.logger.debug(
                 "%s set mode on %s (%s)" % (prefix, channel, mode)
@@ -326,7 +335,8 @@ class CardinalBot(irc.IRCClient, object):
 
         self.logger.debug(
             "%s!%s@%s kicked %s from %s (%s)" %
-            (user.group(1), user.group(2), user.group(3), nick, channel, reason)
+            (user.group(1), user.group(2), user.group(3),
+                nick, channel, reason)
         )
 
         self.event_manager.fire("irc.kick", user, channel, nick, reason)
@@ -388,7 +398,7 @@ class CardinalBot(irc.IRCClient, object):
 
         try:
             config = self.plugin_manager.get_config(plugin)
-        except ConfigNotFoundError, e:
+        except ConfigNotFoundError:
             # Log and raise the exception again
             self.logger.exception(
                 "Couldn't find config for plugin: %s" % plugin
@@ -419,8 +429,10 @@ class CardinalBot(irc.IRCClient, object):
         self.factory.disconnect = True
         self.quit(message)
 
-# This interfaces CardinalBot with the Twisted library
+
 class CardinalBotFactory(protocol.ClientFactory):
+    """The interface between Cardinal and the Twisted library"""
+
     logger = None
     """Logger object for CardinalBotFactory"""
 
