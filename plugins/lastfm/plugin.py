@@ -1,5 +1,4 @@
 import os
-import sys
 import sqlite3
 import json
 import urllib2
@@ -27,13 +26,13 @@ class LastfmPlugin(object):
             self.api_key = config['api_key']
 
     def _connect_or_create_db(self, cardinal):
+        self.conn = None
         try:
             self.conn = sqlite3.connect(os.path.join(
                 cardinal.storage_path,
                 'lastfm-%s.db' % cardinal.network
             ))
-        except Exception, e:
-            self.conn = None
+        except Exception:
             self.logger.exception("Unable to access local Last.fm database")
             return
 
@@ -158,7 +157,7 @@ class LastfmPlugin(object):
                 (username, self.api_key)
             )
             content = json.load(uh)
-        except Exception, e:
+        except Exception:
             cardinal.sendMsg(channel, "Unable to connect to Last.fm.")
             self.logger.exception("Failed to connect to Last.fm")
             return
@@ -269,7 +268,7 @@ class LastfmPlugin(object):
                 "&type1=user&type2=user&value1=%s&value2=%s&api_key=%s"
                 "&format=json" % (username1, username2, self.api_key))
             content = json.load(uh)
-        except Exception, e:
+        except Exception:
             cardinal.sendMsg(channel, "Unable to connect to Last.fm.")
             self.logger.exception("Failed to connect to Last.fm")
             return
@@ -291,25 +290,28 @@ class LastfmPlugin(object):
             return
 
         try:
-            score = int(float(content['comparison']['result']['score']) * 100)
+            result = content['comparison']['result']
+
+            score = int(float(result['score']) * 100)
             artists = []
-            if not 'artist' in content['comparison']['result']['artists']:
+            if 'artist' not in result['artists']:
                 # Return early to avoid error on looping through artists
                 cardinal.sendMsg(
                     channel,
                     "According to Last.fm's Tasteometer, %s and %s share none "
-                    "of the same music." % (str(username1), str(username2))
+                    "of the same music." %
+                    (str(username1), str(username2))
                 )
                 return
 
             # Account for Last.fm giving a string instead of a list if only
             # one artist is shared
-            if not isinstance(content['comparison']['result']['artists']['artist'], list):
-                artists.append(str(content['comparison']['result']['artists']['artist']['name']))
+            if not isinstance(result['artists']['artist'], list):
+                artists.append(str(result['artists']['artist']['name']))
             else:
                 # Loop through all artists to grab artist names
-                for i in range(len(content['comparison']['result']['artists']['artist'])):
-                    artists.append(str(content['comparison']['result']['artists']['artist'][i]['name']))
+                for i in range(len(result['artists']['artist'])):
+                    artists.append(str(result['artists']['artist'][i]['name']))
 
             cardinal.sendMsg(
                 channel,
@@ -318,7 +320,7 @@ class LastfmPlugin(object):
                 "common include: %s" %
                 (str(username1), str(username2), score, ', '.join(artists))
             )
-        except KeyError, e:
+        except KeyError:
             cardinal.sendMsg(channel, "An unknown error has occurred.")
             self.logger.exception("An unknown error occurred comparing users")
 
@@ -330,6 +332,7 @@ class LastfmPlugin(object):
     def close(self):
         if self.conn:
             self.conn.close()
+
 
 def setup(cardinal, config):
     return LastfmPlugin(cardinal, config)
