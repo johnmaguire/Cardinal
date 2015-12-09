@@ -1,3 +1,4 @@
+[![Stories in Ready](https://badge.waffle.io/johnmaguire/cardinal.png?label=ready&title=Ready)](https://waffle.io/johnmaguire/cardinal)
 # Meet Cardinal.
 
 [![Build Status](https://travis-ci.org/JohnMaguire/Cardinal.svg?branch=master)](https://travis-ci.org/JohnMaguire/Cardinal) [![Coverage Status](https://coveralls.io/repos/JohnMaguire/Cardinal/badge.svg?branch=master&service=github)](https://coveralls.io/github/JohnMaguire/Cardinal?branch=master)
