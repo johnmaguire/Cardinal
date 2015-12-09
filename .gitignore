@@ -1,3 +1,6 @@
+# Cardinal's custom config file
+config.json
+
 *.py[cod]
 
 # C extensions
@@ -42,11 +45,11 @@ nosetests.xml
 *.sublime-project
 *.sublime-workspace
 
+# vim
+*.swp
+
 # Database files
 *.db
 
 # OS X
 .DS_Store
-
-# the custom config file
-config.json
