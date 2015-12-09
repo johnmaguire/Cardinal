@@ -189,22 +189,12 @@ class LastfmPlugin(object):
                 "%s is now listening to: %s by %s" %
                 (str(username), str(song), str(artist))
             )
-        except KeyError:
-            try:
-                song = content['recenttracks']['track']['name']
-                artist = content['recenttracks']['track']['artist']['#text']
-
-                cardinal.sendMsg(
-                    channel,
-                    "%s last listened to: %s by %s" %
-                    (str(username), str(song), str(artist))
-                )
-            except KeyError:
-                cardinal.sendMsg(
-                    channel,
-                    "Unable to find any tracks played. "
-                    "(Is your Last.fm username correct?)"
-                )
+        except IndexError:
+            cardinal.sendMsg(
+                channel,
+                "Unable to find any tracks played. "
+                "(Is your Last.fm username correct?)"
+            )
 
     now_playing.commands = ['np', 'nowplaying']
     now_playing.help = ["Get the Last.fm track currently played by a user "
