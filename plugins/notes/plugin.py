@@ -31,6 +31,7 @@ class NotesPlugin(object):
         try:
             self.conn = sqlite3.connect(os.path.join(
                 cardinal.storage_path,
+                'database',
                 'notes-%s.db' % cardinal.network
             ))
         except Exception:
@@ -126,8 +127,8 @@ class NotesPlugin(object):
 
     get_note.commands = ["note"]
     get_note.regex = NOTE_REGEX
-    get_note.help  = ["Retrieve a saved note.",
-                       "Syntax: .note <title>"]
+    get_note.help = ["Retrieve a saved note.",
+                     "Syntax: .note <title>"]
 
     def _get_note_from_db(self, title):
         c = self.conn.cursor()

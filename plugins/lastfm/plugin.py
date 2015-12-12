@@ -30,6 +30,7 @@ class LastfmPlugin(object):
         try:
             self.conn = sqlite3.connect(os.path.join(
                 cardinal.storage_path,
+                'database',
                 'lastfm-%s.db' % cardinal.network
             ))
         except Exception:
