@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 
 import os
-import logging
 import argparse
+import logging
+import logging.config
 from getpass import getpass
 
 from twisted.internet import reactor
@@ -11,13 +12,6 @@ from cardinal.config import ConfigParser, ConfigSpec
 from cardinal.bot import CardinalBotFactory
 
 if __name__ == "__main__":
-    # Set default log level to INFO and get some pretty formatting
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
-
-    logger = logging.getLogger(__name__)
 
     # Create a new instance of ArgumentParser with a description about Cardinal
     arg_parser = argparse.ArgumentParser(description="""
@@ -81,11 +75,11 @@ https://github.com/JohnMaguire/Cardinal
         'youtube',
         'urbandict'
     ])
+    spec.add_option('logging', dict, None)
 
     parser = ConfigParser(spec)
 
     # Parse command-line arguments
-    logger.debug("Parsing command-line arguments")
     args = arg_parser.parse_args()
 
     # Attempt to load config.json for config options
@@ -96,7 +90,7 @@ https://github.com/JohnMaguire/Cardinal
             'config.json'
         )
 
-    logger.info("Attempting to load config: %s" % config_file)
+    # Load config file
     parser.load_config(config_file)
 
     # If SSL is set to false, set it to None (small hack - action 'store_true'
@@ -112,8 +106,20 @@ https://github.com/JohnMaguire/Cardinal
         args.password = None
 
     # Merge the args into the config object
-    logger.debug("Merging command-line arguments into config")
     config = parser.merge_argparse_args_into_config(args)
+
+    # If user defined logging config, use it, otherwise use default
+    if config['logging'] is not None:
+        logging.config.dictConfig(config['logging'])
+    else:
+        # Set default log level to INFO and get some pretty formatting
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
+
+    # Get a logger!
+    logger = logging.getLogger(__name__)
 
     # Instance a new factory, and connect with/without SSL
     logger.debug("Instantiating CardinalBotFactory")

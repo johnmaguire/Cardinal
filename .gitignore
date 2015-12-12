@@ -48,8 +48,9 @@ nosetests.xml
 # vim
 *.swp
 
-# Database files
+# Persistence files generated at runtime
 *.db
+*.log
 
 # OS X
 .DS_Store

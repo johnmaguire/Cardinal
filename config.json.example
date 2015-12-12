@@ -1,28 +1,63 @@
 {
-        "nickname": "Cardinal",
-        "password": "NICKSERV PASSWORD",
-        "network": "irc.darkscience.net",
-        "server_password": "SERVER PASSWORD (IF NECESSARY)",
-        "port": 6697,
-        "ssl": true,
-        "channels": [
-                "#bots"
-        ],
-        "plugins": [
-                "admin",
-                "calculator",
-                "help",
-                "join_on_invite",
-                "lastfm",
-                "notes",
-                "ping",
-                "remind",
-                "urls",
-                "weather",
-                "wikipedia",
-                "youtube",
-                "google",
-                "timezone",
-                "github"
-        ]
+    "nickname": "Cardinal",
+    "password": "NICKSERV PASSWORD",
+    "network": "irc.darkscience.net",
+    "server_password": "SERVER PASSWORD (IF NECESSARY)",
+    "port": 6697,
+    "ssl": true,
+    "channels": [
+        "#bots"
+    ],
+
+    "plugins": [
+        "admin",
+        "calculator",
+        "help",
+        "join_on_invite",
+        "lastfm",
+        "notes",
+        "ping",
+        "remind",
+        "urls",
+        "weather",
+        "wikipedia",
+        "youtube",
+        "google",
+        "timezone",
+        "github"
+    ],
+
+    "logging": {
+        "version": 1,
+
+        "formatters": {
+            "simple": {
+                "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+            }
+        },
+
+        "handlers": {
+            "console": {
+                "class": "logging.StreamHandler",
+                "level": "DEBUG",
+                "formatter": "simple",
+                "stream": "ext://sys.stdout"
+            },
+
+            "file": {
+                "class": "logging.handlers.RotatingFileHandler",
+                "level": "INFO",
+                "formatter": "simple",
+                "filename": "storage/logs/cardinal.log",
+                "maxBytes": 10485760,
+                "backupCount": 10,
+                "encoding": "utf8"
+            }
+        },
+
+        "root": {
+            "level": "DEBUG",
+            "handlers": ["console", "file"]
+        }
+    }
 }
