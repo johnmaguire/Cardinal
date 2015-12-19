@@ -76,19 +76,22 @@ class AdminPlugin(object):
                 for plugin in cardinal.plugin_manager:
                     plugins.append(plugin['name'])
 
-            failed = cardinal.plugin_manager.load(plugins)
+            deferred = cardinal.plugin_manager.load(plugins)
+            def handle_results(plugins):
+                states = {True: [], False: []}
+                for success, plugin in plugins:
+                    states[success].append(plugin)
 
-            successful = [
-                plugin for plugin in plugins if plugin not in failed
-            ]
+                if len(states[True]) > 0:
+                    cardinal.sendMsg(channel, "Plugins loaded succesfully: %s." %
+                                              ', '.join(sorted(states[True])))
 
-            if len(successful) > 0:
-                cardinal.sendMsg(channel, "Plugins loaded succesfully: %s." %
-                                          ', '.join(sorted(successful)))
+                if len(states[False]) > 0:
+                    cardinal.sendMsg(channel, "Plugins failed to load: %s." %
+                                              ', '.join(sorted(states[False])))
 
-            if len(failed) > 0:
-                cardinal.sendMsg(channel, "Plugins failed to load: %s." %
-                                          ', '.join(sorted(failed)))
+            deferred.addCallback(handle_results)
+
 
     load_plugins.commands = ['load', 'reload']
     load_plugins.help = ["If no plugins are given after the command, reload " +
@@ -111,18 +114,21 @@ class AdminPlugin(object):
             cardinal.sendMsg(channel, "%s: Unloading plugins..." % nick)
 
             # Returns a list of plugins that weren't loaded to begin with
-            unknown = cardinal.plugin_manager.unload(plugins)
-            successful = [
-                plugin for plugin in plugins if plugin not in unknown
-            ]
+            deferred = cardinal.plugin_manager.unload(plugins)
+            def handle_results(plugins):
+                states = {True: [], False: []}
+                for success, plugin in plugins:
+                    states[success].append(plugin)
 
-            if len(successful) > 0:
-                cardinal.sendMsg(channel, "Plugins unloaded succesfully: %s." %
-                                          ', '.join(sorted(successful)))
+                if len(states[True]) > 0:
+                    cardinal.sendMsg(channel, "Plugins unloaded succesfully: %s." %
+                                              ', '.join(sorted(states[True])))
 
-            if len(unknown) > 0:
-                cardinal.sendMsg(channel, "Unknown plugins: %s." %
-                                          ', '.join(sorted(unknown)))
+                if len(states[False]) > 0:
+                    cardinal.sendMsg(channel, "Unknown plugins: %s." %
+                                              ', '.join(sorted(states[False])))
+
+            deferred.addCallback(handle_results)
 
     unload_plugins.commands = ['unload']
     unload_plugins.help = ["Unload selected plugins. (admin only)",
