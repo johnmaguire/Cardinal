@@ -1,6 +1,5 @@
 import os
 import sys
-import time
 import signal
 import logging
 import re
@@ -537,8 +536,7 @@ class CardinalBotFactory(protocol.ClientFactory):
             # time we've disconnected since a successful connection and then
             # wait before connecting.
             self.last_reconnection_wait = self.minimum_reconnection_wait
-            time.sleep(self.minimum_reconnection_wait)
-            connector.connect()
+            reactor.callLater(self.minimum_reconnection_wait, connector.connect)
         else:
             self.logger.info(
                 "Disconnected successfully (%s), quitting." % reason
@@ -572,5 +570,4 @@ class CardinalBotFactory(protocol.ClientFactory):
 
         # Update the last connection wait time, then wait and try to connect
         self.last_reconnection_wait = wait_time
-        time.sleep(wait_time)
-        connector.connect()
+        reactor.callLater(wait_time, connect.connect)
