@@ -201,6 +201,10 @@ class PluginManager(object):
         Raises:
           PluginError -- When a plugin's close function has more than one
             argument.
+
+        Returns:
+          Deferred -- A deferred returned by the plugin, or a generated
+            one.
         """
 
         instance = self.plugins[plugin]['instance']
@@ -216,11 +220,16 @@ class PluginManager(object):
             )
 
             if len(argspec.args) == 1:
-                return instance.close()
+                # Returns a Deferred regardless of whether instance.close
+                # returns one. It will be a defer.succeed(return) or
+                # defer.fail(exception)
+                return defer.maybeDeferred(instance.close)
             elif len(argspec.args) == 2:
-                return instance.close(self.cardinal)
+                return defer.maybeDeferred(instance.close, self.cardinal)
             else:
-                raise PluginError("Unknown arguments for close function")
+                return defer.fail(
+                    PluginError("Unknown arguments for close function")
+                )
 
     def _load_plugin_config(self, plugin):
         """Loads a JSON or YAML config for a given plugin
@@ -342,6 +351,23 @@ class PluginManager(object):
             for command in plugin['commands']:
                 yield command
 
+    def log_failure(self, message):
+        def errback(failure):
+            try:
+                failure.raiseException()
+            except Exception:
+                self.logger.exception(
+                    message
+                )
+
+            return failure
+
+        return errback
+
+    @staticmethod
+    def ignore_failure(failure):
+        return None
+
     def load(self, plugins):
         """Takes either a plugin name or a list of plugins and loads them.
 
@@ -353,7 +379,8 @@ class PluginManager(object):
           plugins -- This can be either a single or list of plugin names.
 
         Returns:
-          list -- A list of failed plugins, or an empty list.
+          defer.DeferredList -- A DeferredList representing each of the plugins
+            we are loading.
 
         Raises:
           TypeError -- When the `plugins` argument is not a string or list.
@@ -372,41 +399,45 @@ class PluginManager(object):
         deferreds = []
 
         for plugin in plugins:
-            # Reload flag so we can update the reload counter if necessary
-            reload_flag = False
-
             self.logger.info("Attempting to load plugin: %s" % plugin)
 
-            # Import each plugin's module with our own hacky function to reload
-            # modules that have already been imported previously
-            try:
-                d = None
-                if plugin in self.plugins.keys():
-                    self.logger.info("Already loaded, reloading: %s" % plugin)
-                    reload_flag = True
+            # Toggle this to True if we reload
+            reload_flag = False
 
-                    d = defer.maybeDeferred(self._close_plugin_instance, plugin)
-                    module_to_import = self.plugins[plugin]['module']
+            # Create a new Deferred for loading our plugin
+            d = defer.succeed(plugin)
 
-                    # Make sure we attempt to reload even when unloading
-                    # didn't go smoothly
-                    def succeed(v): return True
-                    d.addErrback(succeed)
-                else:
-                    d = defer.succeed(plugin)
-                    module_to_import = plugin
+            # If the plugin is loaded, close it before loading it again
+            if plugin in self.plugins.keys():
+                reload_flag = True
 
-                module = self._import_module(module_to_import)
-            except Exception:
-                # Probably a syntax error in the plugin, log the exception
-                self.logger.exception(
-                    "Could not load plugin module: %s" % plugin
-                )
-                d = defer.fail(PluginError(plugin))
+                self.logger.info("Already loaded, reloading: %s" % plugin)
 
-                continue
+                # Attempt to close the plugin instance first
+                d.addCallback(self._close_plugin_instance)
 
-            def load_plugin(_):
+                # Log and ignore failures closing plugin
+                d.addErrback(self.log_failure(
+                    "Didn't close plugin cleanly: %s" % plugin
+                ))
+                d.addErrback(self.ignore_failure)
+
+                # And use the existing module object for our _import_module()
+                # call below.
+                def return_plugin_module(_):
+                    return self.plugins[plugin]['module']
+                d.addCallback(return_plugin_module)
+
+            # Now really import/reload the module
+            d.addCallback(self._import_module)
+            d.addErrback(self.log_failure(
+                "Could not load plugin module: %s" % plugin
+            ))
+
+            # We'll run this as long as the module imports successfully. It
+            # returns the plugin name so that when looping over the list of
+            # Deferreds you can tell which plugins succeeded/failed to load.
+            def load_plugin(module):
                 # Attempt to load the config file for the given plugin.
                 config = None
                 try:
@@ -428,7 +459,6 @@ class PluginManager(object):
                     self.logger.exception(
                         "Could not instantiate plugin: %s" % plugin
                     )
-
                     raise
 
                 commands = self._get_plugin_commands(instance)
@@ -446,9 +476,18 @@ class PluginManager(object):
                     self.cardinal.reloads += 1
 
                 self.logger.info("Plugin %s successfully loaded" % plugin)
-                return plugin
+
+                # Returns success state and plugin name
+                return (True, plugin)
+
+            # Convert any uncaught Failures at this point into a value that can
+            # be parsed to show failure loading
+            def return_load_error(_):
+                return (False, plugin)
 
             d.addCallback(load_plugin)
+            d.addErrback(return_load_error)
+
             deferreds.append(d)
 
         return defer.DeferredList(deferreds)
@@ -464,7 +503,8 @@ class PluginManager(object):
           keep_entry -- Do not remove the plugin from self.plugins
 
         Returns:
-          list -- A list of failed plugins, or an empty list.
+          defer.DeferredList -- A DeferredList representing each of the plugins
+            we are unloading.
 
         Raises:
           TypeError -- When the `plugins` argument is not a string or list.
@@ -482,36 +522,33 @@ class PluginManager(object):
 
         for plugin in plugins:
             self.logger.info("Attempting to unload plugin: %s" % plugin)
-
             if plugin not in self.plugins:
                 self.logger.warning("Plugin was never loaded: %s" % plugin)
-                deferreds.append(defer.fail(PluginError(plugin)))
+
+                # Don't errback, but return error state and plugin name
+                deferreds.append(defer.succeed((False, plugin)))
                 continue
 
-            try:
-                # Plugin may need to close asynchronously
-                d = defer.maybeDeferred(self._close_plugin_instance, plugin)
-            except Exception:
-                # Log the exception that came from trying to unload the
-                # plugin, but don't skip over the plugin. We'll still
-                # unload it.
-                self.logger.exception(
-                    "Didn't close plugin cleanly: %s" % plugin
-                )
+            # Plugin may need to close asynchronously
+            d = defer.maybeDeferred(self._close_plugin_instance, plugin)
 
-                # Spawn a failed deferred instead of using the maybeDeferred
-                # above in case the Exception prevents the plugin from ever
-                # calling the deferred (or makes it succeed on accident)
-                d = defer.fail(PluginError(plugin))
-            finally:
-                deferreds.append(d)
+            # Log and ignore failures closing plugin
+            d.addErrback(self.log_failure(
+                "Didn't close plugin cleanly: %s" % plugin
+            ))
+            d.addErrback(self.ignore_failure)
 
-                # Once all references of the plugin have been removed, Python will
-                # eventually do garbage collection. We only opened it in one
-                # location, so we'll get rid of that now.
-                del self.plugins[plugin]
+            # Once all references of the plugin have been removed, Python will
+            # eventually do garbage collection. We only saved it in one
+            # location, so we'll get rid of that now.
+            del self.plugins[plugin]
 
-        # Return a DeferredList so all of the deferreds can be waited on together
+            def return_unload_success(_):
+                return (True, plugin)
+            d.addCallback(return_unload_success)
+
+            deferreds.append(d)
+
         return defer.DeferredList(deferreds)
 
     def unload_all(self):

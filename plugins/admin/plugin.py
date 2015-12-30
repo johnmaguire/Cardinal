@@ -77,18 +77,21 @@ class AdminPlugin(object):
                     plugins.append(plugin['name'])
 
             deferred = cardinal.plugin_manager.load(plugins)
+
             def handle_results(plugins):
                 states = {True: [], False: []}
-                for success, plugin in plugins:
+                for _, (success, plugin) in plugins:
                     states[success].append(plugin)
 
                 if len(states[True]) > 0:
-                    cardinal.sendMsg(channel, "Plugins loaded succesfully: %s." %
-                                              ', '.join(sorted(states[True])))
+                    cardinal.sendMsg(channel,
+                                     "Plugins loaded succesfully: %s." %
+                                     ', '.join(sorted(states[True])))
 
                 if len(states[False]) > 0:
-                    cardinal.sendMsg(channel, "Plugins failed to load: %s." %
-                                              ', '.join(sorted(states[False])))
+                    cardinal.sendMsg(channel,
+                                     "Plugins failed to load: %s." %
+                                     ', '.join(sorted(states[False])))
 
             deferred.addCallback(handle_results)
 
@@ -117,16 +120,18 @@ class AdminPlugin(object):
             deferred = cardinal.plugin_manager.unload(plugins)
             def handle_results(plugins):
                 states = {True: [], False: []}
-                for success, plugin in plugins:
+                for _, (success, plugin) in plugins:
                     states[success].append(plugin)
 
                 if len(states[True]) > 0:
-                    cardinal.sendMsg(channel, "Plugins unloaded succesfully: %s." %
-                                              ', '.join(sorted(states[True])))
+                    cardinal.sendMsg(channel,
+                                     "Plugins unloaded succesfully: %s." %
+                                     ', '.join(sorted(states[True])))
 
                 if len(states[False]) > 0:
-                    cardinal.sendMsg(channel, "Unknown plugins: %s." %
-                                              ', '.join(sorted(states[False])))
+                    cardinal.sendMsg(channel,
+                                     "Unknown plugins: %s." %
+                                     ', '.join(sorted(states[False])))
 
             deferred.addCallback(handle_results)
 
@@ -185,7 +190,7 @@ class AdminPlugin(object):
             cardinal.sendMsg("Plugin %s does not exist" % plugin)
 
         successful = [
-            channel for channel in channels if channel not in not_blacklisted
+            _channel for _channel in channels if _channel not in not_blacklisted
         ]
 
         if len(successful) > 0:
