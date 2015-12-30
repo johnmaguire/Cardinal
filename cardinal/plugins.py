@@ -125,7 +125,8 @@ class PluginManager(object):
 
         return self.plugins[keys[self.iteration_counter - 1]]
 
-    def _import_module(self, module, type='plugin'):
+    @staticmethod
+    def _import_module(module, type='plugin'):
         """Given a plugin name, will import it from its directory or reload it.
 
         If we are passing in a module, we can safely assume at this point that
@@ -308,7 +309,8 @@ class PluginManager(object):
         # Return JSON config, since YAML config wasn't found
         return json_config
 
-    def _get_plugin_commands(self, instance):
+    @staticmethod
+    def _get_plugin_commands(instance):
         """Find the commands in a plugin and return them as callables.
 
         Keyword arguments:
@@ -351,7 +353,7 @@ class PluginManager(object):
             for command in plugin['commands']:
                 yield command
 
-    def log_failure(self, message):
+    def _log_failure(self, message):
         def errback(failure):
             try:
                 failure.raiseException()
@@ -365,7 +367,7 @@ class PluginManager(object):
         return errback
 
     @staticmethod
-    def ignore_failure(failure):
+    def _ignore_failure(failure):
         return None
 
     def load(self, plugins):
@@ -417,10 +419,10 @@ class PluginManager(object):
                 d.addCallback(self._close_plugin_instance)
 
                 # Log and ignore failures closing plugin
-                d.addErrback(self.log_failure(
+                d.addErrback(self._log_failure(
                     "Didn't close plugin cleanly: %s" % plugin
                 ))
-                d.addErrback(self.ignore_failure)
+                d.addErrback(self._ignore_failure)
 
                 # And use the existing module object for our _import_module()
                 # call below.
@@ -430,7 +432,7 @@ class PluginManager(object):
 
             # Now really import/reload the module
             d.addCallback(self._import_module)
-            d.addErrback(self.log_failure(
+            d.addErrback(self._log_failure(
                 "Could not load plugin module: %s" % plugin
             ))
 
@@ -459,6 +461,7 @@ class PluginManager(object):
                     self.logger.exception(
                         "Could not instantiate plugin: %s" % plugin
                     )
+
                     raise
 
                 commands = self._get_plugin_commands(instance)
@@ -533,10 +536,10 @@ class PluginManager(object):
             d = defer.maybeDeferred(self._close_plugin_instance, plugin)
 
             # Log and ignore failures closing plugin
-            d.addErrback(self.log_failure(
+            d.addErrback(self._log_failure(
                 "Didn't close plugin cleanly: %s" % plugin
             ))
-            d.addErrback(self.ignore_failure)
+            d.addErrback(self._ignore_failure)
 
             # Once all references of the plugin have been removed, Python will
             # eventually do garbage collection. We only saved it in one
@@ -925,6 +928,7 @@ class EventManager(object):
 
         return callback_id
 
+    @staticmethod
     def _generate_id(size=6, chars=string.ascii_uppercase + string.digits):
         """
         Thank you StackOverflow: http://stackoverflow.com/a/2257449/242129
@@ -932,4 +936,4 @@ class EventManager(object):
         Generates a random, 6 character string of letters and numbers (by
         default.)
         """
-        return ''.join(random.choice(chars) for _ in range(6))
+        return ''.join(random.choice(chars) for _ in range(size))
