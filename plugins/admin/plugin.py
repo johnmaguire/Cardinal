@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 class AdminPlugin(object):
     # A dictionary which will contain the owner nicks and vhosts
     owners = None
@@ -79,19 +81,24 @@ class AdminPlugin(object):
             deferred = cardinal.plugin_manager.load(plugins)
 
             def handle_results(plugins):
-                states = {True: [], False: []}
-                for _, (success, plugin) in plugins:
-                    states[success].append(plugin)
+                successes = []
+                failures = defaultdict(list)
+                for success, plugin in plugins:
+                    if success:
+                        successes.append(plugin)
+                    else:
+                        failures[plugin.value.args[0]].append(plugin.value.args[1])
 
-                if len(states[True]) > 0:
+                if len(successes) > 0:
                     cardinal.sendMsg(channel,
                                      "Plugins loaded succesfully: %s." %
-                                     ', '.join(sorted(states[True])))
+                                     ', '.join(sorted(successes)))
 
-                if len(states[False]) > 0:
-                    cardinal.sendMsg(channel,
-                                     "Plugins failed to load: %s." %
-                                     ', '.join(sorted(states[False])))
+                if len(failures.keys()) > 0:
+                    cardinal.sendMsg(channel, "Plugins failed to load:")
+                    for reason in failures.keys():
+                        cardinal.sendMsg(channel, "  %s (%s)" %
+                                         (', '.join(sorted(failures[reason])), reason ))
 
             deferred.addCallback(handle_results)
 
@@ -119,19 +126,24 @@ class AdminPlugin(object):
             # Returns a list of plugins that weren't loaded to begin with
             deferred = cardinal.plugin_manager.unload(plugins)
             def handle_results(plugins):
-                states = {True: [], False: []}
-                for _, (success, plugin) in plugins:
-                    states[success].append(plugin)
+                successes = []
+                failures = defaultdict(list)
+                for success, plugin in plugins:
+                    if success:
+                        successes.append(plugin)
+                    else:
+                        failures[plugin.value.args[0]].append(plugin.value.args[1])
 
-                if len(states[True]) > 0:
+                if len(successes) > 0:
                     cardinal.sendMsg(channel,
                                      "Plugins unloaded succesfully: %s." %
-                                     ', '.join(sorted(states[True])))
+                                     ', '.join(sorted(successes)))
 
-                if len(states[False]) > 0:
-                    cardinal.sendMsg(channel,
-                                     "Unknown plugins: %s." %
-                                     ', '.join(sorted(states[False])))
+                if len(failures.keys()) > 0:
+                    cardinal.sendMsg(channel, "Plugins failed to unload:")
+                    for reason in failures.keys():
+                        cardinal.sendMsg(channel, "  %s (%s)" %
+                                         (', '.join(sorted(failures[reason])), reason ))
 
             deferred.addCallback(handle_results)
 
