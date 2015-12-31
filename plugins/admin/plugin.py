@@ -1,3 +1,6 @@
+from collections import defaultdict
+
+
 class AdminPlugin(object):
     # A dictionary which will contain the owner nicks and vhosts
     owners = None
@@ -64,6 +67,21 @@ class AdminPlugin(object):
 
                     "Syntax: .exec <command>"]
 
+    @staticmethod
+    def _format_results(plugins):
+        """Converts DeferredList into success / plugin mappings."""
+        successes = []
+        failures = defaultdict(list)
+
+        for success, plugin in plugins:
+            if success:
+                successes.append(plugin)
+            else:
+                exc = plugin.value
+                failures[exc.args[0]].append(exc.args[-1])
+
+        return (successes, failures)
+
     def load_plugins(self, cardinal, user, channel, msg):
         if self.is_owner(user):
             cardinal.sendMsg(channel, "%s: Loading plugins..." % user.group(1))
@@ -76,19 +94,27 @@ class AdminPlugin(object):
                 for plugin in cardinal.plugin_manager:
                     plugins.append(plugin['name'])
 
-            failed = cardinal.plugin_manager.load(plugins)
+            deferred = cardinal.plugin_manager.load(plugins)
+            deferred.addCallback(self._format_results)
 
-            successful = [
-                plugin for plugin in plugins if plugin not in failed
-            ]
+            def handle_results(plugins):
+                successes, failures = plugins
 
-            if len(successful) > 0:
-                cardinal.sendMsg(channel, "Plugins loaded succesfully: %s." %
-                                          ', '.join(sorted(successful)))
+                if len(successes) > 0:
+                    cardinal.sendMsg(channel,
+                                     "Plugins loaded succesfully: %s." %
+                                     ', '.join(sorted(successes)))
 
-            if len(failed) > 0:
-                cardinal.sendMsg(channel, "Plugins failed to load: %s." %
-                                          ', '.join(sorted(failed)))
+                if len(failures.keys()) > 0:
+                    cardinal.sendMsg(channel, "Plugins failed to load:")
+                    for reason in failures.keys():
+                        cardinal.sendMsg(
+                            channel,
+                            "  %s (%s)" %
+                            (', '.join(sorted(failures[reason])), reason)
+                        )
+
+            deferred.addCallback(handle_results)
 
     load_plugins.commands = ['load', 'reload']
     load_plugins.help = ["If no plugins are given after the command, reload " +
@@ -111,18 +137,27 @@ class AdminPlugin(object):
             cardinal.sendMsg(channel, "%s: Unloading plugins..." % nick)
 
             # Returns a list of plugins that weren't loaded to begin with
-            unknown = cardinal.plugin_manager.unload(plugins)
-            successful = [
-                plugin for plugin in plugins if plugin not in unknown
-            ]
+            deferred = cardinal.plugin_manager.unload(plugins)
+            deferred.addCallback(self._format_results)
 
-            if len(successful) > 0:
-                cardinal.sendMsg(channel, "Plugins unloaded succesfully: %s." %
-                                          ', '.join(sorted(successful)))
+            def handle_results(plugins):
+                successes, failures = plugins
 
-            if len(unknown) > 0:
-                cardinal.sendMsg(channel, "Unknown plugins: %s." %
-                                          ', '.join(sorted(unknown)))
+                if len(successes) > 0:
+                    cardinal.sendMsg(channel,
+                                     "Plugins unloaded succesfully: %s." %
+                                     ', '.join(sorted(successes)))
+
+                if len(failures.keys()) > 0:
+                    cardinal.sendMsg(channel, "Plugins failed to unload:")
+                    for reason in failures.keys():
+                        cardinal.sendMsg(
+                            channel,
+                            "  %s (%s)" %
+                            (', '.join(sorted(failures[reason])), reason)
+                        )
+
+            deferred.addCallback(handle_results)
 
     unload_plugins.commands = ['unload']
     unload_plugins.help = ["Unload selected plugins. (admin only)",
@@ -136,8 +171,9 @@ class AdminPlugin(object):
         channels.pop(0)
 
         if len(channels) < 2:
-            cardinal.sendMsg(channel,
-                             "Syntax: .disable <plugin> <channel [channel ...]>")
+            cardinal.sendMsg(
+                channel,
+                "Syntax: .disable <plugin> <channel [channel ...]>")
             return
 
         cardinal.sendMsg(channel, "%s: Disabling plugins..." % user.group(1))
@@ -179,7 +215,7 @@ class AdminPlugin(object):
             cardinal.sendMsg("Plugin %s does not exist" % plugin)
 
         successful = [
-            channel for channel in channels if channel not in not_blacklisted
+            _channel for _channel in channels if _channel not in not_blacklisted
         ]
 
         if len(successful) > 0:

@@ -10,6 +10,8 @@ import random
 import json
 import yaml
 
+from twisted.internet import defer
+
 from cardinal.exceptions import (
     AmbiguousConfigError,
     CommandNotFoundError,
@@ -123,7 +125,8 @@ class PluginManager(object):
 
         return self.plugins[keys[self.iteration_counter - 1]]
 
-    def _import_module(self, module, type='plugin'):
+    @staticmethod
+    def _import_module(module, type='plugin'):
         """Given a plugin name, will import it from its directory or reload it.
 
         If we are passing in a module, we can safely assume at this point that
@@ -199,6 +202,10 @@ class PluginManager(object):
         Raises:
           PluginError -- When a plugin's close function has more than one
             argument.
+
+        Returns:
+          Deferred -- A deferred returned by the plugin, or a generated
+            one.
         """
 
         instance = self.plugins[plugin]['instance']
@@ -214,9 +221,12 @@ class PluginManager(object):
             )
 
             if len(argspec.args) == 1:
-                instance.close()
+                # Returns a Deferred regardless of whether instance.close
+                # returns one. It will be a defer.succeed(return) or
+                # defer.fail(exception)
+                return defer.maybeDeferred(instance.close)
             elif len(argspec.args) == 2:
-                instance.close(self.cardinal)
+                return defer.maybeDeferred(instance.close, self.cardinal)
             else:
                 raise PluginError("Unknown arguments for close function")
 
@@ -297,7 +307,8 @@ class PluginManager(object):
         # Return JSON config, since YAML config wasn't found
         return json_config
 
-    def _get_plugin_commands(self, instance):
+    @staticmethod
+    def _get_plugin_commands(instance):
         """Find the commands in a plugin and return them as callables.
 
         Keyword arguments:
@@ -340,6 +351,37 @@ class PluginManager(object):
             for command in plugin['commands']:
                 yield command
 
+    def _log_plugin_failure(self, message, plugin):
+        """Generates an errback for logging plugin-related Twisted Failures.
+
+        Keyword arguments:
+          message -- A message to be logged with the exception.
+          plugin -- Plugin name (added to message and exception).
+
+        Returns:
+          callable -- Errback to be passed to Twisted
+        """
+        def errback(failure):
+            # Raise the Exception embedded in the Failure
+            try:
+                failure.raiseException()
+            except Exception, e:
+                self.logger.exception(
+                    "%s: %s" % (message, plugin)
+                )
+
+                # If we haven't added the plugin's name to the Exception yet,
+                # let's do so now.
+                # FIXME: When we get a Py3 port, Exception chaining would
+                # involve less finagaling. But for now, we do this to keep the
+                # exception info around.
+                if e.args[-1] != plugin:
+                    e.args = e.args + (plugin,)
+                raise e
+            return failure
+
+        return errback
+
     def load(self, plugins):
         """Takes either a plugin name or a list of plugins and loads them.
 
@@ -351,7 +393,8 @@ class PluginManager(object):
           plugins -- This can be either a single or list of plugin names.
 
         Returns:
-          list -- A list of failed plugins, or an empty list.
+          defer.DeferredList -- A DeferredList representing each of the plugins
+            we are loading.
 
         Raises:
           TypeError -- When the `plugins` argument is not a string or list.
@@ -366,90 +409,87 @@ class PluginManager(object):
                 "Plugins argument must be a string or list of plugins"
             )
 
-        # We'll keep track of plugins we failed to load (either because we)
-        failed_plugins = []
+        # We'll keep track of all plugins unloaded so we can wait for them
+        deferreds = []
 
         for plugin in plugins:
-            # Reload flag so we can update the reload counter if necessary
-            reload_flag = False
-
             self.logger.info("Attempting to load plugin: %s" % plugin)
 
-            # Import each plugin's module with our own hacky function to reload
-            # modules that have already been imported previously
-            try:
-                if plugin in self.plugins.keys():
-                    self.logger.info("Already loaded, reloading: %s" % plugin)
-                    reload_flag = True
+            # Toggle this to True if we reload
+            reload_flag = False
 
-                    try:
-                        self._close_plugin_instance(plugin)
-                    except Exception:
-                        self.logger.exception(
-                            "Didn't close plugin cleanly: %s" % plugin
-                        )
-                    module_to_import = self.plugins[plugin]['module']
-                else:
-                    module_to_import = plugin
+            # Create a new Deferred for loading our plugin in a succeeding
+            # state
+            d = defer.succeed(plugin)
 
-                module = self._import_module(module_to_import)
-            except Exception:
-                # Probably a syntax error in the plugin, log the exception
-                self.logger.exception(
-                    "Could not load plugin module: %s" % plugin
-                )
-                failed_plugins.append(plugin)
+            # If the plugin is loaded, close it before loading it again
+            if plugin in self.plugins.keys():
+                reload_flag = True
 
-                continue
+                self.logger.info("Already loaded, reloading: %s" % plugin)
 
-            # Attempt to load the config file for the given plugin.
-            config = None
-            try:
-                config = self._load_plugin_config(plugin)
-            except AmbiguousConfigError:
-                # If two configs exist for the plugin, bail on loading
-                self.logger.exception("Could not load plugin: %s" % plugin)
-                failed_plugins.append(plugin)
+                # Attempt to close the plugin instance first
+                d.addCallback(self._close_plugin_instance)
 
-                continue
-            except ConfigNotFoundError:
-                self.logger.info(
-                    "No config found for plugin: %s" % plugin
-                )
+                # Log failures closing plugin
+                d.addErrback(self._log_plugin_failure(
+                    "Didn't close plugin cleanly", plugin
+                ))
 
-            # Instance the plugin
-            try:
+                # And use the existing module object for our _import_module()
+                # call below.
+                def return_plugin_module(_):
+                    return self.plugins[plugin]['module']
+                d.addBoth(return_plugin_module)
+
+            # Now really import/reload the module
+            d.addCallback(self._import_module)
+
+            # We'll run this as long as the module imports successfully. It
+            # returns the plugin name so that when looping over the list of
+            # Deferreds you can tell which plugins succeeded/failed to load.
+            def load_plugin(module):
+                # Attempt to load the config file for the given plugin.
+                config = None
+                try:
+                    config = self._load_plugin_config(plugin)
+                except ConfigNotFoundError:
+                    self.logger.debug(
+                        "No config found for plugin: %s" % plugin
+                    )
+
                 instance = self._create_plugin_instance(module, config)
-            except Exception:
-                self.logger.exception(
-                    "Could not instantiate plugin: %s" % plugin
-                )
-                failed_plugins.append(plugin)
+                commands = self._get_plugin_commands(instance)
 
-                continue
+                self.plugins[plugin] = {
+                    'name': plugin,
+                    'module': module,
+                    'instance': instance,
+                    'commands': commands,
+                    'config': config,
+                    'blacklist': [],
+                }
 
-            commands = self._get_plugin_commands(instance)
+                if reload_flag:
+                    self.cardinal.reloads += 1
 
-            if plugin in self.plugins:
-                self.unload(plugin)
+                self.logger.info("Plugin %s successfully loaded" % plugin)
 
-            self.plugins[plugin] = {
-                'name': plugin,
-                'module': module,
-                'instance': instance,
-                'commands': commands,
-                'config': config,
-                'blacklist': [],
-            }
+                # Returns success state and plugin name
+                return plugin
 
-            if reload_flag:
-                self.cardinal.reloads += 1
+            # Convert any uncaught Failures at this point into a value that can
+            # be parsed to show failure loading
+            d.addCallback(load_plugin)
+            d.addErrback(self._log_plugin_failure(
+                "Unable to load plugin", plugin
+            ))
 
-            self.logger.info("Plugin %s successfully loaded" % plugin)
+            deferreds.append(d)
 
-        return failed_plugins
+        return defer.DeferredList(deferreds, consumeErrors=True)
 
-    def unload(self, plugins):
+    def unload(self, plugins, keep_entry=False):
         """Takes either a plugin name or a list of plugins and unloads them.
 
         Simply validates whether we have loaded a plugin by a given name, and
@@ -457,9 +497,11 @@ class PluginManager(object):
 
         Keyword arguments:
           plugins -- This can be either a single or list of plugin names.
+          keep_entry -- Do not remove the plugin from self.plugins
 
         Returns:
-          list -- A list of failed plugins, or an empty list.
+          defer.DeferredList -- A DeferredList representing each of the plugins
+            we are unloading.
 
         Raises:
           TypeError -- When the `plugins` argument is not a string or list.
@@ -472,36 +514,38 @@ class PluginManager(object):
         if not isinstance(plugins, list):
             raise TypeError("Plugins must be a string or list of plugins")
 
-        # We'll keep track of any plugins we failed to unload (either because
-        # we have no record of them being loaded or because the method was
-        # invalid.)
-        failed_plugins = []
+        # We'll keep track of all plugins unloaded so we can wait for them
+        deferreds = []
 
         for plugin in plugins:
             self.logger.info("Attempting to unload plugin: %s" % plugin)
-
             if plugin not in self.plugins:
                 self.logger.warning("Plugin was never loaded: %s" % plugin)
-                failed_plugins.append(plugin)
+
+                # Don't errback, but return error state and plugin name
+                deferreds.append(defer.fail(PluginError("Plugin was never loaded", plugin)))
                 continue
 
-                try:
-                    self._close_plugin_instance(plugin)
-                except Exception:
-                    # Log the exception that came from trying to unload the
-                    # plugin, but don't skip over the plugin. We'll still
-                    # unload it.
-                    self.logger.exception(
-                        "Didn't close plugin cleanly: %s" % plugin
-                    )
-                    failed_plugins.append(plugin)
+            # Plugin may need to close asynchronously
+            d = defer.maybeDeferred(self._close_plugin_instance, plugin)
+
+            # Log and ignore failures closing plugin
+            d.addErrback(self._log_plugin_failure(
+                "Didn't close plugin cleanly", plugin
+            ))
 
             # Once all references of the plugin have been removed, Python will
-            # eventually do garbage collection. We only opened it in one
+            # eventually do garbage collection. We only saved it in one
             # location, so we'll get rid of that now.
             del self.plugins[plugin]
 
-        return failed_plugins
+            def return_plugin(_):
+                return plugin
+            d.addCallback(return_plugin)
+
+            deferreds.append(d)
+
+        return defer.DeferredList(deferreds, consumeErrors=True)
 
     def unload_all(self):
         """Unloads all loaded plugins.
@@ -512,7 +556,7 @@ class PluginManager(object):
 
         """
         self.logger.info("Unloading all plugins")
-        self.unload([plugin for plugin, data in self.plugins.items()])
+        return self.unload([plugin for plugin, data in self.plugins.items()])
 
     def blacklist(self, plugin, channels):
         """Blacklists a plugin from given channels.
@@ -877,6 +921,7 @@ class EventManager(object):
 
         return callback_id
 
+    @staticmethod
     def _generate_id(size=6, chars=string.ascii_uppercase + string.digits):
         """
         Thank you StackOverflow: http://stackoverflow.com/a/2257449/242129
@@ -884,4 +929,4 @@ class EventManager(object):
         Generates a random, 6 character string of letters and numbers (by
         default.)
         """
-        return ''.join(random.choice(chars) for _ in range(6))
+        return ''.join(random.choice(chars) for _ in range(size))
