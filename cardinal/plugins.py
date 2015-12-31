@@ -228,7 +228,7 @@ class PluginManager(object):
             elif len(argspec.args) == 2:
                 return defer.maybeDeferred(instance.close, self.cardinal)
             else:
-                raise PluginError("Unknown arguments for close function", plugin)
+                raise PluginError("Unknown arguments for close function")
 
     def _load_plugin_config(self, plugin):
         """Loads a JSON or YAML config for a given plugin
@@ -351,17 +351,33 @@ class PluginManager(object):
             for command in plugin['commands']:
                 yield command
 
-    def _log_failure(self, message, plugin):
+    def _log_plugin_failure(self, message, plugin):
+        """Generates an errback for logging plugin-related Twisted Failures.
+
+        Keyword arguments:
+          message -- A message to be logged with the exception.
+          plugin -- Plugin name (added to message and exception).
+
+        Returns:
+          callable -- Errback to be passed to Twisted
+        """
         def errback(failure):
-            self.logger.exception(
+            # Raise the Exception embedded in the Failure
+            try:
+                failure.raiseException()
+            except Exception, e:
+                self.logger.exception(
                     "%s: %s" % (message, plugin)
-            )
-            self.logger.exception(failure.value)
+                )
 
-            # make sure we always end up with a PluginError
-            if failure.type != PluginError:
-                raise PluginError(message, plugin)
-
+                # If we haven't added the plugin's name to the Exception yet,
+                # let's do so now.
+                # FIXME: When we get a Py3 port, Exception chaining would
+                # involve less finagaling. But for now, we do this to keep the
+                # exception info around.
+                if e.args[-1] != plugin:
+                    e.args = e.args + (plugin,)
+                raise e
             return failure
 
         return errback
@@ -402,7 +418,8 @@ class PluginManager(object):
             # Toggle this to True if we reload
             reload_flag = False
 
-            # Create a new Deferred for loading our plugin
+            # Create a new Deferred for loading our plugin in a succeeding
+            # state
             d = defer.succeed(plugin)
 
             # If the plugin is loaded, close it before loading it again
@@ -415,7 +432,7 @@ class PluginManager(object):
                 d.addCallback(self._close_plugin_instance)
 
                 # Log failures closing plugin
-                d.addErrback(self._log_failure(
+                d.addErrback(self._log_plugin_failure(
                     "Didn't close plugin cleanly", plugin
                 ))
 
@@ -427,9 +444,6 @@ class PluginManager(object):
 
             # Now really import/reload the module
             d.addCallback(self._import_module)
-            d.addErrback(self._log_failure(
-                "Could not load plugin module", plugin
-            ))
 
             # We'll run this as long as the module imports successfully. It
             # returns the plugin name so that when looping over the list of
@@ -439,26 +453,12 @@ class PluginManager(object):
                 config = None
                 try:
                     config = self._load_plugin_config(plugin)
-                except AmbiguousConfigError:
-                    # If two configs exist for the plugin, bail on loading
-                    self.logger.exception("Could not load plugin: %s" % plugin)
-
-                    raise
                 except ConfigNotFoundError:
-                    self.logger.info(
+                    self.logger.debug(
                         "No config found for plugin: %s" % plugin
                     )
 
-                # Instance the plugin
-                try:
-                    instance = self._create_plugin_instance(module, config)
-                except Exception:
-                    self.logger.exception(
-                        "Could not instantiate plugin: %s" % plugin
-                    )
-
-                    raise
-
+                instance = self._create_plugin_instance(module, config)
                 commands = self._get_plugin_commands(instance)
 
                 self.plugins[plugin] = {
@@ -480,13 +480,10 @@ class PluginManager(object):
 
             # Convert any uncaught Failures at this point into a value that can
             # be parsed to show failure loading
-            def return_load_error(failure):
-                if failure.type == PluginError:
-                    raise PluginError(failure.value.args[0], plugin)
-                raise PluginError(failure.value, plugin)
-
             d.addCallback(load_plugin)
-            d.addErrback(return_load_error)
+            d.addErrback(self._log_plugin_failure(
+                "Unable to load plugin", plugin
+            ))
 
             deferreds.append(d)
 
@@ -533,7 +530,7 @@ class PluginManager(object):
             d = defer.maybeDeferred(self._close_plugin_instance, plugin)
 
             # Log and ignore failures closing plugin
-            d.addErrback(self._log_failure(
+            d.addErrback(self._log_plugin_failure(
                 "Didn't close plugin cleanly", plugin
             ))
 
