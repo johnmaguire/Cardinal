@@ -54,3 +54,6 @@ nosetests.xml
 
 # OS X
 .DS_Store
+
+# Vagrant
+.vagrant
