@@ -2,4 +2,4 @@
 echo Provisioning...
 sudo sh -c 'date > /etc/vagrant_provisioned_at'
 sudo apt-get update
-sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q python-twisted python-yaml
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q python-twisted python-yaml python-bs4 python-tz
