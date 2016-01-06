@@ -184,6 +184,58 @@ class PluginManager(object):
 
         return instance
 
+    def _register_plugin_events(self, events):
+        """Registers events found in plugin
+
+        Will get all the events provided by _get_plugin_events though EventManager.
+        Callback IDs will be stored in registered_events so we can remove them on unload.
+        It is possible to have multiple methods as callback for single event.
+
+        Keyword arguments:
+            events - list of events to register
+
+        """
+
+        # Initialize variable to hold events callback IDs
+        registered_events = {}
+
+        # Loop though list of tuples
+        for event in events:
+            #Loop tought event names for each callback
+            for event_name in event[0]:
+                # Get callback ID from register_callback method
+                callback_id = self.cardinal.event_manager.register_callback(event_name, event[1])
+
+                # Append to list of callbacks for given event_name
+                if registered_events.has_key(event_name):
+                    registered_events[event_name].append(callback_id)
+                else:
+                    registered_events[event_name] = []
+                    registered_events[event_name].append(callback_id)
+
+        return registered_events
+
+    def _unregister_plugin_events(self, plugin):
+        """Unregister events found in plugin
+
+        Will remove all events stored in registered_events though EventManager.
+
+        Keyword arguments:
+            plugin - The name of plugin to unregister events for
+
+        """
+
+        # Reference to plugin
+        plugin = self.plugins[plugin]
+
+        # Loop though each event name
+        for event_name in plugin['registered_events'].keys():
+            # Loop tough callbacks
+            for callback_id in plugin['registered_events'][event_name]:
+                self.cardinal.event_manager.remove_callback(event_name, callback_id)
+                # Remove callback ID from registered_events
+                plugin['registered_events'][event_name].remove(callback_id)
+
     def _close_plugin_instance(self, plugin):
         """Calls the close method on an instance of a plugin.
 
@@ -323,6 +375,27 @@ class PluginManager(object):
 
         return commands
 
+    def _get_plugin_events(self, instance):
+        """Find the events in a plugin and return them as callables
+
+        Keyword arguments:
+            instane -- An instance of plugin
+
+        Returns:
+            list -- A list of tuples holding event names and callable commands.
+
+        """
+        events = []
+        for method in dir(instance):
+            method = getattr(instance, method)
+
+            if callable(method) and (hasattr(method, 'events')):
+                # Since this method has the 'events' attribute assigned,
+                # it is registered as a event for Cardinal
+                events.append((method.events, method))
+
+        return events
+
     def itercommands(self, channel=None):
         """Simple generator to iterate through all commands of loaded plugins.
 
@@ -429,6 +502,17 @@ class PluginManager(object):
                 continue
 
             commands = self._get_plugin_commands(instance)
+            events = self._get_plugin_events(instance)
+
+            try:
+                registered_events = self._register_plugin_events(events)
+            except Exception:
+                self.logger.exception(
+                    "Could not register events for plugin: %s" % plugin
+                )
+                failed_plugins.append(plugin)
+
+                continue
 
             if plugin in self.plugins:
                 self.unload(plugin)
@@ -438,6 +522,8 @@ class PluginManager(object):
                 'module': module,
                 'instance': instance,
                 'commands': commands,
+                'events': events,
+                'registered_events': registered_events,
                 'config': config,
                 'blacklist': [],
             }
@@ -485,16 +571,17 @@ class PluginManager(object):
                 failed_plugins.append(plugin)
                 continue
 
-                try:
-                    self._close_plugin_instance(plugin)
-                except Exception:
-                    # Log the exception that came from trying to unload the
-                    # plugin, but don't skip over the plugin. We'll still
-                    # unload it.
-                    self.logger.exception(
-                        "Didn't close plugin cleanly: %s" % plugin
-                    )
-                    failed_plugins.append(plugin)
+            try:
+                self._unregister_plugin_events(plugin)
+                self._close_plugin_instance(plugin)
+            except Exception:
+                # Log the exception that came from trying to unload the
+                # plugin, but don't skip over the plugin. We'll still
+                # unload it.
+                self.logger.exception(
+                    "Didn't close plugin cleanly: %s" % plugin
+                )
+                failed_plugins.append(plugin)
 
             # Once all references of the plugin have been removed, Python will
             # eventually do garbage collection. We only opened it in one
