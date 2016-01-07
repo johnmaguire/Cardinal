@@ -485,16 +485,16 @@ class PluginManager(object):
                 failed_plugins.append(plugin)
                 continue
 
-                try:
-                    self._close_plugin_instance(plugin)
-                except Exception:
-                    # Log the exception that came from trying to unload the
-                    # plugin, but don't skip over the plugin. We'll still
-                    # unload it.
-                    self.logger.exception(
-                        "Didn't close plugin cleanly: %s" % plugin
-                    )
-                    failed_plugins.append(plugin)
+            try:
+                self._close_plugin_instance(plugin)
+            except Exception:
+                # Log the exception that came from trying to unload the
+                # plugin, but don't skip over the plugin. We'll still
+                # unload it.
+                self.logger.exception(
+                    "Didn't close plugin cleanly: %s" % plugin
+                )
+                failed_plugins.append(plugin)
 
             # Once all references of the plugin have been removed, Python will
             # eventually do garbage collection. We only opened it in one
