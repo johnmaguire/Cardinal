@@ -32,7 +32,7 @@ class CalculatorPlugin(object):
 
         try:
             response = json.load(uh)
-        except:
+        except Exception:
             cardinal.sendMsg(channel, "Error parsing API data.")
 
         if 'error' in response and response['error']:
