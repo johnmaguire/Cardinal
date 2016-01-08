@@ -52,7 +52,7 @@ class GoogleSearch(object):
                         return cardinal.sendMsg(channel, "Top result is: {0}".format(result))
 
             return cardinal.sendMsg(channel, "Couldn't find any results for your query :(")
-        except:
+        except Exception:
             self.logger.error("An error occurred searching", exc_info=True)
 
             return cardinal.sendMsg(channel, "Couldn't find any results for your query :(")
