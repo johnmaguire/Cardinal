@@ -35,3 +35,20 @@ def help(line):
         return inner
 
     return wrap
+
+def event(triggers):
+    if isinstance(triggers, basestring):
+        triggers = [triggers]
+
+    if not isinstance(triggers, list):
+        raise TypeError("Event must be a trigger string or list of triggers")
+
+    def wrap(f):
+        @functools.wraps(f)
+        def inner(*args, **kwargs):
+            return f(*args, **kwargs)
+
+        inner.events = triggers
+        return inner
+
+    return wrap

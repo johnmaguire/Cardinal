@@ -9,6 +9,7 @@ import linecache
 import random
 import json
 import yaml
+from collections import defaultdict
 
 from cardinal.exceptions import (
     AmbiguousConfigError,
@@ -184,6 +185,53 @@ class PluginManager(object):
 
         return instance
 
+    def _register_plugin_callbacks(self, callbacks):
+        """Registers callbacks found in plugin
+
+        Will get all the event callbacks provided by _get_plugin_callbacks though EventManager.
+        Callback IDs will be stored in callback_ids so we can remove them on unload.
+        It is possible to have multiple methods as callbacks for single event.
+
+        Keyword arguments:
+            callbacks - list of callbacks to register
+
+        """
+
+        # Initialize variable to hold events callback IDs
+        callback_ids = defaultdict(list)
+
+        # Loop though list of dictionaries
+        for callback in callbacks:
+            #Loop tought event names for each callback
+            for event_name in callback['event_names']:
+                # Get callback ID from register_callback method
+                callback_id = self.cardinal.event_manager.register_callback(event_name, callback['method'])
+                # Append to list of callbacks for given event_name
+                callback_ids[event_name].append(callback_id)
+
+        return callback_ids
+
+    def _unregister_plugin_callbacks(self, plugin):
+        """Unregister events found in plugin
+
+        Will remove all callbacks stored in callback_ids though EventManager.
+
+        Keyword arguments:
+            plugin - The name of plugin to unregister events for
+
+        """
+
+        # Reference to plugin
+        plugin = self.plugins[plugin]
+
+        # Loop though each event name
+        for event_name in plugin['callback_ids'].keys():
+            # Loop tough callbacks
+            for callback_id in plugin['callback_ids'][event_name]:
+                self.cardinal.event_manager.remove_callback(event_name, callback_id)
+                # Remove callback ID from registered_events
+                plugin['callback_ids'][event_name].remove(callback_id)
+
     def _close_plugin_instance(self, plugin):
         """Calls the close method on an instance of a plugin.
 
@@ -323,6 +371,27 @@ class PluginManager(object):
 
         return commands
 
+    def _get_plugin_callbacks(self, instance):
+        """Find the events in a plugin and return them as callables
+
+        Keyword arguments:
+            instane -- An instance of plugin
+
+        Returns:
+            list -- A list of dictionaries holding event names and callable methods.
+
+        """
+        callbacks = []
+        for method in dir(instance):
+            method = getattr(instance, method)
+
+            if callable(method) and (hasattr(method, 'events')):
+                # Since this method has the 'events' attribute assigned,
+                # it is registered as a event for Cardinal
+                callbacks.append({'event_names': method.events, 'method': method})
+
+        return callbacks
+
     def itercommands(self, channel=None):
         """Simple generator to iterate through all commands of loaded plugins.
 
@@ -429,6 +498,17 @@ class PluginManager(object):
                 continue
 
             commands = self._get_plugin_commands(instance)
+            callbacks = self._get_plugin_callbacks(instance)
+
+            try:
+                callback_ids = self._register_plugin_callbacks(callbacks)
+            except Exception:
+                self.logger.exception(
+                    "Could not register events for plugin: %s" % plugin
+                )
+                failed_plugins.append(plugin)
+
+                continue
 
             if plugin in self.plugins:
                 self.unload(plugin)
@@ -438,6 +518,8 @@ class PluginManager(object):
                 'module': module,
                 'instance': instance,
                 'commands': commands,
+                'callbacks': callbacks,
+                'callback_ids': callback_ids,
                 'config': config,
                 'blacklist': [],
             }
@@ -483,6 +565,13 @@ class PluginManager(object):
             if plugin not in self.plugins:
                 self.logger.warning("Plugin was never loaded: %s" % plugin)
                 failed_plugins.append(plugin)
+                continue
+
+            try:
+                self._unregister_plugin_callbacks(plugin)
+            except Exception:
+                # If we fail to unregister events, log the exception and
+                # continue with rest of the unload process
                 continue
 
             try:
