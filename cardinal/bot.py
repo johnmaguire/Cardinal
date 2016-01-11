@@ -13,7 +13,6 @@ from cardinal.plugins import PluginManager, EventManager
 from cardinal.exceptions import (
     CommandNotFoundError,
     ConfigNotFoundError,
-    EventAlreadyExistsError,
     InternalError,
     PluginError,
 )
@@ -104,20 +103,16 @@ class CardinalBot(irc.IRCClient, object):
         self.event_manager = EventManager(self)
 
         # Register events
-        try:
-            self.event_manager.register("irc.invite", 2)
-            self.event_manager.register("irc.privmsg", 3)
-            self.event_manager.register("irc.notice", 3)
-            self.event_manager.register("irc.nick", 2)
-            self.event_manager.register("irc.mode", 3)
-            self.event_manager.register("irc.topic", 3)
-            self.event_manager.register("irc.join", 2)
-            self.event_manager.register("irc.part", 3)
-            self.event_manager.register("irc.kick", 4)
-            self.event_manager.register("irc.quit", 2)
-        except EventAlreadyExistsError:
-            self.logger.error(
-                "Could not register core IRC events", exc_info=True)
+        self.event_manager.register("irc.invite", 2)
+        self.event_manager.register("irc.privmsg", 3)
+        self.event_manager.register("irc.notice", 3)
+        self.event_manager.register("irc.nick", 2)
+        self.event_manager.register("irc.mode", 3)
+        self.event_manager.register("irc.topic", 3)
+        self.event_manager.register("irc.join", 2)
+        self.event_manager.register("irc.part", 3)
+        self.event_manager.register("irc.kick", 4)
+        self.event_manager.register("irc.quit", 2)
 
         # Create an instance of PluginManager, giving it an instance of ourself
         # to pass to plugins, as well as a list of initial plugins to load.
