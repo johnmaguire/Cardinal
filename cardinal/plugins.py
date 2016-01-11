@@ -898,7 +898,8 @@ class EventManager(object):
             return
 
         del self.registered_callbacks[event_name][callback_id]
-        self.logger.debug("Removed callback: %s" % callback_id)
+
+        self.logger.info("Removed callback %s for event: %s", callback_id, event_name)
 
     def fire(self, name, *params):
         """Calls all callbacks with given event name.
