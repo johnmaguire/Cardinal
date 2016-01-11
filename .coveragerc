@@ -1,3 +1,5 @@
 [run]
-omit=plugins/*
+omit =
+	plugins/*
+	*/test_*.py
 include=cardinal/*
