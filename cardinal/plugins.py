@@ -584,7 +584,6 @@ class PluginManager(object):
                 self.logger.exception(
                     "Didn't remove all plugin callbacks: %s", plugin
                 )
-                continue
 
             try:
                 self._close_plugin_instance(plugin)
