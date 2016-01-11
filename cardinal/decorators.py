@@ -1,5 +1,6 @@
 import functools
 
+
 def command(triggers):
     if isinstance(triggers, basestring):
         triggers = [triggers]
@@ -16,6 +17,7 @@ def command(triggers):
         return inner
 
     return wrap
+
 
 def help(line):
     if not isinstance(line, basestring):
@@ -35,6 +37,7 @@ def help(line):
         return inner
 
     return wrap
+
 
 def event(triggers):
     if isinstance(triggers, basestring):

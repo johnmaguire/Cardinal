@@ -2,6 +2,7 @@ import pytest
 
 import decorators
 
+
 @pytest.mark.parametrize("input,expected", [
     ('foo', ['foo']),
     (['foo'], ['foo']),
@@ -31,7 +32,6 @@ def test_command_function_wrap():
     @decorators.command('foo')
     def foo(bar, baz):
         return bar + baz
-    {'foo': 'bar'},
 
     assert foo(3, baz=4) == 7
     assert foo(5, 5) == 10
@@ -103,6 +103,7 @@ def test_help_exceptions(value):
         def foo():
             pass
 
+
 @pytest.mark.parametrize("input,expected", [
     ('irc.privmsg', ['irc.privmsg']),
     (['irc.privmsg'], ['irc.privmsg']),
@@ -116,7 +117,8 @@ def test_event(input, expected):
 
     assert eventCallback.events == expected
 
-def test_events_overwrites():
+
+def test_event_overwrites():
     # test that only one decorator can add events
     @decorators.event('irc.privmsg')
     @decorators.event('irc.notice')
@@ -125,15 +127,16 @@ def test_events_overwrites():
 
     assert foo.events == ['irc.privmsg']
 
-def test_command_function_wrap():
+
+def test_event_function_wrap():
     # test that the decorator doesn't break the function
     @decorators.event('foo')
     def foo(bar, baz):
         return bar + baz
-    {'foo': 'bar'},
 
     assert foo(3, baz=4) == 7
     assert foo(5, 5) == 10
+
 
 @pytest.mark.parametrize("value", [
     True,
