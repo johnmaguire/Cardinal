@@ -491,7 +491,7 @@ class PluginManager(object):
 
                 continue
             except ConfigNotFoundError:
-                self.logger.info(
+                self.logger.debug(
                     "No config found for plugin: %s" % plugin
                 )
 
