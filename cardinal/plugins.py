@@ -579,8 +579,11 @@ class PluginManager(object):
             try:
                 self._unregister_plugin_callbacks(plugin)
             except Exception:
-                # If we fail to unregister events, log the exception and
+                # If we fail to unregister callbacks, log the exception and
                 # continue with rest of the unload process
+                self.logger.exception(
+                    "Didn't remove all plugin callbacks: %s", plugin
+                )
                 continue
 
             try:
@@ -899,7 +902,8 @@ class EventManager(object):
 
         del self.registered_callbacks[event_name][callback_id]
 
-        self.logger.info("Removed callback %s for event: %s", callback_id, event_name)
+        self.logger.info("Removed callback %s for event: %s",
+                         callback_id, event_name)
 
     def fire(self, name, *params):
         """Calls all callbacks with given event name.
