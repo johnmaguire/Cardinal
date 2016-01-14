@@ -5,6 +5,7 @@
     "server_password": "SERVER PASSWORD (IF NECESSARY)",
     "port": 6697,
     "ssl": true,
+    "storage": "storage/",
     "channels": [
         "#bots"
     ],

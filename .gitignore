@@ -48,6 +48,9 @@ nosetests.xml
 # vim
 *.swp
 
+# PyCharm
+.idea/
+
 # Persistence files generated at runtime
 *.db
 *.log

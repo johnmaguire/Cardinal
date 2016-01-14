@@ -64,14 +64,13 @@ class CardinalBot(irc.IRCClient, object):
     def reloads(self, value):
         self.factory.reloads = value
 
-    def __init__(self):
-        """Initializes the logging and sets storage directory"""
-        self.logger = logging.getLogger(__name__)
+    @property
+    def storage_path(self):
+        return self.factory.storage_path
 
-        self.storage_path = os.path.join(
-            os.path.dirname(os.path.realpath(sys.argv[0])),
-            'storage'
-        )
+    def __init__(self):
+        """Initializes the logging"""
+        self.logger = logging.getLogger(__name__)
 
         # State variables for the WHO command
         self.who_lock = {}
@@ -474,7 +473,8 @@ class CardinalBotFactory(protocol.ClientFactory):
     """Keeps track of plugin reloads from within Cardinal"""
 
     def __init__(self, network, server_password=None, channels=None,
-                 nickname='Cardinal', password=None, plugins=None):
+                 nickname='Cardinal', password=None, plugins=None,
+                 storage=None):
         """Boots the bot, triggers connection, and initializes logging.
 
         Keyword arguments:
@@ -497,6 +497,17 @@ class CardinalBotFactory(protocol.ClientFactory):
         self.channels = channels
         self.nickname = nickname
         self.plugins = plugins
+
+        # Set the storage directory
+        if storage is not None:
+            if storage.startswith('/'):
+                self.storage_path = storage
+            else:
+                self.storage_path = os.path.join(
+                    os.path.dirname(os.path.realpath(sys.argv[0])),
+                    storage
+                )
+            self.logger.debug("Storage path set to %s" % self.storage_path)
 
         # Register SIGINT handler, so we can close the connection cleanly
         signal.signal(signal.SIGINT, self._sigint)
