@@ -507,6 +507,10 @@ class CardinalBotFactory(protocol.ClientFactory):
                     os.path.dirname(os.path.realpath(sys.argv[0])),
                     storage
                 )
+            if not os.path.exists(self.storage_path):
+                self.logger.debug("Storage path does not exist, creating it..")
+                os.makedirs(self.storage_path)
+
             self.logger.debug("Storage path set to %s" % self.storage_path)
 
         # Register SIGINT handler, so we can close the connection cleanly
