@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import os
+import sys
 import argparse
 import logging
 import logging.config
@@ -122,13 +123,34 @@ https://github.com/JohnMaguire/Cardinal
     # Get a logger!
     logger = logging.getLogger(__name__)
 
+    # Set the storage directory
+    storage_path = None
+    if config['storage'] is not None:
+        if config['storage'].startswith('/'):
+            storage_path = config['storage']
+        else:
+            storage_path = os.path.join(
+                os.path.dirname(os.path.realpath(sys.argv[0])),
+                config['storage']
+            )
+
+        logger.debug("Storage path set to %s" % storage_path)
+
+        if not os.path.exists(storage_path):
+            logger.info("Storage path does not exist, creating it..")
+            for folder in ['database', 'logs']:
+                os.makedirs(os.path.join(
+                    storage_path,
+                    folder
+                ))
+
     # Instance a new factory, and connect with/without SSL
     logger.debug("Instantiating CardinalBotFactory")
     factory = CardinalBotFactory(config['network'], config['server_password'],
                                  config['channels'],
                                  config['nickname'], config['password'],
                                  config['plugins'],
-                                 config['storage'])
+                                 storage_path)
 
     if not config['ssl']:
         logger.info(

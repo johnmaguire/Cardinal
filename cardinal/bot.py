@@ -1,5 +1,3 @@
-import os
-import sys
 import time
 import signal
 import logging
@@ -497,29 +495,7 @@ class CardinalBotFactory(protocol.ClientFactory):
         self.channels = channels
         self.nickname = nickname
         self.plugins = plugins
-
-        # Set the storage directory
-        if storage is not None:
-            if storage.startswith('/'):
-                self.storage_path = storage
-            else:
-                self.storage_path = os.path.join(
-                    os.path.dirname(os.path.realpath(sys.argv[0])),
-                    storage
-                )
-
-            self.logger.debug("Storage path set to %s" % self.storage_path)
-
-            if not os.path.exists(self.storage_path):
-                self.logger.debug("Storage path does not exist, creating it..")
-                os.makedirs(os.path.join(
-                    self.storage_path,
-                    'database'
-                ))
-                os.makedirs(os.path.join(
-                    self.storage_path,
-                    'logs'
-                ))
+        self.storage_path = storage
 
         # Register SIGINT handler, so we can close the connection cleanly
         signal.signal(signal.SIGINT, self._sigint)
