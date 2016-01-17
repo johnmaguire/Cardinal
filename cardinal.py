@@ -62,7 +62,10 @@ https://github.com/JohnMaguire/Cardinal
     spec.add_option('port', int, 6667)
     spec.add_option('server_password', basestring, None)
     spec.add_option('ssl', bool, False)
-    spec.add_option('storage', basestring, 'storage/')
+    spec.add_option('storage', basestring, os.path.join(
+        os.path.dirname(os.path.realpath(sys.argv[0])),
+        'storage'
+    ))
     spec.add_option('channels', list, ['#bots'])
     spec.add_option('plugins', list, [
         'ping',
