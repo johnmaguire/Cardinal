@@ -137,15 +137,20 @@ https://github.com/JohnMaguire/Cardinal
                 config['storage']
             )
 
-        logger.debug("Storage path set to %s" % storage_path)
+        logger.info("Storage path set to %s" % storage_path)
 
-        if not os.path.exists(storage_path):
-            logger.info("Storage path does not exist, creating it..")
-            for folder in ['database', 'logs']:
-                os.makedirs(os.path.join(
-                    storage_path,
-                    folder
-                ))
+        directories = [
+            os.path.join(storage_path, 'database'),
+            os.path.join(storage_path, 'logs'),
+        ]
+
+        for directory in directories:
+            if not os.path.exists(directory):
+                logger.info(
+                    "Storage directory %s does not exist, creating it..",
+                    directory)
+
+                os.makedirs(directory)
 
     # Instance a new factory, and connect with/without SSL
     logger.debug("Instantiating CardinalBotFactory")
