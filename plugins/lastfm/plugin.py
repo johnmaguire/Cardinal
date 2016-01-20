@@ -9,9 +9,17 @@ from cardinal.decorators import command, help
 TOP_ARTIST_URL = "http://ws.audioscrobbler.com/2.0/?" \
                  "method=user.gettopartists" \
                  "&user={0}&api_key={1}&format=json"
+
 RECENT_TRACKS_URL = "http://ws.audioscrobbler.com/2.0/?" \
                     "method=user.getrecenttracks" \
                     "&user={0}&api_key={1}&limit=1&format=json"
+
+LAST_FM_ERROR = {6:"Your Last.fm username is incorrect. "
+                   "No user exists by that username.",
+                 7:"One of the Last.fm usernames was invalid. " \
+                   "Please try again.",
+                 10:"Last.fm plugin is not configured. " \
+                    "Please set API key."}
 
 class LastfmPlugin(object):
     logger = None
@@ -172,20 +180,13 @@ class LastfmPlugin(object):
             self.logger.exception("Failed to connect to Last.fm")
             return
 
-        if 'error' in content and content['error'] == 10:
+        if content.has_key("error"):
             cardinal.sendMsg(
                 channel,
-                "Last.fm plugin is not configured. Please set API key."
+                LAST_FM_ERROR[content["error"]]
             )
             self.logger.error(
-                "Attempt to get now playing failed, API key incorrect"
-            )
-            return
-        elif 'error' in content and content['error'] == 6:
-            cardinal.sendMsg(
-                channel,
-                "Your Last.fm username is incorrect. No user exists by the "
-                "username %s." % str(username)
+                LAST_FM_ERROR[content["error"]]
             )
             return
 
@@ -272,28 +273,34 @@ class LastfmPlugin(object):
             username2 = result[0]
 
         try:
-            uh = urllib2.urlopen(TOP_ARTIST_URL.format(username1, self.api_key))
+            uh = urllib2.urlopen(TOP_ARTIST_URL.format(username1,
+                                                       self.api_key))
             user1 = json.load(uh)
-            uh = urllib2.urlopen(TOP_ARTIST_URL.format(username2, self.api_key))
+            uh = urllib2.urlopen(TOP_ARTIST_URL.format(username2, 
+                                                       self.api_key))
             user2 = json.load(uh)
         except Exception:
             cardinal.sendMsg(channel, "Unable to connect to Last.fm.")
             self.logger.exception("Failed to connect to Last.fm")
             return
 
-        if 'error' in content and content['error'] == 10:
+        if user1.has_key("error"):
             cardinal.sendMsg(
                 channel,
-                "Last.fm plugin is not configured. Please set API key."
+                LAST_FM_ERROR[content["error"]]
             )
             self.logger.error(
-                "Attempt to compare users failed, API key incorrect"
+                LAST_FM_ERROR[content["error"]]
             )
             return
-        elif 'error' in content and content['error'] == 7:
+        
+        if user2.has_key("error"):
             cardinal.sendMsg(
                 channel,
-                "One of the Last.fm usernames was invalid. Please try again."
+                LAST_FM_ERROR[content["error"]]
+            )
+            self.logger.error(
+                LAST_FM_ERROR[content["error"]]
             )
             return
 
@@ -312,8 +319,10 @@ class LastfmPlugin(object):
                 channel,
                 "According to Last.fm's Tasteometer, {0} and {1}'s music "
                 "preferences are {2}% compatible! Some artists they have in "
-                "common include: {3}".format(str(username1), str(username2), 
-                                            int(score), ', '.join(liked_artists[:5]))
+                "common include: {3}".format(str(username1), 
+                                             str(username2), 
+                                             int(score),
+                                             ', '.join(liked_artists[:5]))
             )
         except KeyError:
             cardinal.sendMsg(channel, "An unknown error has occurred.")
