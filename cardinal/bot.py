@@ -4,6 +4,7 @@ import time
 import signal
 import logging
 import re
+from collections import namedtuple
 from datetime import datetime
 
 from twisted.words.protocols import irc
@@ -17,12 +18,13 @@ from cardinal.exceptions import (
     PluginError,
 )
 
+USER_REGEX = re.compile(r'^(.*?)!(.*?)@(.*?)$')
+
+user_info = namedtuple('user_info', ('nick', 'user', 'vhost'))
+
 
 class CardinalBot(irc.IRCClient, object):
     """Cardinal, in all its glory"""
-
-    USER_REGEX = re.compile(r'^(.*?)!(.*?)@(.*?)$')
-    """Regex for identifying a user's nick, ident, and vhost"""
 
     @property
     def network(self):
@@ -156,13 +158,14 @@ class CardinalBot(irc.IRCClient, object):
     def irc_PRIVMSG(self, prefix, params):
         """Called when we receive a message in a channel or PM."""
         # Break down the user into usable groups
-        user = re.match(self.USER_REGEX, prefix)
+        user = self._get_user_tuple(prefix)
+        nick = user[0]
         channel = params[0]
         message = params[1]
 
         self.logger.debug(
             "%s!%s@%s to %s: %s" %
-            (user.group(1), user.group(2), user.group(3), channel, message)
+            (user + (channel, message))
         )
 
         self.event_manager.fire("irc.privmsg", user, channel, message)
@@ -171,7 +174,7 @@ class CardinalBot(irc.IRCClient, object):
         # we'll update the channel variable to the sender's username to make
         # replying a little easier.
         if channel == self.nickname:
-            channel = user.group(1)
+            channel = nick
 
         # Attempt to call a command. If it doesn't appear to PluginManager to
         # be a command, this will just fall through. If it matches command
@@ -243,7 +246,7 @@ class CardinalBot(irc.IRCClient, object):
 
     def irc_NOTICE(self, prefix, params):
         """Called when a notice is sent to a channel or privately"""
-        user = re.match(self.USER_REGEX, prefix)
+        user = self._get_user_tuple(prefix)
         channel = params[0]
         message = params[1]
 
@@ -256,7 +259,7 @@ class CardinalBot(irc.IRCClient, object):
 
         self.logger.debug(
             "%s!%s@%s sent notice to %s: %s" %
-            (user.group(1), user.group(2), user.group(3), channel, message)
+            (user + (channel, message))
         )
 
         # Lots of NOTICE messages when connecting, and event manager may not be
@@ -266,32 +269,32 @@ class CardinalBot(irc.IRCClient, object):
 
     def irc_NICK(self, prefix, params):
         """Called when a user changes their nick"""
-        user = re.match(self.USER_REGEX, prefix)
+        user = self._get_user_tuple(prefix)
         new_nick = params[0]
 
         self.logger.debug(
             "%s!%s@%s changed nick to %s" %
-            (user.group(1), user.group(2), user.group(3), new_nick)
+            (user + (new_nick,))
         )
 
         self.event_manager.fire("irc.nick", user, new_nick)
 
     def irc_TOPIC(self, prefix, params):
         """Called when a new topic is set"""
-        user = re.match(self.USER_REGEX, prefix)
+        user = self._get_user_tuple(prefix)
         channel = params[0]
         topic = params[1]
 
         self.logger.debug(
             "%s!%s@%s changed topic in %s to %s" %
-            (user.group(1), user.group(2), user.group(3), channel, topic)
+            (user + (channel, topic))
         )
 
         self.event_manager.fire("irc.topic", user, channel, topic)
 
     def irc_MODE(self, prefix, params):
         """Called when a mode is set on a channel"""
-        user = re.match(self.USER_REGEX, prefix)
+        user = self._get_user_tuple(prefix)
         channel = params[0]
         mode = ' '.join(params[1:])
 
@@ -304,7 +307,7 @@ class CardinalBot(irc.IRCClient, object):
 
         self.logger.debug(
             "%s!%s@%s set mode on %s (%s)" %
-            (user.group(1), user.group(2), user.group(3), channel, mode)
+            (user + (channel, mode))
         )
 
         # Can get called during connection, in which case EventManager won't be
@@ -314,19 +317,19 @@ class CardinalBot(irc.IRCClient, object):
 
     def irc_JOIN(self, prefix, params):
         """Called when a user joins a channel"""
-        user = re.match(self.USER_REGEX, prefix)
+        user = self._get_user_tuple(prefix)
         channel = params[0]
 
         self.logger.debug(
             "%s!%s@%s joined %s" %
-            (user.group(1), user.group(2), user.group(3), channel)
+            (user + (channel,))
         )
 
         self.event_manager.fire("irc.join", user, channel)
 
     def irc_PART(self, prefix, params):
         """Called when a user parts a channel"""
-        user = re.match(self.USER_REGEX, prefix)
+        user = self._get_user_tuple(prefix)
         channel = params[0]
         if len(params) == 1:
             reason = "No Message"
@@ -335,14 +338,14 @@ class CardinalBot(irc.IRCClient, object):
 
         self.logger.debug(
             "%s!%s@%s parted %s (%s)" %
-            (user.group(1), user.group(2), user.group(3), channel, reason)
+            (user + (channel, reason))
         )
 
         self.event_manager.fire("irc.part", user, channel, reason)
 
     def irc_KICK(self, prefix, params):
         """Called when a user is kicked from a channel"""
-        user = re.match(self.USER_REGEX, prefix)
+        user = self._get_user_tuple(prefix)
         nick = params[1]
         channel = params[0]
         if len(params) == 2:
@@ -352,15 +355,14 @@ class CardinalBot(irc.IRCClient, object):
 
         self.logger.debug(
             "%s!%s@%s kicked %s from %s (%s)" %
-            (user.group(1), user.group(2), user.group(3),
-                nick, channel, reason)
+            (user + (nick, channel, reason))
         )
 
         self.event_manager.fire("irc.kick", user, channel, nick, reason)
 
     def irc_QUIT(self, prefix, params):
         """Called when a user quits the network"""
-        user = re.match(self.USER_REGEX, prefix)
+        user = self._get_user_tuple(prefix)
         if len(params) == 0:
             reason = "No Message"
         else:
@@ -368,7 +370,7 @@ class CardinalBot(irc.IRCClient, object):
 
         self.logger.debug(
             "%s!%s@%s quit (%s)" %
-            (user.group(1), user.group(2), user.group(3), reason)
+            (user + (reason,))
         )
 
         self.event_manager.fire("irc.quit", user, reason)
@@ -384,10 +386,11 @@ class CardinalBot(irc.IRCClient, object):
         # A user has invited us to a channel
         if command == "INVITE":
             # Break down the user into usable groups
-            user = re.match(self.USER_REGEX, prefix)
+            user = self._get_user_tuple(prefix)
+            nick = user[0]
             channel = params[1]
 
-            self.logger.debug("%s invited us to %s" % (user.group(1), channel))
+            self.logger.debug("%s invited us to %s" % (nick, channel))
 
             # Fire invite event, so plugins can hook into it
             self.event_manager.fire("irc.invite", user, channel)
@@ -454,6 +457,13 @@ class CardinalBot(irc.IRCClient, object):
         self.plugin_manager.unload_all()
         self.factory.disconnect = True
         self.quit(message)
+
+    @staticmethod
+    def _get_user_tuple(string):
+        user = re.match(USER_REGEX, string)
+        if user:
+            return user_info(user.group(1), user.group(2), user.group(3))
+        return user
 
 
 class CardinalBotFactory(protocol.ClientFactory):
