@@ -68,8 +68,8 @@ class LastfmPlugin(object):
             cardinal.sendMsg(channel, "Syntax: .setlastfm <username>")
             return
 
-        nick = user.group(1)
-        vhost = user.group(3)
+        nick = user.nick
+        vhost = user.vhost
         username = message[1]
 
         c = self.conn.cursor()
@@ -136,8 +136,8 @@ class LastfmPlugin(object):
             nick = message[1]
             c.execute("SELECT username FROM users WHERE nick=?", (nick,))
         else:
-            nick = user.group(1)
-            vhost = user.group(3)
+            nick = user.nick
+            vhost = user.vhost
             c.execute(
                 "SELECT username FROM users WHERE nick=? OR vhost=?",
                 (nick, vhost)
@@ -149,7 +149,7 @@ class LastfmPlugin(object):
             try:
                 username = message[1]
             except IndexError:
-                username = user.group(1)
+                username = user.nick
         else:
             username = result[0]
 

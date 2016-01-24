@@ -17,11 +17,11 @@ class RemindPlugin(object):
             return
 
         self.call_ids.append(reactor.callLater(60 * int(message[1]),
-                                cardinal.sendMsg, user.group(1), message[2]))
+                                cardinal.sendMsg, user.nick, message[2]))
 
         cardinal.sendMsg(channel,
                          "%s: You will be reminded in %d minutes." %
-                         (user.group(1), int(message[1])))
+                         (user.nick, int(message[1])))
 
     def close(self):
         for call_id in call_ids:

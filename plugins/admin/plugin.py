@@ -20,7 +20,7 @@ class AdminPlugin(object):
     # A command to quickly check whether a user has permissions to access
     # these commands.
     def is_owner(self, user):
-        if user.group(3) in self.trusted_vhosts:
+        if user.vhost in self.trusted_vhosts:
             return True
 
         return False
@@ -63,7 +63,7 @@ class AdminPlugin(object):
     @help("Syntax: .load [plugin [plugin ...]]")
     def load_plugins(self, cardinal, user, channel, msg):
         if self.is_owner(user):
-            cardinal.sendMsg(channel, "%s: Loading plugins..." % user.group(1))
+            cardinal.sendMsg(channel, "%s: Loading plugins..." % user.nick)
 
             plugins = msg.split()
             plugins.pop(0)
@@ -91,7 +91,7 @@ class AdminPlugin(object):
     @help("Unload selected plugins. (admin only)")
     @help("Syntax: .unload <plugin [plugin ...]>")
     def unload_plugins(self, cardinal, user, channel, msg):
-        nick = user.group(1)
+        nick = user.nick
 
         if self.is_owner(user):
             plugins = msg.split()
@@ -132,7 +132,7 @@ class AdminPlugin(object):
                              "Syntax: .disable <plugin> <channel [channel ...]>")
             return
 
-        cardinal.sendMsg(channel, "%s: Disabling plugins..." % user.group(1))
+        cardinal.sendMsg(channel, "%s: Disabling plugins..." % user.nick)
 
         # First argument is plugin
         plugin = channels.pop(0)
@@ -160,7 +160,7 @@ class AdminPlugin(object):
                              "Syntax: .enable <plugin> <channel [channel ...]>")
             return
 
-        cardinal.sendMsg(channel, "%s: Enabling plugins..." % user.group(1))
+        cardinal.sendMsg(channel, "%s: Enabling plugins..." % user.nick)
 
         # First argument is plugin
         plugin = channels.pop(0)
