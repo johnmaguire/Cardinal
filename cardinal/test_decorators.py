@@ -103,37 +103,33 @@ def test_regex_exceptions(value):
             pass
 
 
-def test_help():
-    # ensure help is a list with the line added
-    @decorators.help("This is a help line")
-    def foo():
-        pass
+@pytest.mark.parametrize("input,expected", (
+    (["A help line", "A second help line"],
+     ["A help line", "A second help line"]),
+    (["A single help line"], ["A single help line"]),
+    ("A real single help line", ["A real single help line"]),
+))
+def test_help(input, expected):
+    @decorators.help(input)
+    def foo(x):
+        return x
 
-    assert foo.help == ["This is a help line"]
+    # ensure help is a tuple with each param added
+    assert foo.help == expected
+    assert foo(1) == 1
 
 
-def test_help_order():
-    # test the order of the help lines
+def test_help_multiple_calls():
     @decorators.help("This is the first help line")
     @decorators.help("This is the second help line")
     def foo():
         pass
 
+    # test the order of the help lines
     assert foo.help == [
         "This is the first help line",
         "This is the second help line",
     ]
-
-
-def test_help_function_wrap():
-    # test that the decorator doesn't break the function
-    @decorators.help('foo')
-    def foo(bar, baz):
-        return bar + baz
-
-    assert foo(3, baz=4) == 7
-    assert foo(5, 5) == 10
-
 
 @pytest.mark.parametrize("value", [
     True,
@@ -141,12 +137,11 @@ def test_help_function_wrap():
     5,
     3.14,
     ('foo',),
-    ["This should raise an exception"],
     {'foo': 'bar'},
     object(),
 ])
 def test_help_exceptions(value):
-    # only allow strings
+    # only allow strings and lists
     with pytest.raises(TypeError):
         @decorators.help(value)
         def foo():
