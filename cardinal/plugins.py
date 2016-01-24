@@ -782,8 +782,8 @@ class EventManager(object):
         self.cardinal = cardinal
         self.logger = logging.getLogger(__name__)
 
-        self.registered_events = {}
-        self.registered_callbacks = {}
+        self.registered_events = defaultdict(dict)
+        self.registered_callbacks = defaultdict(dict)
 
     def register(self, name, required_params):
         """Registers a plugin's event so other events can set callbacks.
@@ -968,7 +968,8 @@ class EventManager(object):
           string -- A callback ID to reference the callback with for removal.
         """
         callback_id = self._generate_id()
-        while callback_id in self.registered_callbacks[event_name]:
+        while (event_name in self.registered_callbacks and
+                callback_id in self.registered_callbacks[event_name]):
             callback_id = self._generate_id()
 
         self.registered_callbacks[event_name][callback_id] = callback
