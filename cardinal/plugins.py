@@ -38,7 +38,7 @@ class PluginManager(object):
     plugins = None
     """List of loaded plugins"""
 
-    command_regex = re.compile(r'\.(([A-Za-z0-9_-]+)\s?.*$)')
+    command_regex = re.compile(r'\.([A-Za-z0-9_-]+)\s?.*$')
     """Regex for matching standard commands.
 
     This will check for anything beginning with a period (.) followed by any
@@ -48,7 +48,7 @@ class PluginManager(object):
     the plugin for handling.
     """
 
-    natural_command_regex = r'%s:\s+(([A-Za-z0-9_-]+?)(\s(.*)|$))'
+    natural_command_regex = r'%s:\s+([A-Za-z0-9_-]+)\s?.*$'
     """Regex for matching natural commands.
 
     This will check for anything beginning with the bot's nickname, a colon
@@ -724,12 +724,12 @@ class PluginManager(object):
         get_command = re.match(self.command_regex, message)
         if not get_command:
             get_command = re.match(
-                self.natural_command_regex % self.cardinal.nickname, message,
-                flags=re.IGNORECASE
-            )
+                self.natural_command_regex % re.escape(self.cardinal.nickname),
+                message, flags=re.IGNORECASE)
 
         # Iterate through all loaded commands
         for command in self.itercommands(channel):
+
             # Check whether the current command has a regex to match by, and if
             # it does, and the message given to us matches the regex, then call
             # the command.
@@ -747,7 +747,7 @@ class PluginManager(object):
             # Check if the plugin defined any standard commands and whether any
             # of them match the command we found in the message.
             if (hasattr(command, 'commands') and
-                    get_command.group(2) in command.commands):
+                    get_command.group(1) in command.commands):
                 # Matched this command, so call it.
                 called_command = True
                 command(self.cardinal, user, channel, message)
