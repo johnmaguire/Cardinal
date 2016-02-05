@@ -318,8 +318,8 @@ class CardinalBot(irc.IRCClient, object):
     def irc_KICK(self, prefix, params):
         """Called when a user is kicked from a channel"""
         user = re.match(self.user_regex, prefix)
-        nick = params[0]
-        channel = params[1]
+        nick = params[1]
+        channel = params[0]
         if len(params) == 2:
             reason = "No Message"
         else:
