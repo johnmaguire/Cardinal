@@ -55,6 +55,15 @@ class CardinalBot(irc.IRCClient, object):
         self.factory.nickname = value
 
     @property
+    def password(self):
+        """Twisted.IRCClient server password setting"""
+        return self.factory.server_password
+
+    @password.setter
+    def password(self, value):
+        self.factory.server_password = value
+
+    @property
     def reloads(self):
         return self.factory.reloads
 
