@@ -435,6 +435,15 @@ class CardinalBot(irc.IRCClient, object):
         self.logger.info("Sending in %s: %s" % (channel, message))
         self.msg(channel, message, length)
 
+    def send(self, message):
+        """Send a raw message to the server.
+
+        Keyword arguments:
+          message -- Message to send.
+        """
+        self.logger.info("Sending to server: %s" % message)
+        self.sendLine(message)
+
     def disconnect(self, message=''):
         """Wrapper command to quit Cardinal.
 
