@@ -110,6 +110,7 @@ class CardinalBot(irc.IRCClient, object):
         self.event_manager = EventManager(self)
 
         # Register events
+        self.event_manager.register("irc.raw", 2)
         self.event_manager.register("irc.invite", 2)
         self.event_manager.register("irc.privmsg", 3)
         self.event_manager.register("irc.notice", 3)
@@ -144,6 +145,13 @@ class CardinalBot(irc.IRCClient, object):
     def lineReceived(self, line):
         """Called for every line received from the server."""
         self.irc_logger.info(line)
+
+        parts = line.split(' ')
+        command = parts[1]
+
+        # Don't fire if we haven't booted the event manager yet
+        if self.event_manager:
+            self.event_manager.fire("irc.raw", command, line)
 
         # Call Twisted handler
         super(CardinalBot, self).lineReceived(line)
