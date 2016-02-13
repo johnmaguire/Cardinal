@@ -56,7 +56,7 @@ class CardinalBot(irc.IRCClient, object):
 
     @property
     def password(self):
-        """Twisted.IRCClient server password setting"""
+        """Twisted.irc.IRCClient server password setting"""
         return self.factory.server_password
 
     @password.setter
@@ -78,6 +78,7 @@ class CardinalBot(irc.IRCClient, object):
     def __init__(self):
         """Initializes the logging"""
         self.logger = logging.getLogger(__name__)
+        self.irc_logger = logging.getLogger("%s.irc" % __name__)
 
         # State variables for the WHO command
         self.who_lock = {}
@@ -139,6 +140,13 @@ class CardinalBot(irc.IRCClient, object):
         channel -- Channel joined. Provided by Twisted.
         """
         self.logger.info("Joined %s" % channel)
+
+    def lineReceived(self, line):
+        """Called for every line received from the server."""
+        self.irc_logger.info(line)
+
+        # Call Twisted handler
+        super(CardinalBot, self).lineReceived(line)
 
     def irc_PRIVMSG(self, prefix, params):
         """Called when we receive a message in a channel or PM."""

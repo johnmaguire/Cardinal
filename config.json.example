@@ -53,12 +53,29 @@
                 "maxBytes": 10485760,
                 "backupCount": 10,
                 "encoding": "utf8"
-            }
+            },
+
+			"null": {
+				"class": "logging.NullHandler"
+			}
         },
 
         "root": {
             "level": "DEBUG",
             "handlers": ["console", "file"]
-        }
+        },
+
+		"loggers": {
+			"": {
+				"level": "DEBUG",
+				"handlers": ["console", "file"]
+			},
+
+			"cardinal.bot.irc": {
+				"propagate": false,
+				"level": "INFO",
+				"handlers": ["null"]
+			}
+		}
     }
 }
