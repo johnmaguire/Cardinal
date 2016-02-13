@@ -926,7 +926,7 @@ class EventManager(object):
             )
 
         callbacks = self.registered_callbacks[name]
-        self.logger.info(
+        self.logger.debug(
             "Calling %d callbacks for event: %s" %
             (len(callbacks), name)
         )
