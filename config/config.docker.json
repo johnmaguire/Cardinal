@@ -1,6 +1,8 @@
 {
     "nickname": "Cardinal",
     "password": "NICKSERV PASSWORD",
+    "username": "cardinal",
+    "realname": "Another IRC bot",
     "network": "irc.darkscience.net",
     "server_password": "SERVER PASSWORD (IF NECESSARY)",
     "port": 6697,

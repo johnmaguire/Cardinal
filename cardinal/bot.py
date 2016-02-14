@@ -48,6 +48,22 @@ class CardinalBot(irc.IRCClient, object):
         self.factory.server_password = value
 
     @property
+    def username(self):
+        return self.factory.username
+
+    @username.setter
+    def username(self, value):
+        self.factory.username = value
+
+    @property
+    def realname(self):
+        return self.factory.realname
+
+    @realname.setter
+    def realname(self, value):
+        self.factory.realname = value
+
+    @property
     def reloads(self):
         return self.factory.reloads
 
@@ -451,8 +467,8 @@ class CardinalBotFactory(protocol.ClientFactory):
     """Maximum time in connections before reconnection attempt"""
 
     def __init__(self, network, server_password=None, channels=None,
-                 nickname='Cardinal', password=None, plugins=None,
-                 storage=None):
+                 nickname='Cardinal', password=None, username=None,
+                 realname=None, plugins=None, storage=None):
         """Boots the bot, triggers connection, and initializes logging.
 
         Keyword arguments:
@@ -460,8 +476,12 @@ class CardinalBotFactory(protocol.ClientFactory):
           channels -- A list of channels to connect to.
           nickname -- A string with the nick to connect as.
           password -- A string with NickServ password, if any.
+          username -- A string with the ident to be used.
+          realname -- A string containing the real name field.
           plugins -- A list of plugins to load on boot.
+          storage -- A string containing path to storage directory.
         """
+
         if plugins is None:
             plugins = []
 
@@ -471,9 +491,11 @@ class CardinalBotFactory(protocol.ClientFactory):
         self.logger = logging.getLogger(__name__)
         self.network = network.lower()
         self.server_password = server_password
-        self.password = password
         self.channels = channels
         self.nickname = nickname
+        self.password = password
+        self.username = username
+        self.realname = realname
         self.plugins = plugins
         self.storage_path = storage
 
