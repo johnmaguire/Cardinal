@@ -50,13 +50,13 @@ class CardinalBot(irc.IRCClient, object):
     def nickname(self):
         return self.factory.nickname
 
-    @property
-    def realname(self):
-        return self.factory.realname
-
     @nickname.setter
     def nickname(self, value):
         self.factory.nickname = value
+
+    @property
+    def realname(self):
+        return self.factory.realname
 
     @realname.setter
     def realname(self, value):
@@ -516,7 +516,7 @@ class CardinalBotFactory(protocol.ClientFactory):
     """Keeps track of plugin reloads from within Cardinal"""
 
     def __init__(self, network, server_password=None, channels=None,
-                 nickname='Cardinal', realname=None, password=None, 
+                 nickname='Cardinal', password=None, realname=None, 
                  plugins=None, storage=None):
         """Boots the bot, triggers connection, and initializes logging.
 

@@ -33,6 +33,9 @@ https://github.com/JohnMaguire/Cardinal
                             help='set this flag to get a password prompt for '
                                  'identifying')
 
+    arg_parser.add_argument('-r', '--realname', metavar='realname',
+                            help='Real name of the bot')
+
     arg_parser.add_argument('-i', '--network', metavar='network',
                             help='network to connect to')
 
@@ -58,6 +61,7 @@ https://github.com/JohnMaguire/Cardinal
     spec = ConfigSpec()
     spec.add_option('nickname', basestring, 'Cardinal')
     spec.add_option('password', basestring, None)
+    spec.add_option('realname', basestring, None)
     spec.add_option('network', basestring, 'irc.freenode.net')
     spec.add_option('port', int, 6667)
     spec.add_option('server_password', basestring, None)
@@ -157,6 +161,7 @@ https://github.com/JohnMaguire/Cardinal
     factory = CardinalBotFactory(config['network'], config['server_password'],
                                  config['channels'],
                                  config['nickname'], config['password'],
+                                 config['realname'],
                                  config['plugins'],
                                  storage_path)
 
