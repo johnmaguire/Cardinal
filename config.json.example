@@ -1,6 +1,7 @@
 {
     "nickname": "Cardinal",
-    "password": "NICKSERV PASSWORD",
+    "authname": "AUTHNAME",
+    "password": "NICKSERV/AUTH PASSWORD",
     "network": "irc.darkscience.net",
     "server_password": "SERVER PASSWORD (IF NECESSARY)",
     "port": 6697,

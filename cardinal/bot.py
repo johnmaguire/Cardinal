@@ -99,9 +99,20 @@ class CardinalBot(irc.IRCClient, object):
 
         # Set the currently connected network
         self.network = self.factory.network
+        self.network_alias = self.factory.network.split('.')[-2]
 
+        if self.network_alias == 'quakenet':
+            if self.factory.authname and self.factory.password:
+                self.logger.info("Attempting to authenticate with Q")
+                self.msg(
+                    'Q@CServe.quakenet.org',
+                    'AUTH %s %s' % (
+                        self.factory.authname,
+                        self.factory.password
+                    )
+                )
         # Attempt to identify with NickServ, if a password was given
-        if self.factory.password:
+        elif self.factory.password:
             self.logger.info("Attempting to identify with NickServ")
             self.msg("NickServ", "IDENTIFY %s" % (self.factory.password,))
 
@@ -505,8 +516,8 @@ class CardinalBotFactory(protocol.ClientFactory):
     """Keeps track of plugin reloads from within Cardinal"""
 
     def __init__(self, network, server_password=None, channels=None,
-                 nickname='Cardinal', password=None, plugins=None,
-                 storage=None):
+                 nickname='Cardinal', authname=None, password=None,
+                 plugins=None, storage=None):
         """Boots the bot, triggers connection, and initializes logging.
 
         Keyword arguments:
@@ -525,6 +536,7 @@ class CardinalBotFactory(protocol.ClientFactory):
         self.logger = logging.getLogger(__name__)
         self.network = network.lower()
         self.server_password = server_password
+        self.authname = authname
         self.password = password
         self.channels = channels
         self.nickname = nickname
