@@ -1,6 +1,6 @@
 {
     "nickname": "Cardinal",
-    "realname": "The most awesome irc bot."
+    "realname": "The most awesome irc bot.",
     "password": "NICKSERV PASSWORD",
     "network": "irc.darkscience.net",
     "server_password": "SERVER PASSWORD (IF NECESSARY)",
