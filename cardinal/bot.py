@@ -50,9 +50,17 @@ class CardinalBot(irc.IRCClient, object):
     def nickname(self):
         return self.factory.nickname
 
+    @property
+    def realname(self):
+        return self.factory.realname
+
     @nickname.setter
     def nickname(self, value):
         self.factory.nickname = value
+
+    @realname.setter
+    def realname(self, value):
+        self.factory.realname = value
 
     @property
     def password(self):
@@ -477,6 +485,9 @@ class CardinalBotFactory(protocol.ClientFactory):
     nickname = None
     """Nick to connect with"""
 
+    realname = None
+    """Real name field"""
+
     password = None
     """NickServ password, if any"""
 
@@ -505,14 +516,15 @@ class CardinalBotFactory(protocol.ClientFactory):
     """Keeps track of plugin reloads from within Cardinal"""
 
     def __init__(self, network, server_password=None, channels=None,
-                 nickname='Cardinal', password=None, plugins=None,
-                 storage=None):
+                 nickname='Cardinal', realname=None, password=None, 
+                 plugins=None, storage=None):
         """Boots the bot, triggers connection, and initializes logging.
 
         Keyword arguments:
           network -- A string containing the server to connect to.
           channels -- A list of channels to connect to.
           nickname -- A string with the nick to connect as.
+          realname -- A string containing the real name field
           password -- A string with NickServ password, if any.
           plugins -- A list of plugins to load on boot.
         """
@@ -528,6 +540,7 @@ class CardinalBotFactory(protocol.ClientFactory):
         self.password = password
         self.channels = channels
         self.nickname = nickname
+        self.realname = realname
         self.plugins = plugins
         self.storage_path = storage
 
