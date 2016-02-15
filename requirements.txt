@@ -1,8 +1,24 @@
+# Core
 Twisted==13.2.0
+
+# SSL connections
 pyOpenSSL==0.15.1
+
+# Config parsing
 PyYAML==3.11
-beautifulsoup4==4.3.2
-requests==2.7.0
-pytz==2015.4
+
+# Unit tests
 pytest==2.8.3
 pytest-cov==2.2.0
+
+# Wikipedia plugin
+beautifulsoup4==4.3.2
+
+# YouTube plugin
+requests==2.7.0
+
+# Google plugin
+google==1.8
+
+# Time plugin
+pytz==2015.4
