@@ -104,8 +104,7 @@ class CardinalBot(irc.IRCClient, object):
         if self.network_alias == 'quakenet':
             if self.factory.authname and self.factory.password:
                 self.logger.info("Attempting to authenticate with Q")
-                self.msg(
-                    'Q@CServe.quakenet.org',
+                self.send(
                     'AUTH %s %s' % (
                         self.factory.authname,
                         self.factory.password
