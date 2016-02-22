@@ -25,9 +25,6 @@ class CardinalBot(irc.IRCClient, object):
     factory = None
     """Should contain an instance of CardinalBotFactory"""
 
-    network = None
-    """Currently connected network (e.g. irc.freenode.net)"""
-
     user_regex = re.compile(r'^(.*?)!(.*?)@(.*?)$')
     """Regex for identifying a user's nick, ident, and vhost"""
 
@@ -45,6 +42,14 @@ class CardinalBot(irc.IRCClient, object):
 
     booted = None
     """Time that Cardinal was first launched"""
+
+    @property
+    def network(self):
+        return self.factory.network
+
+    @network.setter
+    def network(self, value):
+        self.factory.network = value
 
     @property
     def nickname(self):
@@ -96,9 +101,6 @@ class CardinalBot(irc.IRCClient, object):
         # Give the factory the instance it created in case it needs to
         # interface for error handling or metadata retention.
         self.factory.cardinal = self
-
-        # Set the currently connected network
-        self.network = self.factory.network
 
         # Attempt to identify with NickServ, if a password was given
         if self.factory.password:
