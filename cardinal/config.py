@@ -184,7 +184,7 @@ class ConfigParser(object):
         # Thrown by json.load() when the content isn't valid JSON
         except ValueError:
             self.logger.warning(
-                "Invalid JSON in %s, (using defaults / command-line values" %
+                "Invalid JSON in %s, (using defaults / command-line values)" %
                 file
             )
         else:
