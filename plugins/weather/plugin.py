@@ -1,11 +1,9 @@
 import urllib2
 from xml.dom import minidom
 
-WHERE_API_APP_ID = "MoToWJjdQX4XzV34ELXxh3MLG5x1cgBMiMrEuJ.0D_bohsdQlv5p7qzQXLgXmWID_zPRxFULW454h3"
-WHERE_API_URL = "http://where.yahooapis.com/v1/places.q(%s);count=1?appid=" + WHERE_API_APP_ID
-WHERE_API_NS = "http://where.yahooapis.com/v1/schema.rng"
-WEATHER_URL = 'http://xml.weather.yahoo.com/forecastrss?w=%s'
+YQL_URL = 'https://query.yahooapis.com/v1/public/yql?format=xml&q=%s'
 WEATHER_NS = 'http://xml.weather.yahoo.com/ns/rss/1.0'
+WEATHER_QUERY = 'select * from weather.forecast where woeid in (select woeid from geo.places(1) where text="%s")'
 
 class WeatherPlugin(object):
     def get_weather(self, cardinal, user, channel, msg):
@@ -16,22 +14,7 @@ class WeatherPlugin(object):
             return
 
         try:
-            url = WHERE_API_URL % urllib2.quote(location)
-            dom = minidom.parse(urllib2.urlopen(url))
-        except urllib2.URLError:
-            cardinal.sendMsg(channel, "Error accessing Yahoo! Where API. (URLError Exception occurred.)")
-        except urllib2.HTTPError:
-            cardinal.sendMsg(channel, "Error accessing Yahoo! Where API. (HTPPError Exception occurred.")
-            return
-
-        try:
-            woeid = str(dom.getElementsByTagNameNS(WHERE_API_NS, 'woeid')[0].firstChild.nodeValue)
-        except IndexError:
-            cardinal.sendMsg(channel, "Sorry, couldn't find weather for \"%s\" (no WOEID)." % location)
-            return
-
-        try:
-            url = WEATHER_URL % urllib2.quote(woeid)
+            url = YQL_URL % urllib2.quote(WEATHER_QUERY % location)
             dom = minidom.parse(urllib2.urlopen(url))
         except urllib2.URLError:
             cardinal.sendMsg(channel, "Error accessing Yahoo! Weather API. (URLError Exception occurred.)")
