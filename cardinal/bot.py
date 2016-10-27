@@ -243,6 +243,9 @@ class CardinalBot(irc.IRCClient, object):
         for callback in self.who_callbacks[channel]:
             callback(self.who_cache[channel])
 
+        del self.who_callbacks[channel]
+        del self.who_lock[channel]
+
     def irc_NOTICE(self, prefix, params):
         """Called when a notice is sent to a channel or privately"""
         user = re.match(self.user_regex, prefix)
