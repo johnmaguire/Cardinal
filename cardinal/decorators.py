@@ -1,4 +1,8 @@
+import re
 import functools
+
+
+_RETYPE = type(re.compile('foobar'))
 
 
 def command(triggers):
@@ -14,6 +18,22 @@ def command(triggers):
             return f(*args, **kwargs)
 
         inner.commands = triggers
+        return inner
+
+    return wrap
+
+
+def regex(expression):
+    if (not isinstance(expression, basestring) and
+            not isinstance(expression, _RETYPE)):
+        raise TypeError("Regular expression must be a string or regex type")
+
+    def wrap(f):
+        @functools.wraps(f)
+        def inner(*args, **kwargs):
+            return f(*args, **kwargs)
+
+        inner.regex = expression
         return inner
 
     return wrap

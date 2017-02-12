@@ -54,6 +54,55 @@ def test_command_exceptions(value):
             pass
 
 
+@pytest.mark.parametrize("input,expected", [
+    ('foo', 'foo'),
+    (r'foo', r'foo'),
+])
+def test_regex(input, expected):
+    # ensure events is a list with inputs added
+    @decorators.regex(input)
+    def regexCallback():
+        pass
+
+    assert regexCallback.regex == expected
+
+
+def test_regex_overwrites():
+    @decorators.regex('foo')
+    @decorators.regex('bar')
+    def foo():
+        pass
+
+    assert foo.regex == 'foo'
+
+
+def test_regex_function_wrap():
+    # test that the decorator doesn't break the function
+    @decorators.regex('foo')
+    def foo(bar, baz):
+        return bar + baz
+
+    assert foo(3, baz=4) == 7
+    assert foo(5, 5) == 10
+
+
+@pytest.mark.parametrize("value", [
+    True,
+    False,
+    5,
+    3.14,
+    ('foo',),
+    {'foo': 'bar'},
+    object(),
+])
+def test_regex_exceptions(value):
+    # only allow strings and lists
+    with pytest.raises(TypeError):
+        @decorators.regex(value)
+        def foo():
+            pass
+
+
 def test_help():
     # ensure help is a list with the line added
     @decorators.help("This is a help line")
