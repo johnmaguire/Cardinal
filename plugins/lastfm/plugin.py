@@ -4,6 +4,22 @@ import json
 import urllib2
 import logging
 
+from cardinal.decorators import command, help
+
+TOP_ARTIST_URL = "http://ws.audioscrobbler.com/2.0/?" \
+                 "method=user.gettopartists" \
+                 "&user={0}&api_key={1}&format=json"
+
+RECENT_TRACKS_URL = "http://ws.audioscrobbler.com/2.0/?" \
+                    "method=user.getrecenttracks" \
+                    "&user={0}&api_key={1}&limit=1&format=json"
+
+LAST_FM_ERROR = {6:"Your Last.fm username is incorrect. "
+                   "No user exists by that username.",
+                 7:"One of the Last.fm usernames was invalid. " \
+                   "Please try again.",
+                 10:"Last.fm plugin is not configured. " \
+                    "Please set API key."}
 
 class LastfmPlugin(object):
     logger = None
@@ -47,6 +63,9 @@ class LastfmPlugin(object):
         )
         self.conn.commit()
 
+    @command("setlastfm")
+    @help("Sets the default Last.fm username for your nick.")
+    @help("Syntax: .setlastfm <username>")
     def set_user(self, cardinal, user, channel, msg):
         if not self.conn:
             cardinal.sendMsg(
@@ -91,13 +110,13 @@ class LastfmPlugin(object):
 
         cardinal.sendMsg(
             channel,
-            "Your Last.fm username is now set to %s." % username
+            "Your Last.fm username is now set to {0}".format(username)
         )
 
-    set_user.commands = ['setlastfm']
-    set_user.help = ["Sets the default Last.fm username for your nick.",
-                     "Syntax: .setlastfm <username>"]
-
+    @command('np', 'nowplaying')
+    @help("Get the Last.fm track currently played by a user "
+          "(defaults to username set with .setlastfm)")
+    @help("Syntax: .np [username]")
     def now_playing(self, cardinal, user, channel, msg):
         # Before we do anything, let's make sure we'll be able to query Last.fm
         if self.api_key is None:
@@ -153,30 +172,21 @@ class LastfmPlugin(object):
 
         try:
             uh = urllib2.urlopen(
-                "http://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks"
-                "&user=%s&api_key=%s&limit=1&format=json" %
-                (username, self.api_key)
-            )
+                RECENT_TRACKS_URL.format(username,
+                                         self.api_key)
             content = json.load(uh)
         except Exception:
             cardinal.sendMsg(channel, "Unable to connect to Last.fm.")
             self.logger.exception("Failed to connect to Last.fm")
             return
 
-        if 'error' in content and content['error'] == 10:
+        if content.has_key("error"):
             cardinal.sendMsg(
                 channel,
-                "Last.fm plugin is not configured. Please set API key."
+                LAST_FM_ERROR[content["error"]]
             )
             self.logger.error(
-                "Attempt to get now playing failed, API key incorrect"
-            )
-            return
-        elif 'error' in content and content['error'] == 6:
-            cardinal.sendMsg(
-                channel,
-                "Your Last.fm username is incorrect. No user exists by the "
-                "username %s." % str(username)
+                LAST_FM_ERROR[content["error"]]
             )
             return
 
@@ -196,11 +206,10 @@ class LastfmPlugin(object):
                 "(Is your Last.fm username correct?)"
             )
 
-    now_playing.commands = ['np', 'nowplaying']
-    now_playing.help = ["Get the Last.fm track currently played by a user "
-                        "(defaults to username set with .setlastfm)",
-                        "Syntax: .np [username]"]
-
+    @command('compare')
+    @help("Uses Last.fm to compare the compatibility of music "
+                    "between two users.")
+    @help("Syntax: .compare <username> [username]")
     def compare(self, cardinal, user, channel, msg):
         # Before we do anything, let's make sure we'll be able to query Last.fm
         if self.api_key is None:
@@ -264,71 +273,60 @@ class LastfmPlugin(object):
             username2 = result[0]
 
         try:
-            uh = urllib2.urlopen(
-                "http://ws.audioscrobbler.com/2.0/?method=tasteometer.compare"
-                "&type1=user&type2=user&value1=%s&value2=%s&api_key=%s"
-                "&format=json" % (username1, username2, self.api_key))
-            content = json.load(uh)
+            uh = urllib2.urlopen(TOP_ARTIST_URL.format(username1,
+                                                       self.api_key))
+            user1 = json.load(uh)
+            uh = urllib2.urlopen(TOP_ARTIST_URL.format(username2, 
+                                                       self.api_key))
+            user2 = json.load(uh)
         except Exception:
             cardinal.sendMsg(channel, "Unable to connect to Last.fm.")
             self.logger.exception("Failed to connect to Last.fm")
             return
 
-        if 'error' in content and content['error'] == 10:
+        if user1.has_key("error"):
             cardinal.sendMsg(
                 channel,
-                "Last.fm plugin is not configured. Please set API key."
+                LAST_FM_ERROR[content["error"]]
             )
             self.logger.error(
-                "Attempt to compare users failed, API key incorrect"
+                LAST_FM_ERROR[content["error"]]
             )
             return
-        elif 'error' in content and content['error'] == 7:
+        
+        if user2.has_key("error"):
             cardinal.sendMsg(
                 channel,
-                "One of the Last.fm usernames was invalid. Please try again."
+                LAST_FM_ERROR[content["error"]]
+            )
+            self.logger.error(
+                LAST_FM_ERROR[content["error"]]
             )
             return
 
         try:
-            result = content['comparison']['result']
-
-            score = int(float(result['score']) * 100)
-            artists = []
-            if 'artist' not in result['artists']:
-                # Return early to avoid error on looping through artists
-                cardinal.sendMsg(
-                    channel,
-                    "According to Last.fm's Tasteometer, %s and %s share none "
-                    "of the same music." %
-                    (str(username1), str(username2))
-                )
-                return
-
-            # Account for Last.fm giving a string instead of a list if only
-            # one artist is shared
-            if not isinstance(result['artists']['artist'], list):
-                artists.append(str(result['artists']['artist']['name']))
-            else:
-                # Loop through all artists to grab artist names
-                for i in range(len(result['artists']['artist'])):
-                    artists.append(str(result['artists']['artist'][i]['name']))
+            user1_artists = []
+            liked_artists = []
+            for artist in user1["topartists"]["artist"]:
+                user1_artists.append(artist["name"])
+            for artist in user2["topartists"]["artist"]:
+                if artist["name"] in user1_artists:
+                    liked_artists.append(artist["name"].encode("utf-8"))
+            
+            score = (float(len(liked_artists)) / float(50)) * 100
 
             cardinal.sendMsg(
                 channel,
-                "According to Last.fm's Tasteometer, %s and %s's music "
-                "preferences are %d%% compatible! Some artists they have in "
-                "common include: %s" %
-                (str(username1), str(username2), score, ', '.join(artists))
+                "According to Last.fm's Tasteometer, {0} and {1}'s music "
+                "preferences are {2}% compatible! Some artists they have in "
+                "common include: {3}".format(str(username1), 
+                                             str(username2), 
+                                             int(score),
+                                             ', '.join(liked_artists[:5]))
             )
         except KeyError:
             cardinal.sendMsg(channel, "An unknown error has occurred.")
             self.logger.exception("An unknown error occurred comparing users")
-
-    compare.commands = ['compare']
-    compare.help = ["Uses Last.fm to compare the compatibility of music "
-                    "between two users.",
-                    "Syntax: .compare <username> [username]"]
 
     def close(self):
         if self.conn:
