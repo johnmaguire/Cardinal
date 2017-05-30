@@ -37,10 +37,10 @@ class WikipediaPlugin(object):
 
     def _get_article_info(self, name):
         name = name.replace(' ', '_')
-        url = "https://%s.wikipedia.org/wiki/%s" % (self._language_code, name)
+        url = "https://%s.wikipedia.org/wiki/%s" % (self._language_code, name.decode('UTF-8'))
 
         try:
-            uh = urllib2.urlopen(url)
+            uh = urllib2.urlopen(url.encode('UTF-8'))
             soup = BeautifulSoup(uh)
         except Exception, e:
             self.logger.warning(
