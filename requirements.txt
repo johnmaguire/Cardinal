@@ -22,3 +22,6 @@ google==1.9.3
 
 # Time plugin
 pytz==2015.4
+
+#Wikipedia plugin
+wikipedia==1.4.0

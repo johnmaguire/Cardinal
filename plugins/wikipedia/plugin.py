@@ -1,6 +1,7 @@
 import re
 import urllib2
 import logging
+import wikipedia
 
 from bs4 import BeautifulSoup
 
@@ -34,14 +35,19 @@ class WikipediaPlugin(object):
 
         self._callback_id = cardinal.event_manager.register_callback(
             'urls.detection', self.url_callback)
+        wikipedia.set_lang(self._language_code)
 
     def _get_article_info(self, name):
-        name = name.replace(' ', '_')
-        url = "https://%s.wikipedia.org/wiki/%s" % (self._language_code, name)
+
+        disambiguation = False
+        url = None
 
         try:
-            uh = urllib2.urlopen(url)
-            soup = BeautifulSoup(uh)
+            page = wikipedia.page(name)
+            url = page.url
+        except wikipedia.exceptions.DisambiguationError:
+            page = wikipedia.search(name)
+            disambiguation = True
         except Exception, e:
             self.logger.warning(
                 "Couldn't query Wikipedia (404?) for: %s" % name, exc_info=True
@@ -50,18 +56,28 @@ class WikipediaPlugin(object):
             return "Unable to find Wikipedia page for: %s" % name
 
         try:
-            # Title of the Wikipedia page
-            title = soup.find("h1").get_text()
+            if disambiguation:
+                #Title of the Wikipedia Disambiguation page
+                title = page[0]
 
-            # Manipulation to get first paragraph without HTML markup
-            content = soup.find_all("div", id="mw-content-text")[0]
-            first_paragraph = content.p.get_text()
+                #Get list of top articles
+                page.remove(title)
+                content = ','.join(page)
 
-            if len(first_paragraph) > self._max_description_length:
-                first_paragraph = first_paragraph[:self._max_description_length] + \
-                    '...'
+                #Create URL for disambiguation page 
+                url = "http://{0}.wikipedia.org/wiki/{2}".format(
+                    self._language_code,
+                    title.replace(' ', '_'))
             else:
-                first_paragraph = first_paragraph
+                # Title of the Wikipedia page
+                title = page.title
+
+                # Manipulation to get first paragraph without HTML markup
+                content = page.content
+
+            if len(content) > self._max_description_length:
+                content = content[:self._max_description_length] + '...'
+            
         except Exception, e:
             self.logger.error(
                 "Error parsing Wikipedia result for: %s" % name,
@@ -70,7 +86,7 @@ class WikipediaPlugin(object):
 
             return "Error parsing Wikipedia result for: %s" % name
 
-        return ("[ Wikipedia: %s | %s | %s ]" % (title, first_paragraph, url)).encode('utf-8')
+        return ("[ Wikipedia: %s | %s | %s ]" % (title, content, url)).encode('utf-8')
 
     def url_callback(self, cardinal, channel, url):
         match = re.match(ARTICLE_URL_REGEX, url)
