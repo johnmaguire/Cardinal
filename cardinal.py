@@ -68,6 +68,7 @@ https://github.com/JohnMaguire/Cardinal
     ))
     spec.add_option('channels', list, ['#bots'])
     spec.add_option('plugins', list, [
+        'wikipedia',
         'ping',
         'help',
         'admin',
