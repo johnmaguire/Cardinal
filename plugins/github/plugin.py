@@ -83,6 +83,12 @@ class GithubPlugin(object):
         if issue['assignee']:
             message += " @%s" % issue['assignee']['login']
         message += " " + issue['html_url']
+        # Add labels, if there are any
+        if issue['labels']:
+            labels = ''
+            for label in issue['labels']: labels += ' [%s]' % label['name']
+            message += labels
+
         return message.encode('utf8')
 
     def _show_issue(self, cardinal, channel, repo, number):
