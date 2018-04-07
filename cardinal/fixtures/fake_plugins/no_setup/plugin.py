@@ -1,0 +1,2 @@
+class TestNoSetupFunctionPlugin(object):
+    pass

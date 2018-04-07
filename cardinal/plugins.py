@@ -57,7 +57,8 @@ class PluginManager(object):
     (additional arguments) which will be up to the plugin for handling.
     """
 
-    def __init__(self, cardinal, plugins=None):
+    def __init__(self, cardinal, plugins=None,
+                 _plugin_module_import_prefix='plugins'):
         """Creates a new instance, optionally with a list of plugins to load
 
         Keyword arguments:
@@ -70,6 +71,10 @@ class PluginManager(object):
         """
         # Initialize logger
         self.logger = logging.getLogger(__name__)
+
+        # Module name from which plugins are imported. This exists to assist
+        # in unit testing.
+        self._plugin_module_import_prefix = _plugin_module_import_prefix
 
         # Set default to empty object
         self.plugins = {}
@@ -124,7 +129,7 @@ class PluginManager(object):
 
         return self.plugins[keys[self.iteration_counter - 1]]
 
-    def _import_module(self, module, type='plugin'):
+    def _import_module(self, module, suffix='plugin'):
         """Given a plugin name, will import it from its directory or reload it.
 
         If we are passing in a module, we can safely assume at this point that
@@ -145,7 +150,10 @@ class PluginManager(object):
         if inspect.ismodule(module):
             return reload(module)
         elif isinstance(module, basestring):
-            return importlib.import_module('plugins.%s.%s' % (module, type))
+            return importlib.import_module('%s.%s.%s' %
+                                           (self._plugin_module_import_prefix,
+                                            module,
+                                            suffix))
 
     def _create_plugin_instance(self, module, config=None):
         """Creates an instance of the plugin module.
@@ -444,7 +452,7 @@ class PluginManager(object):
                 "Plugins argument must be a string or list of plugins"
             )
 
-        # We'll keep track of plugins we failed to load (either because we)
+        # List of plugins which failed to load
         failed_plugins = []
 
         for plugin in plugins:
@@ -460,6 +468,8 @@ class PluginManager(object):
                     self.logger.info("Already loaded, reloading: %s" % plugin)
                     reload_flag = True
 
+                    # We don't consider this a failed plugin unless it doesn't
+                    # load correctly
                     try:
                         self._close_plugin_instance(plugin)
                     except Exception:
@@ -495,7 +505,7 @@ class PluginManager(object):
                     "No config found for plugin: %s" % plugin
                 )
 
-            # Instance the plugin
+            # Instanstiate the plugin
             try:
                 instance = self._create_plugin_instance(module, config)
             except Exception:
@@ -580,7 +590,9 @@ class PluginManager(object):
                 self._unregister_plugin_callbacks(plugin)
             except Exception:
                 # If we fail to unregister callbacks, log the exception and
-                # continue with rest of the unload process
+                # continue with rest of the unload process; we don't consider
+                # this a failed unload, since errors occur when expected
+                # callbacks didn't exist anyway.
                 self.logger.exception(
                     "Didn't remove all plugin callbacks: %s", plugin
                 )

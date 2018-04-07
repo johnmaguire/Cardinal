@@ -10,6 +10,7 @@ PyYAML==3.11
 # Unit tests
 pytest==2.8.3
 pytest-cov==2.2.0
+mock==2.0.0
 
 # Wikipedia plugin
 beautifulsoup4==4.3.2
