@@ -1,3 +1,4 @@
 {
-	"owners": ["nick@vhost"]
+	"owners": ["nick@vhost"],
+	"admins": ["nick@vhost"]
 }
