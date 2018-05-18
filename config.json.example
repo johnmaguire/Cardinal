@@ -25,7 +25,8 @@
         "youtube",
         "google",
         "timezone",
-        "github"
+        "github",
+	"movie"
     ],
 
     "logging": {
