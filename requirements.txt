@@ -1,11 +1,12 @@
 # Core
-Twisted==13.2.0
+Twisted==19.2.1
 
 # SSL connections
-pyOpenSSL==16.2.0
+pyOpenSSL==19.0.0
+service_identity==18.1.0
 
 # Config parsing
-PyYAML==3.11
+PyYAML==5.1.1
 
 # Unit tests
 pytest==2.8.3
@@ -16,7 +17,7 @@ mock==2.0.0
 beautifulsoup4==4.3.2
 
 # YouTube plugin
-requests==2.7.0
+requests==2.22.0
 
 # Google plugin
 google==1.9.3
