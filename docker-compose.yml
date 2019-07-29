@@ -1,0 +1,10 @@
+version: "2.1"
+services:
+    cardinal:
+        container_name: cardinal
+        image: jmaguire/cardinal
+        build: .
+        command: --config /config/config.json
+        volumes:
+            - ./storage/:/storage/
+            - ./config/:/config/
