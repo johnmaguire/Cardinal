@@ -1,12 +1,83 @@
-import urllib2
-from xml.dom import minidom
+import hashlib
+import hmac
+import logging
+import time
+import urllib
+import uuid
+from base64 import b64encode
 
-YQL_URL = 'https://query.yahooapis.com/v1/public/yql?format=xml&q=%s'
-WEATHER_NS = 'http://xml.weather.yahoo.com/ns/rss/1.0'
-WEATHER_QUERY = 'select * from weather.forecast where woeid in (select woeid from geo.places(1) where text="%s")'
+import requests
+
+from cardinal.decorators import command, help
+
+FORECAST_URL = "https://weather-ydn-yql.media.yahoo.com/forecastrss"
+SIGNATURE_CONCAT = '&'
+
+# Hopefully these don't get banned by Yahoo -- if they do, I'll have to make
+# them config options.
+APP_ID = "jpfkwT7i"
+CONSUMER_KEY = "dj0yJmk9YVpma1VWcno1U01wJmQ9WVdrOWFuQm1hM2RVTjJrbWNHbzlNQS0t" \
+    "JnM9Y29uc3VtZXJzZWNyZXQmc3Y9MCZ4PTRk"
+CONSUMER_SECRET = "b816de899743153300c2c123521bb247cfb0c92a"
+
 
 class WeatherPlugin(object):
-    def get_weather(self, cardinal, user, channel, msg):
+    def __init__(self):
+        self.logger = logging.getLogger(__name__)
+
+    def api_call(self, method, url, params):
+        method = method.upper()
+
+        oauth_params = {
+            'oauth_consumer_key': CONSUMER_KEY,
+            'oauth_nonce': uuid.uuid4().hex,
+            'oauth_signature_method': 'HMAC-SHA1',
+            'oauth_timestamp': str(int(time.time())),
+            'oauth_version': '1.0',
+        }
+
+        merged_params = params.copy()
+        merged_params.update(oauth_params)
+
+        # Sort and canonicalize the params
+        sorted_params = [k + '=' + urllib.quote(merged_params[k], safe='')
+                         for k in sorted(merged_params.keys())]
+
+        signature_string = method + SIGNATURE_CONCAT + \
+            urllib.quote(url, safe='') + SIGNATURE_CONCAT + \
+            urllib.quote(SIGNATURE_CONCAT.join(sorted_params), safe='')
+
+        # Generate signature
+        composite_key = \
+            urllib.quote(CONSUMER_SECRET, safe='') + SIGNATURE_CONCAT
+        oauth_signature = b64encode(hmac.new(composite_key,
+                                             signature_string,
+                                             hashlib.sha1).digest())
+
+        oauth_params['oauth_signature'] = oauth_signature
+        auth_header = 'OAuth ' + ', '.join(
+            ['{}="{}"'.format(k, v) for k, v in oauth_params.iteritems()])
+
+        res = requests.get(url, params=params, headers={
+            'Authorization': auth_header,
+            'X-Yahoo-App-Id': APP_ID,
+        })
+        res.raise_for_status()
+
+        return res
+
+    def get_forecast(self, location):
+        params = {
+            'location': location,
+            'format': 'json',
+        }
+
+        return self.api_call('GET', FORECAST_URL, params)
+
+    @command(['weather', 'w'])
+    @help("Retrieves the weather using the Yahoo! weather API.")
+    @help("Syntax: .weather <location>")
+    def weather(self, cardinal, user, channel, msg):
         try:
             location = msg.split(' ', 1)[1]
         except IndexError:
@@ -14,61 +85,39 @@ class WeatherPlugin(object):
             return
 
         try:
-            url = YQL_URL % urllib2.quote(WEATHER_QUERY % location)
-            dom = minidom.parse(urllib2.urlopen(url))
-        except urllib2.URLError:
-            cardinal.sendMsg(channel, "Error accessing Yahoo! Weather API. (URLError Exception occurred.)")
-            return
-        except urllib2.HTTPError:
-            cardinal.sendMsg(channel, "Error accessing Yahoo! Weather API. (URLError Exception occurred.)")
-            return
+            res = self.get_forecast(location).json()
+        except Exception:
+            cardinal.sendMsg(channel, "Error fetching weather data.")
+            self.logger.exception(
+                "Error fetching forecast for location '{}'".format(location))
 
         try:
-            ylocation = dom.getElementsByTagNameNS(WEATHER_NS, 'location')[0]
-            yunits = dom.getElementsByTagNameNS(WEATHER_NS, 'units')[0]
-            ywind = dom.getElementsByTagNameNS(WEATHER_NS, 'wind')[0]
-            yatmosphere = dom.getElementsByTagNameNS(WEATHER_NS, 'atmosphere')[0]
-            ycondition = dom.getElementsByTagNameNS(WEATHER_NS, 'condition')[0]
-
-            location_city = str(ylocation.getAttribute('city'))
-            location_region = str(ylocation.getAttribute('region'))
-            location_country = str(ylocation.getAttribute('country'))
-
-            current_condition = str(ycondition.getAttribute('text'))
-            current_temperature = str(ycondition.getAttribute('temp'))
-            current_humidity = str(yatmosphere.getAttribute('humidity'))
-            current_wind_speed = str(ywind.getAttribute('speed'))
-
-            units_temperature = str(yunits.getAttribute('temperature'))
-            units_speed = str(yunits.getAttribute('speed'))
-            
-            if units_temperature == "F":
-                units_temperature2 = "C"
-                current_temperature2 = str(int((float(current_temperature) - 32) * float(5)/float(9)))
-            else:
-                units_temperature2 = "F"
-                current_temperature2 = str(int(float(current_temperature) * float(9)/float(5) + 32))
-
-            location = location_city
-            if location_region:
-                location += ", " + location_region
-            if location_country:
-                location += ", " + location_country
-
-            cardinal.sendMsg(channel, "[ %s | %s | Temp: %s %s (%s %s) | Humidity: %s%% | Winds: %s %s ]" %
-                                                                                   (location,
-                                                                                    current_condition,
-                                                                                    current_temperature, units_temperature,
-                                                                                    current_temperature2, units_temperature2,
-                                                                                    current_humidity,
-                                                                                    current_wind_speed, units_speed))
-        except IndexError:
-            cardinal.sendMsg(channel, "Sorry, couldn't find weather for \"%s\"." % location)
+            location = "{}, {}, {}".format(res['location']['city'],
+                                           res['location']['region'],
+                                           res['location']['country'])
+        except KeyError:
+            cardinal.sendMsg(channel,
+                             "Couldn't find weather data for your location.")
             return
 
-    get_weather.commands = ['weather', 'w']
-    get_weather.help = ["Retrieves the weather using the Yahoo! weather API.",
-                        "Syntax: .weather <location>"]
+        condition = res['current_observation']['condition']['text']
+        temperature = \
+            int(res['current_observation']['condition']['temperature'])
+        temperature_c = (temperature - 32) * 5/9
+        humidity = int(res['current_observation']['atmosphere']['humidity'])
+        winds = float(res['current_observation']['wind']['speed'])
+        winds_k = round(winds * 1.609344, 2)
+        cardinal.sendMsg(
+            channel,
+            "[ {} | {} | Temp: {} F ({} C) | Humidity: {}% |"
+            " Winds: {} mph ({} kph) ]".format(location,
+                                               condition,
+                                               temperature,
+                                               temperature_c,
+                                               humidity,
+                                               winds,
+                                               winds_k))
+
 
 def setup():
     return WeatherPlugin()

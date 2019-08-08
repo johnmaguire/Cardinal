@@ -16,7 +16,7 @@ mock==2.0.0
 # Wikipedia plugin
 beautifulsoup4==4.3.2
 
-# YouTube plugin
+# Weather & YouTube plugins
 requests==2.22.0
 
 # Google plugin
