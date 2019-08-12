@@ -8,3 +8,4 @@ services:
         volumes:
             - ./storage/:/storage/
             - ./config/:/config/
+        restart: unless-stopped
