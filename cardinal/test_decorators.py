@@ -1,6 +1,8 @@
+from __future__ import absolute_import, print_function, division
+
 import pytest
 
-import decorators
+from cardinal import decorators
 
 
 @pytest.mark.parametrize("input,expected", [

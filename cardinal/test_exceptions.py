@@ -1,6 +1,8 @@
+from __future__ import absolute_import, print_function, division
+
 import pytest
 
-import exceptions
+from cardinal import exceptions
 
 
 def test_exceptions():
