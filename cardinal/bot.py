@@ -7,8 +7,8 @@ import re
 from collections import namedtuple
 from datetime import datetime
 
+from twisted.internet import defer, protocol, reactor
 from twisted.words.protocols import irc
-from twisted.internet import protocol, reactor
 
 from cardinal.plugins import PluginManager, EventManager
 from cardinal.exceptions import (
@@ -102,9 +102,8 @@ class CardinalBot(irc.IRCClient, object):
         self.event_manager.register("irc.quit", 2)
 
         # State variables for the WHO command
-        self.who_lock = {}
         self.who_cache = {}
-        self.who_callbacks = {}
+        self.who_deferreds = {}
 
     def signedOn(self):
         """Called once we've connected to a network"""
@@ -188,35 +187,28 @@ class CardinalBot(irc.IRCClient, object):
             self.logger.info(
                 "Unable to find a matching command", exc_info=True)
 
-    def who(self, channel, callback):
+    def who(self, channel):
         """Lists the users in a channel.
 
         Keyword arguments:
           channel -- Channel to list users of.
-          callback -- A callback that will receive the list of users.
 
         Returns:
-          None. However, the callback will receive a single argument,
-          which is the list of users.
+          Deferred -- A Deferred which will have its callbacks called when
+            the WHO response comes back from the server.
         """
-        if channel not in self.who_callbacks:
-            self.who_callbacks[channel] = []
-        self.who_callbacks[channel].append(callback)
-
         self.logger.info("WHO list requested for %s" % channel)
 
-        if channel not in self.who_lock:
-            self.logger.info("Making WHO request to server")
-            # Set a lock to prevent trying to track responses from the server
-            self.who_lock[channel] = True
-
-            # Empty the cache to ensure no old users show up.
-            # TODO: Add actual caching and user tracking.
+        if channel not in self.who_deferreds:
             self.who_cache[channel] = []
+            self.who_deferreds[channel] = defer.Deferred()
 
             # Send the actual WHO command to the server. irc_RPL_WHOREPLY will
             # receive a response when the server sends one.
+            self.logger.info("Making WHO request to server")
             self.sendLine("WHO %s" % channel)
+
+        return self.who_deferreds[channel]
 
     def irc_RPL_WHOREPLY(self, *nargs):
         "Receives reply from WHO command and sends to caller"
@@ -237,12 +229,10 @@ class CardinalBot(irc.IRCClient, object):
         response = nargs[1]
         channel = response[1]
 
-        self.logger.info("Calling WHO callbacks for %s" % channel)
-        for callback in self.who_callbacks[channel]:
-            callback(self.who_cache[channel])
+        self.logger.info("WHO response received for %s" % channel)
+        self.who_deferreds[channel].callback(self.who_cache[channel])
 
-        del self.who_callbacks[channel]
-        del self.who_lock[channel]
+        del self.who_deferreds[channel]
 
     def irc_NOTICE(self, prefix, params):
         """Called when a notice is sent to a channel or privately"""
