@@ -1,3 +1,5 @@
+from __future__ import absolute_import, print_function, division
+
 import inspect
 import os
 import sys
@@ -5,9 +7,9 @@ import sys
 from mock import Mock, patch
 import pytest
 
-from bot import CardinalBot
-from exceptions import AmbiguousConfigError
-from plugins import PluginManager
+from cardinal.bot import CardinalBot
+from cardinal.exceptions import AmbiguousConfigError
+from cardinal.plugins import PluginManager
 
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 FIXTURE_PATH = os.path.join(DIR_PATH, 'fixtures')

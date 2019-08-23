@@ -1,3 +1,6 @@
+from __future__ import absolute_import, print_function, division
+
+
 class CardinalException(Exception):
 	"""Base class that all Cardinal exceptions extend."""
 	pass
