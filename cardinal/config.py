@@ -6,12 +6,6 @@ import inspect
 class ConfigSpec(object):
     """A class used to create a config spec for ConfigParser"""
 
-    logger = None
-    """Logging object for ConfigSpec"""
-
-    options = None
-    """A dictionary holding tuples of the options"""
-
     def __init__(self):
         """Initializes the logging"""
         self.logger = logging.getLogger(__name__)
@@ -90,17 +84,7 @@ class ConfigParser(object):
     config files for plugins. It helps to combine hard-coded defaults with
     values provided by a user (either through a JSON-encoded config file or
     command-line input.)
-
     """
-
-    logger = None
-    """Logging object for ConfigParser"""
-
-    config = {}
-    """A dictionary containing config values as we learn them"""
-
-    spec = None
-    """A ConfigSpec object passed into the constructor"""
 
     def __init__(self, spec):
         """Initializes ConfigParser with a ConfigSpec and initializes logging
@@ -117,6 +101,7 @@ class ConfigParser(object):
 
         self.logger = logging.getLogger(__name__)
         self.spec = spec
+        self.config = {}
 
     def _utf8_json(self, json_object, called_by_self=False):
         """Converts json.load() or json.loads() return to UTF-8.

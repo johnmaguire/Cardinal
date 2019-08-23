@@ -26,19 +26,7 @@ from cardinal.exceptions import (
 class PluginManager(object):
     """Keeps track of, loads, and unloads plugins."""
 
-    logger = None
-    """Logging object for PluginManager"""
-
-    iteration_counter = 0
-    """Holds our current iteration point"""
-
-    cardinal = None
-    """Holds an instance of `CardinalBot`"""
-
-    plugins = None
-    """List of loaded plugins"""
-
-    command_regex = re.compile(r'\.([A-Za-z0-9_-]+)\s?.*$')
+    COMMAND_REGEX = re.compile(r'\.([A-Za-z0-9_-]+)\s?.*$')
     """Regex for matching standard commands.
 
     This will check for anything beginning with a period (.) followed by any
@@ -48,7 +36,7 @@ class PluginManager(object):
     the plugin for handling.
     """
 
-    natural_command_regex = r'%s:\s+([A-Za-z0-9_-]+)\s?.*$'
+    NATURAL_COMMAND_REGEX = r'%s:\s+([A-Za-z0-9_-]+)\s?.*$'
     """Regex for matching natural commands.
 
     This will check for anything beginning with the bot's nickname, a colon
@@ -82,6 +70,9 @@ class PluginManager(object):
         # To prevent circular dependencies, we can't sanity check this. Hope
         # for the best.
         self.cardinal = cardinal
+
+        # Used for iterating PluginManager plugins
+        self.iteration_counter = 0
 
         # Make sure we operate on a list
         if plugins is not None and not isinstance(plugins, list):
@@ -710,8 +701,8 @@ class PluginManager(object):
     def call_command(self, user, channel, message):
         """Checks a message to see if it appears to be a command and calls it.
 
-        This is done by checking both the `command_regex` and
-        `natural_command_regex` properties on this object. If one or both of
+        This is done by checking both the `COMMAND_REGEX` and
+        `NATURAL_COMMAND_REGEX` properties on this object. If one or both of
         these tests succeeds, we then check whether any plugins have registered
         a matching command. If both of these tests fail, we will check whether
         any plugins have registered a custom regex expression matching the
@@ -733,10 +724,10 @@ class PluginManager(object):
         # only one of these can match, and the matching groups are in the same
         # order, we only need to check the second one if the first fails, and
         # we only need to use one variable to track this.
-        get_command = re.match(self.command_regex, message)
+        get_command = re.match(self.COMMAND_REGEX, message)
         if not get_command:
             get_command = re.match(
-                self.natural_command_regex % re.escape(self.cardinal.nickname),
+                self.NATURAL_COMMAND_REGEX % re.escape(self.cardinal.nickname),
                 message, flags=re.IGNORECASE)
 
         # Iterate through all loaded commands
@@ -780,15 +771,6 @@ class PluginManager(object):
 
 
 class EventManager(object):
-    cardinal = None
-    """Instance of CardinalBot"""
-
-    registered_events = None
-    """Contains all the registered events"""
-
-    registered_callbacks = None
-    """Contains all the registered callbacks"""
-
     def __init__(self, cardinal):
         """Initializes the logger"""
         self.cardinal = cardinal
