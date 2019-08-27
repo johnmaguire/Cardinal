@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup
 from cardinal.decorators import command, event, help
 from cardinal.exceptions import EventRejectedMessage
 
-ARTICLE_URL_REGEX = "https?:\/\/(?:\w{2}\.)?wikipedia\..{2,4}\/wiki\/(.+)"
+ARTICLE_URL_REGEX = r"https?://(?:\w{2}\.)?wikipedia\..{2,4}/wiki/(.+)"
 
 DEFAULT_LANGUAGE_CODE = 'en'
 DEFAULT_MAX_DESCRIPTION_LENGTH = 150
@@ -35,7 +35,10 @@ class WikipediaPlugin(object):
 
     def _get_article_info(self, name):
         name = name.replace(' ', '_')
-        url = "https://%s.wikipedia.org/wiki/%s" % (self._language_code, name.decode('UTF-8'))
+        url = "https://%s.wikipedia.org/wiki/%s" % (
+            self._language_code,
+            name.decode('UTF-8'),
+        )
 
         try:
             uh = urllib2.urlopen(url.encode('UTF-8'))
