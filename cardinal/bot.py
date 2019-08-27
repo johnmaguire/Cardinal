@@ -1,6 +1,5 @@
 from __future__ import absolute_import, print_function, division
 
-import time
 import signal
 import logging
 import re
@@ -8,6 +7,7 @@ from collections import namedtuple
 from datetime import datetime
 
 from twisted.internet import defer, protocol, reactor
+from twisted.internet.task import deferLater
 from twisted.words.protocols import irc
 
 from cardinal.plugins import PluginManager, EventManager
@@ -468,9 +468,20 @@ class CardinalBotFactory(protocol.ClientFactory):
     MAXIMUM_RECONNECTION_WAIT = 300
     """Maximum time in connections before reconnection attempt"""
 
-    def __init__(self, network, server_password=None, channels=None,
-                 nickname='Cardinal', password=None, username=None,
-                 realname=None, plugins=None, storage=None):
+    @property
+    def reactor(self):
+        return getattr(self, '_reactor', reactor)
+
+    def __init__(self,
+                 network,
+                 server_password=None,
+                 channels=None,
+                 nickname='Cardinal',
+                 password=None,
+                 username=None,
+                 realname=None,
+                 plugins=None,
+                 storage=None):
         """Boots the bot, triggers connection, and initializes logging.
 
         Keyword arguments:
@@ -549,14 +560,17 @@ class CardinalBotFactory(protocol.ClientFactory):
             # time we've disconnected since a successful connection and then
             # wait before connecting.
             self.last_reconnection_wait = self.MINIMUM_RECONNECTION_WAIT
-            time.sleep(self.MINIMUM_RECONNECTION_WAIT)
-            connector.connect()
+            deferLater(
+                self.reactor,
+                self.last_reconnection_wait,
+                connector.connect
+            )
         else:
             self.logger.info(
                 "Disconnected successfully (%s), quitting." % reason
             )
 
-            reactor.stop()
+            self.reactor.stop()
 
     def clientConnectionFailed(self, connector, reason):
         """Called when a connection attempt fails.
@@ -584,5 +598,8 @@ class CardinalBotFactory(protocol.ClientFactory):
 
         # Update the last connection wait time, then wait and try to connect
         self.last_reconnection_wait = wait_time
-        time.sleep(wait_time)
-        connector.connect()
+        deferLater(
+            self.reactor,
+            self.last_reconnection_wait,
+            connector.connect
+        )
