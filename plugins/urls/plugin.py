@@ -100,7 +100,7 @@ class URLsPlugin(object):
             title = re.search(TITLE_REGEX, content)
             if title:
                 if len(title.group(2).strip()) > 0:
-                    title = re.sub('\s+', ' ', title.group(2)).strip()
+                    title = re.sub(r'\s+', ' ', title.group(2)).strip()
 
                     h = HTMLParser.HTMLParser()
 
