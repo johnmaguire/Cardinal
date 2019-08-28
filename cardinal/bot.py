@@ -84,6 +84,12 @@ class CardinalBot(irc.IRCClient, object):
         self.logger = logging.getLogger(__name__)
         self.irc_logger = logging.getLogger("%s.irc" % __name__)
 
+        # Will get set by Twisted before signedOn is called
+        self.factory = None
+
+        # PluginManager gets created in signedOn
+        self.plugin_manager = None
+
         # Setup EventManager
         self.event_manager = EventManager(self)
 
@@ -102,16 +108,16 @@ class CardinalBot(irc.IRCClient, object):
         self.event_manager.register("irc.quit", 2)
 
         # State variables for the WHO command
-        self.who_cache = {}
-        self.who_deferreds = {}
+        self._who_cache = {}
+        self._who_deferreds = {}
 
     def signedOn(self):
         """Called once we've connected to a network"""
-        self.logger.info("Signed on as %s" % self.nickname)
-
         # Give the factory access to the bot
         if self.factory is None:
             raise InternalError("Factory must be set on CardinalBot instance")
+
+        self.logger.info("Signed on as %s" % self.nickname)
 
         # Give the factory the instance it created in case it needs to
         # interface for error handling or metadata retention.
@@ -147,9 +153,7 @@ class CardinalBot(irc.IRCClient, object):
         parts = line.split(' ')
         command = parts[1]
 
-        # Don't fire if we haven't booted the event manager yet
-        if self.event_manager:
-            self.event_manager.fire("irc.raw", command, line)
+        self.event_manager.fire("irc.raw", command, line)
 
         # Call Twisted handler
         super(CardinalBot, self).lineReceived(line)
@@ -157,7 +161,7 @@ class CardinalBot(irc.IRCClient, object):
     def irc_PRIVMSG(self, prefix, params):
         """Called when we receive a message in a channel or PM."""
         # Break down the user into usable groups
-        user = self._get_user_tuple(prefix)
+        user = self.get_user_tuple(prefix)
         nick = user[0]
         channel = params[0]
         message = params[1]
@@ -187,56 +191,9 @@ class CardinalBot(irc.IRCClient, object):
             self.logger.info(
                 "Unable to find a matching command", exc_info=True)
 
-    def who(self, channel):
-        """Lists the users in a channel.
-
-        Keyword arguments:
-          channel -- Channel to list users of.
-
-        Returns:
-          Deferred -- A Deferred which will have its callbacks called when
-            the WHO response comes back from the server.
-        """
-        self.logger.info("WHO list requested for %s" % channel)
-
-        if channel not in self.who_deferreds:
-            self.who_cache[channel] = []
-            self.who_deferreds[channel] = defer.Deferred()
-
-            # Send the actual WHO command to the server. irc_RPL_WHOREPLY will
-            # receive a response when the server sends one.
-            self.logger.info("Making WHO request to server")
-            self.sendLine("WHO %s" % channel)
-
-        return self.who_deferreds[channel]
-
-    def irc_RPL_WHOREPLY(self, *nargs):
-        "Receives reply from WHO command and sends to caller"
-        response = nargs[1]
-
-        # Same format as other events (nickname!ident@hostname)
-        user = (
-            response[5],  # nickname
-            response[2],  # ident
-            response[3],  # hostname
-        )
-        channel = response[1]
-
-        self.who_cache[channel].append(user)
-
-    def irc_RPL_ENDOFWHO(self, *nargs):
-        "Called when WHO output is complete"
-        response = nargs[1]
-        channel = response[1]
-
-        self.logger.info("WHO response received for %s" % channel)
-        self.who_deferreds[channel].callback(self.who_cache[channel])
-
-        del self.who_deferreds[channel]
-
     def irc_NOTICE(self, prefix, params):
         """Called when a notice is sent to a channel or privately"""
-        user = self._get_user_tuple(prefix)
+        user = self.get_user_tuple(prefix)
         channel = params[0]
         message = params[1]
 
@@ -252,14 +209,11 @@ class CardinalBot(irc.IRCClient, object):
             (user + (channel, message))
         )
 
-        # Lots of NOTICE messages when connecting, and event manager may not be
-        # initialized yet.
-        if self.event_manager:
-            self.event_manager.fire("irc.notice", user, channel, message)
+        self.event_manager.fire("irc.notice", user, channel, message)
 
     def irc_NICK(self, prefix, params):
         """Called when a user changes their nick"""
-        user = self._get_user_tuple(prefix)
+        user = self.get_user_tuple(prefix)
         new_nick = params[0]
 
         self.logger.debug(
@@ -271,7 +225,7 @@ class CardinalBot(irc.IRCClient, object):
 
     def irc_TOPIC(self, prefix, params):
         """Called when a new topic is set"""
-        user = self._get_user_tuple(prefix)
+        user = self.get_user_tuple(prefix)
         channel = params[0]
         topic = params[1]
 
@@ -284,7 +238,7 @@ class CardinalBot(irc.IRCClient, object):
 
     def irc_MODE(self, prefix, params):
         """Called when a mode is set on a channel"""
-        user = self._get_user_tuple(prefix)
+        user = self.get_user_tuple(prefix)
         channel = params[0]
         mode = ' '.join(params[1:])
 
@@ -300,14 +254,11 @@ class CardinalBot(irc.IRCClient, object):
             (user + (channel, mode))
         )
 
-        # Can get called during connection, in which case EventManager won't be
-        # initialized yet
-        if self.event_manager:
-            self.event_manager.fire("irc.mode", user, channel, mode)
+        self.event_manager.fire("irc.mode", user, channel, mode)
 
     def irc_JOIN(self, prefix, params):
         """Called when a user joins a channel"""
-        user = self._get_user_tuple(prefix)
+        user = self.get_user_tuple(prefix)
         channel = params[0]
 
         self.logger.debug(
@@ -319,51 +270,85 @@ class CardinalBot(irc.IRCClient, object):
 
     def irc_PART(self, prefix, params):
         """Called when a user parts a channel"""
-        user = self._get_user_tuple(prefix)
+        user = self.get_user_tuple(prefix)
         channel = params[0]
         if len(params) == 1:
-            reason = "No Message"
+            reason = None
         else:
             reason = params[1]
 
         self.logger.debug(
             "%s!%s@%s parted %s (%s)" %
-            (user + (channel, reason))
+            (user + (channel, reason if reason else "No Message"))
         )
 
         self.event_manager.fire("irc.part", user, channel, reason)
 
     def irc_KICK(self, prefix, params):
         """Called when a user is kicked from a channel"""
-        user = self._get_user_tuple(prefix)
+        user = self.get_user_tuple(prefix)
         nick = params[1]
         channel = params[0]
         if len(params) == 2:
-            reason = "No Message"
+            reason = None
         else:
             reason = params[2]
 
         self.logger.debug(
             "%s!%s@%s kicked %s from %s (%s)" %
-            (user + (nick, channel, reason))
+            (user + (nick, channel, reason if reason else "No Message"))
         )
 
         self.event_manager.fire("irc.kick", user, channel, nick, reason)
 
     def irc_QUIT(self, prefix, params):
         """Called when a user quits the network"""
-        user = self._get_user_tuple(prefix)
+        user = self.get_user_tuple(prefix)
         if len(params) == 0:
-            reason = "No Message"
+            reason = None
         else:
             reason = params[0]
 
         self.logger.debug(
             "%s!%s@%s quit (%s)" %
-            (user + (reason,))
+            (user + (reason if reason else "No Message",))
         )
 
         self.event_manager.fire("irc.quit", user, reason)
+
+    def irc_RPL_WHOREPLY(self, prefix, params):
+        """Called for each user in the WHO reply.
+
+        This is the second piece of the `who()` method call. We will add each
+        user listed in the reply to a list for the channel that will be sent
+        to the channel's Deferred once all users have been listed.
+        """
+        # Same format as other events (nickname!ident@hostname)
+        self.logger.info(params)
+        user = user_info(
+            params[5],  # nickname
+            params[2],  # ident
+            params[3],  # hostname
+        )
+        channel = params[1]
+
+        self._who_cache[channel].append(user)
+
+    def irc_RPL_ENDOFWHO(self, prefix, params):
+        """Called when WHO reply is complete.
+
+        This is the final piece of the `who()` method call. This indicates we
+        can consider the WHO listing complete, and resolve the Deferred for the
+        given channel.
+        """
+        self.logger.info(params)
+        channel = params[1]
+
+        self.logger.info("WHO reply received for %s" % channel)
+        for d in self._who_deferreds[channel]:
+            d.callback(self._who_cache[channel])
+
+        del self._who_deferreds[channel]
 
     def irc_unknown(self, prefix, command, params):
         """Called when Twisted doesn't understand an IRC command.
@@ -376,7 +361,7 @@ class CardinalBot(irc.IRCClient, object):
         # A user has invited us to a channel
         if command == "INVITE":
             # Break down the user into usable groups
-            user = self._get_user_tuple(prefix)
+            user = self.get_user_tuple(prefix)
             nick = user[0]
             channel = params[1]
 
@@ -386,6 +371,32 @@ class CardinalBot(irc.IRCClient, object):
             self.event_manager.fire("irc.invite", user, channel)
 
             # TODO: Call matching plugin events
+
+    def who(self, channel):
+        """Lists the users in a channel.
+
+        Keyword arguments:
+          channel -- Channel to list users of.
+
+        Returns:
+          Deferred -- A Deferred which will have its callbacks called when
+            the WHO response comes back from the server.
+        """
+        self.logger.info("WHO list requested for %s" % channel)
+
+        d = defer.Deferred()
+        if channel not in self._who_deferreds:
+            self._who_cache[channel] = []
+            self._who_deferreds[channel] = [d]
+
+            # Send the actual WHO command to the server. irc_RPL_WHOREPLY will
+            # receive a response when the server sends one.
+            self.logger.info("Making WHO request to server")
+            self.sendLine("WHO %s" % channel)
+        else:
+            self._who_deferreds[channel].append(d)
+
+        return d
 
     def config(self, plugin):
         """Returns a given loaded plugin's config.
@@ -449,7 +460,7 @@ class CardinalBot(irc.IRCClient, object):
         self.quit(message)
 
     @staticmethod
-    def _get_user_tuple(string):
+    def get_user_tuple(string):
         user = re.match(USER_REGEX, string)
         if user:
             return user_info(user.group(1), user.group(2), user.group(3))
