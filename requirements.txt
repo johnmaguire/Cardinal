@@ -11,6 +11,7 @@ PyYAML==5.1.1
 # Unit tests
 pytest==2.8.3
 pytest-cov==2.2.0
+pytest-twisted==1.11
 mock==2.0.0
 
 # Wikipedia plugin
