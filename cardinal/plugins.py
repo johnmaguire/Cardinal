@@ -1,7 +1,6 @@
 from __future__ import absolute_import, print_function, division
 
 import os
-import sys
 import re
 import string
 import logging
@@ -50,7 +49,8 @@ class PluginManager(object):
     """
 
     def __init__(self, cardinal, plugins=None,
-                 _plugin_module_import_prefix='plugins'):
+                 _plugin_module_import_prefix='plugins',
+                 _plugin_module_directory_suffix='plugins'):
         """Creates a new instance, optionally with a list of plugins to load
 
         Keyword arguments:
@@ -67,6 +67,16 @@ class PluginManager(object):
         # Module name from which plugins are imported. This exists to assist
         # in unit testing.
         self._plugin_module_import_prefix = _plugin_module_import_prefix
+
+        # This is where we'll look for plugins
+        self.plugins_directory = os.path.abspath(os.path.join(
+            # Get the path to this file's directory
+            os.path.dirname(os.path.realpath(os.path.abspath(__file__))),
+            # Go up one level
+            '..',
+            # And add the `plugins/` directory unless overridden
+            _plugin_module_directory_suffix
+        ))
 
         # Set default to empty object
         self.plugins = {}
@@ -294,8 +304,7 @@ class PluginManager(object):
 
         # Attempt to load and parse JSON config file
         file = os.path.join(
-            os.path.dirname(os.path.realpath(sys.argv[0])),
-            'plugins',
+            self.plugins_directory,
             plugin,
             'config.json'
         )
@@ -316,8 +325,7 @@ class PluginManager(object):
 
         # Attempt to load and parse YAML config file
         file = os.path.join(
-            os.path.dirname(os.path.realpath(sys.argv[0])),
-            'plugins',
+            self.plugins_directory,
             plugin,
             'config.yaml'
         )
@@ -337,7 +345,7 @@ class PluginManager(object):
         else:
             # If we already loaded JSON, this is a problem because we won't
             # know which config to use.
-            if json_config:
+            if json_config is not None:
                 raise AmbiguousConfigError(
                     "Found both a JSON and YAML config for plugin"
                 )
@@ -865,13 +873,18 @@ class EventManager(object):
                 "Can't register callback that isn't callable"
             )
 
+        argspec = inspect.getargspec(callback)
+        num_func_args = len(argspec.args)
+
         # If no event is registered, we will still register the callback but
         # we can't sanity check it since the event hasn't been registered yet
         if event_name not in self.registered_events:
+            if num_func_args < 1:
+                raise EventCallbackError(
+                    "Callback must take at least one argument")
+
             return self._add_callback(event_name, callback)
 
-        argspec = inspect.getargspec(callback)
-        num_func_args = len(argspec.args)
         # Add one to needed args to account for CardinalBot being passed in
         num_needed_args = self.registered_events[event_name] + 1
 
@@ -885,7 +898,7 @@ class EventManager(object):
             self.logger.debug("Invalid callback for event: %s" % event_name)
             raise EventCallbackError(
                 "Can't register callback with wrong number of arguments "
-                "(%d needed, %d given)" %
+                "(%d needed, %d accepted)" %
                 (num_needed_args, num_func_args)
             )
 
