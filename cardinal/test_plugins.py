@@ -1,15 +1,17 @@
 from __future__ import absolute_import, print_function, division
 
 import inspect
+import logging
 import os
 import sys
 
+from twisted.internet.task import defer
 from mock import Mock, patch
 import pytest
 
+from cardinal import exceptions
 from cardinal.bot import CardinalBot
-from cardinal.exceptions import AmbiguousConfigError
-from cardinal.plugins import PluginManager
+from cardinal.plugins import EventManager, PluginManager
 
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 FIXTURE_PATH = os.path.join(DIR_PATH, 'fixtures')
@@ -17,6 +19,63 @@ sys.path.insert(0, FIXTURE_PATH)
 
 
 class TestPluginManager(object):
+    def setup_method(self, method):
+        mock_cardinal = self.cardinal = Mock(spec=CardinalBot)
+
+        self.plugin_manager = PluginManager(
+            mock_cardinal,
+            _plugin_module_import_prefix='fake_plugins',
+            _plugin_module_directory_suffix='cardinal/fixtures/fake_plugins')
+
+    def assert_valid_load(self,
+                          plugins,
+                          assert_config_is_none=True):
+        failed_plugins = self.plugin_manager.load(plugins)
+
+        # regardless of the whether plugins was a string or list, the rest of
+        # this function requires it to be a list
+        if not isinstance(plugins, list):
+            plugins = [plugins]
+
+        assert failed_plugins == []
+        assert len(self.plugin_manager.plugins.keys()) == len(plugins)
+
+        for name in plugins:
+            # class name for plugins must be Test(CamelCaseName)Plugin
+            # e.g. an_example -> TestAnExamplePlugin
+            class_ = 'Test'
+            name_pieces = name.split('_')
+            for name_piece in name_pieces:
+                class_ += name_piece[0].upper() + name_piece[1:].lower()
+            class_ += 'Plugin'
+
+            # check that everything was set correctly
+            assert name in self.plugin_manager.plugins.keys()
+            assert self.plugin_manager.plugins[name]['name'] == name
+            assert inspect.ismodule(
+                self.plugin_manager.plugins[name]['module'])
+            assert isinstance(
+                self.plugin_manager.plugins[name]['instance'],
+                getattr(self.plugin_manager.plugins[name]['module'],
+                        class_))
+            assert self.plugin_manager.plugins[name]['commands'] == []
+            assert self.plugin_manager.plugins[name]['callbacks'] == []
+            assert self.plugin_manager.plugins[name]['callback_ids'] == {}
+            if assert_config_is_none:
+                assert self.plugin_manager.plugins[name]['config'] is None
+            assert self.plugin_manager.plugins[name]['blacklist'] == []
+
+    def assert_failed_load(self, plugins):
+        failed_plugins = self.plugin_manager.load(plugins)
+
+        # regardless of the whether plugins was a string or list, the rest of
+        # this function requires it to be a list
+        if not isinstance(plugins, list):
+            plugins = [plugins]
+
+        assert failed_plugins == plugins
+        assert self.plugin_manager.plugins == {}
+
     def test_constructor_no_plugins(self):
         manager = PluginManager(Mock())
         assert len(manager.plugins) == 0
@@ -51,93 +110,50 @@ class TestPluginManager(object):
         with pytest.raises(TypeError):
             manager.load(plugins)
 
-    def test_load_nonexistent_plugin_fails(self):
-        name = 'nonexistent'
-        plugins = [name]
+    @pytest.mark.parametrize("plugins", [
+        # This plugin won't be found in the plugins directory
+        'nonexistent',
+        # This plugin is missing a setup() function
+        'no_setup',
+        # This plugin's setup() function takes three arguments
+        'setup_too_many_arguments',
+        # This plugin has both a config.yaml and config.json
+        'ambiguous_config',
+    ])
+    def test_load_invalid(self, plugins):
+        self.assert_failed_load(plugins)
 
-        manager = PluginManager(Mock())
-        failed_plugins = manager.load(plugins)
-        assert failed_plugins == plugins
-        assert manager.plugins == {}
+    @pytest.mark.parametrize("plugins", [
+        'valid',
+        ['valid'],  # test list format
+    ])
+    def test_load_valid(self, plugins):
+        self.assert_valid_load(plugins)
 
-    def test_load_no_setup_fails(self):
-        name = 'no_setup'
-        plugins = [name]
+    def test_cardinal_passed_correctly(self):
+        name = 'setup_one_argument'
+        self.assert_valid_load(name)
+        assert self.plugin_manager.plugins[name]['module'].cardinal is \
+            self.cardinal
 
-        manager = PluginManager(Mock(),
-                                _plugin_module_import_prefix='fake_plugins')
+    def test_config_passed_correctly(self):
+        name = 'setup_two_arguments'
+        self.assert_valid_load(name, assert_config_is_none=False)
+        assert self.plugin_manager.plugins[name]['module'].cardinal is \
+            self.cardinal
+        assert self.plugin_manager.plugins[name]['module'].config == \
+            {'test': True}
 
-        failed_plugins = manager.load(plugins)
-        assert failed_plugins == plugins
-        assert manager.plugins.keys() == []
+    def test_plugin_iteration(self):
+        plugins = [
+            'setup_one_argument',
+            'setup_two_arguments',
+            'valid',
+        ]
+        self.assert_valid_load(plugins, assert_config_is_none=False)
 
-    def test_load_setup_too_many_arguments_fails(self):
-        name = 'setup_too_many_arguments'
-        plugins = [name]
-
-        manager = PluginManager(Mock(),
-                                _plugin_module_import_prefix='fake_plugins')
-
-        failed_plugins = manager.load(plugins)
-        assert failed_plugins == plugins
-        assert manager.plugins.keys() == []
-
-    def test_load_valid_list(self):
-        name = 'valid'
-        plugins = [name]
-
-        manager = PluginManager(Mock(),
-                                _plugin_module_import_prefix='fake_plugins')
-
-        failed_plugins = manager.load(plugins)
-        assert failed_plugins == []
-        assert manager.plugins.keys() == plugins
-
-        assert manager.plugins[name]['name'] == name
-        assert inspect.ismodule(manager.plugins[name]['module'])
-        assert isinstance(manager.plugins[name]['instance'],
-                          manager.plugins[name]['module'].TestValidPlugin)
-        assert manager.plugins[name]['commands'] == []
-        assert manager.plugins[name]['callbacks'] == []
-        assert manager.plugins[name]['callback_ids'] == {}
-        assert manager.plugins[name]['config'] is None
-        assert manager.plugins[name]['blacklist'] == []
-
-    def test_load_valid_string(self):
-        name = 'valid'
-        plugins = [name]
-
-        manager = PluginManager(Mock(),
-                                _plugin_module_import_prefix='fake_plugins')
-
-        failed_plugins = manager.load(name)
-        assert failed_plugins == []
-        assert manager.plugins.keys() == plugins
-
-        assert manager.plugins[name]['name'] == name
-        assert inspect.ismodule(manager.plugins[name]['module'])
-        assert isinstance(manager.plugins[name]['instance'],
-                          manager.plugins[name]['module'].TestValidPlugin)
-        assert manager.plugins[name]['commands'] == []
-        assert manager.plugins[name]['callbacks'] == []
-        assert manager.plugins[name]['callback_ids'] == {}
-        assert manager.plugins[name]['config'] is None
-        assert manager.plugins[name]['blacklist'] == []
-
-    @patch.object(PluginManager, '_load_plugin_config')
-    def test_load_ambiguous_config_fails(self, mock):
-        name = 'valid'
-        plugins = [name]
-
-        manager = PluginManager(Mock(),
-                                _plugin_module_import_prefix='fake_plugins')
-        mock.side_effect = AmbiguousConfigError()
-
-        failed_plugins = manager.load(plugins)
-
-        mock.assert_called_with(name)
-        assert failed_plugins == plugins
-        assert manager.plugins == {}
+        for plugin in self.plugin_manager:
+            assert plugin == self.plugin_manager.plugins[plugin['name']]
 
     @patch.object(PluginManager, '_register_plugin_callbacks')
     def test_load_bad_callback_fails(self, mock):
@@ -157,41 +173,31 @@ class TestPluginManager(object):
         name = 'reload_valid'
         plugins = [name]
 
-        cardinal = Mock(CardinalBot)
-        cardinal.reloads = 0
+        self.cardinal.reloads = 0
 
-        manager = PluginManager(cardinal,
-                                _plugin_module_import_prefix='fake_plugins')
+        # first load is not considered a reload
+        self.assert_valid_load(plugins)
+        assert self.cardinal.reloads == 0
 
-        failed_plugins = manager.load(plugins)
-        assert failed_plugins == []
-        assert manager.plugins.keys() == plugins
+        # second load is
+        self.assert_valid_load(plugins)
+        assert self.cardinal.reloads == 1
 
-        failed_plugins = manager.load(plugins)
-        assert failed_plugins == []
-        assert manager.plugins.keys() == plugins
-
-        assert cardinal.reloads == 1
+        # and so on...
+        self.assert_valid_load(plugins)
+        assert self.cardinal.reloads == 2
 
     def test_reload_unclean_close_succeeds(self):
         name = 'unclean_close'
         plugins = [name]
 
-        cardinal = Mock(CardinalBot)
-        cardinal.reloads = 0
+        self.cardinal.reloads = 0
 
-        manager = PluginManager(cardinal,
-                                _plugin_module_import_prefix='fake_plugins')
+        self.assert_valid_load(plugins)
 
-        failed_plugins = manager.load(plugins)
-        assert failed_plugins == []
-        assert manager.plugins.keys() == plugins
-
-        failed_plugins = manager.load(plugins)
-        assert failed_plugins == []
-        assert manager.plugins.keys() == plugins
-
-        assert cardinal.reloads == 1
+        # should reload successfully despite bad close()
+        self.assert_valid_load(plugins)
+        assert self.cardinal.reloads == 1
 
     @pytest.mark.parametrize("plugins", [
         12345,
@@ -207,79 +213,328 @@ class TestPluginManager(object):
         name = 'test_never_loaded_plugin'
         plugins = [name]
 
-        manager = PluginManager(Mock())
-        failed_plugins = manager.unload(plugins)
+        failed_plugins = self.plugin_manager.unload(plugins)
 
         assert failed_plugins == plugins
-        assert manager.plugins == {}
+        assert self.plugin_manager.plugins == {}
 
     def test_unload_unclean_close_fails(self):
         name = 'unclean_close'
         plugins = [name]
 
-        manager = PluginManager(Mock(),
-                                _plugin_module_import_prefix='fake_plugins')
+        self.assert_valid_load(plugins)
 
-        failed_plugins = manager.load(plugins)
-        assert failed_plugins == []
-        assert manager.plugins.keys() == plugins
-
-        failed_plugins = manager.unload(plugins)
+        failed_plugins = self.plugin_manager.unload(plugins)
 
         assert failed_plugins == plugins
-        assert manager.plugins == {}
+        assert self.plugin_manager.plugins == {}
 
-    def test_unload_valid_succeeds(self):
-        name = 'valid'
-        plugins = [name]
+    @pytest.mark.parametrize("plugins", [
+        # This plugin contains no close() method
+        'valid',
+        ['valid'],  # test list format
+        # This plugin has a no-op close() method
+        'clean_close'
+    ])
+    def test_unload_valid_succeeds(self, plugins):
+        self.assert_valid_load(plugins)
 
-        manager = PluginManager(Mock(),
-                                _plugin_module_import_prefix='fake_plugins')
-
-        failed_plugins = manager.load(plugins)
-        assert failed_plugins == []
-        assert manager.plugins.keys() == plugins
-
-        failed_plugins = manager.unload(plugins)
-
-        assert failed_plugins == []
-        assert manager.plugins.keys() == []
-
-        name = 'test_valid_plugin'
-        plugins = [name]
-
-    def test_unload_clean_close_succeeds(self):
-        name = 'clean_close'
-        plugins = [name]
-
-        manager = PluginManager(Mock(),
-                                _plugin_module_import_prefix='fake_plugins')
-
-        failed_plugins = manager.load(plugins)
-        assert failed_plugins == []
-        assert manager.plugins.keys() == plugins
-
-        failed_plugins = manager.unload(plugins)
+        failed_plugins = self.plugin_manager.unload(plugins)
 
         assert failed_plugins == []
-        assert manager.plugins.keys() == []
+        assert self.plugin_manager.plugins.keys() == []
 
-    @patch.object(PluginManager, '_unregister_plugin_callbacks')
-    def test_unload_unregister_plugin_callbacks_error_succeeds(self, mock):
-        name = 'clean_close'
-        plugins = [name]
 
-        manager = PluginManager(Mock(),
-                                _plugin_module_import_prefix='fake_plugins')
+class TestEventManager(object):
+    def setup_method(self, method):
+        mock_cardinal = self.cardinal = Mock(spec=CardinalBot)
+        self.event_manager = EventManager(mock_cardinal)
 
-        failed_plugins = manager.load(plugins)
-        assert failed_plugins == []
-        assert manager.plugins.keys() == plugins
+    def _callback(self, cardinal):
+        """Used as a test callback."""
 
-        mock.side_effect = Exception()
-        failed_plugins = manager.unload(plugins)
+    def assert_register_success(self, name, params=0):
+        self.event_manager.register(name, params)
+        assert name in self.event_manager.registered_events
+        assert name in self.event_manager.registered_callbacks
+        assert self.event_manager.registered_events[name] == params
 
-        assert failed_plugins == []
-        assert manager.plugins.keys() == []
+    def assert_register_callback_success(self, name, callback=None):
+        callback = callback or self._callback
 
-        mock.assert_called_with(name)
+        callback_count = len(self.event_manager.registered_callbacks[name]) \
+            if name in self.event_manager.registered_callbacks else 0
+
+        # callback id is used for removal
+        callback_id = self.event_manager.register_callback(name, callback)
+
+        assert isinstance(callback_id, basestring)
+        assert len(self.event_manager.registered_callbacks[name]) == \
+            callback_count + 1
+
+        return callback_id
+
+    def assert_remove_callback_success(self, name, callback_id):
+        callback_count = len(self.event_manager.registered_callbacks[name])
+
+        self.event_manager.remove_callback(name, callback_id)
+
+        assert len(self.event_manager.registered_callbacks[name]) == \
+            callback_count - 1
+
+    def test_constructor(self):
+        assert self.event_manager.cardinal == self.cardinal
+        assert isinstance(self.event_manager.logger, logging.Logger)
+        assert isinstance(self.event_manager.registered_events, dict)
+        assert isinstance(self.event_manager.registered_callbacks, dict)
+
+    def test_register(self):
+        name = 'test_event'
+        self.assert_register_success(name)
+        assert len(self.event_manager.registered_callbacks[name]) == 0
+
+    def test_register_duplicate_event(self):
+        name = 'test_event'
+
+        self.assert_register_success(name)
+
+        with pytest.raises(exceptions.EventAlreadyExistsError):
+            self.event_manager.register(name, 1)
+
+    @pytest.mark.parametrize("param_count", [
+        3.14,
+        'foobar',
+        object(),
+    ])
+    def test_register_invalid_param_count(self, param_count):
+        with pytest.raises(TypeError):
+            self.event_manager.register('test_event', param_count)
+
+    def test_remove(self):
+        name = 'test_event'
+        self.assert_register_success(name)
+
+        self.event_manager.remove(name)
+
+        assert name not in self.event_manager.registered_events
+        assert name not in self.event_manager.registered_callbacks
+
+    def test_remove_event_doesnt_exist(self):
+        name = 'test_event'
+
+        with pytest.raises(exceptions.EventDoesNotExistError):
+            self.event_manager.remove(name)
+
+    def test_add_callback(self):
+        def callback(cardinal):
+            pass
+
+        name = 'test_event'
+        self.assert_register_success(name)
+
+        self.assert_register_callback_success(name, callback)
+
+    def test_add_callback_non_callable(self):
+        callback = 'this is not callable'
+
+        name = 'test_event'
+        self.assert_register_success(name)
+
+        with pytest.raises(exceptions.EventCallbackError):
+            self.event_manager.register_callback(name, callback)
+
+    def test_add_callback_without_registered_event(self):
+        # only accepts cardinal
+        def callback(cardinal):
+            pass
+
+        # accepts cardinal and another param
+        def callback2(cardinal, _):
+            pass
+
+        name = 'test_event'
+
+        # should not validate params aside from at least accepting cardinal
+        self.assert_register_callback_success(name, callback)
+        self.assert_register_callback_success(name, callback2)
+
+    def test_add_callback_method_ignores_self(self):
+        name = 'test_event'
+
+        self.assert_register_success(name)
+        self.assert_register_callback_success(name, self._callback)
+
+    def test_add_callback_validates_required_args(self):
+        def callback(cardinal, one_too_many_args):
+            pass
+
+        name = 'test_event'
+
+        self.assert_register_success(name)
+        with pytest.raises(exceptions.EventCallbackError):
+            self.event_manager.register_callback(name, callback)
+
+    def test_add_callback_requires_cardinal_arg(self):
+        def callback():
+            pass
+
+        name = 'test_event'
+
+        with pytest.raises(exceptions.EventCallbackError):
+            self.event_manager.register_callback(name, callback)
+
+    def test_remove_callback(self):
+        name = 'test_event'
+
+        cb_id = self.assert_register_callback_success(name)
+        self.assert_remove_callback_success(name, cb_id)
+
+    def test_remove_callback_nonexistent_event_silent(self):
+        name = 'test_event'
+        callback_id = 'nonexistent'
+
+        assert name not in self.event_manager.registered_callbacks
+        self.event_manager.remove_callback(name, callback_id)
+
+    def test_remove_callback_nonexistent_callback_silent(self):
+        name = 'test_event'
+        callback_id = 'nonexistent'
+
+        self.assert_register_success(name)
+
+        assert len(self.event_manager.registered_callbacks[name]) == 0
+        self.event_manager.remove_callback(name, callback_id)
+        assert len(self.event_manager.registered_callbacks[name]) == 0
+
+    def test_fire_event_does_not_exist(self):
+        name = 'test_event'
+
+        with pytest.raises(exceptions.EventDoesNotExistError):
+            self.event_manager.fire(name)
+
+    @defer.inlineCallbacks
+    def test_fire(self):
+        args = []
+
+        def callback(*fargs):
+            for arg in fargs:
+                args.append(arg)
+
+        name = 'test_event'
+
+        self.assert_register_success(name)
+        self.assert_register_callback_success(name, callback)
+
+        accepted = yield self.event_manager.fire(name)
+
+        assert accepted is True
+        assert args == [self.cardinal]
+
+    @defer.inlineCallbacks
+    def test_fire_callback_rejects(self):
+        args = []
+
+        def callback(*fargs):
+            for arg in fargs:
+                args.append(arg)
+            raise exceptions.EventRejectedMessage()
+
+        name = 'test_event'
+
+        self.assert_register_success(name)
+        self.assert_register_callback_success(name, callback)
+
+        accepted = yield self.event_manager.fire(name)
+
+        assert accepted is False
+        assert args == [self.cardinal]
+
+    @defer.inlineCallbacks
+    def test_fire_multiple_callbacks(self):
+        args = []
+
+        def generate_cb(reject):
+            def callback(*fargs):
+                for arg in fargs:
+                    args.append(arg)
+                if reject:
+                    raise exceptions.EventRejectedMessage()
+            return callback
+
+        name = 'test_event'
+
+        self.assert_register_success(name)
+        self.assert_register_callback_success(name, generate_cb(True))
+        self.assert_register_callback_success(name, generate_cb(False))
+        self.assert_register_callback_success(name, generate_cb(False))
+
+        accepted = yield self.event_manager.fire(name)
+
+        assert accepted is True
+        assert args == [self.cardinal, self.cardinal, self.cardinal]
+
+    @defer.inlineCallbacks
+    def test_fire_multiple_callbacks_all_reject(self):
+        def generate_cb(reject):
+            def callback(*fargs):
+                if reject:
+                    raise exceptions.EventRejectedMessage()
+            return callback
+
+        name = 'test_event'
+
+        self.assert_register_success(name)
+        self.assert_register_callback_success(name, generate_cb(True))
+        self.assert_register_callback_success(name, generate_cb(True))
+
+        accepted = yield self.event_manager.fire(name)
+
+        assert accepted is False
+
+    @defer.inlineCallbacks
+    def test_fire_multiple_callbacks_one_errors(self):
+        def generate_cb(error):
+            def callback(*fargs):
+                if error:
+                    raise Exception()
+            return callback
+
+        name = 'test_event'
+
+        self.assert_register_success(name)
+        self.assert_register_callback_success(name, generate_cb(False))
+        self.assert_register_callback_success(name, generate_cb(True))
+
+        accepted = yield self.event_manager.fire(name)
+
+        assert accepted is True
+
+    @defer.inlineCallbacks
+    def test_fire_multiple_callbacks_all_error(self):
+        def generate_cb(error):
+            def callback(*fargs):
+                if error:
+                    raise Exception()
+            return callback
+
+        name = 'test_event'
+
+        self.assert_register_success(name)
+        self.assert_register_callback_success(name, generate_cb(True))
+        self.assert_register_callback_success(name, generate_cb(True))
+        self.assert_register_callback_success(name, generate_cb(True))
+
+        accepted = yield self.event_manager.fire(name)
+
+        assert accepted is False
+
+    def test_add_callback_wont_duplicate_id(self):
+        name = 'test_event'
+
+        with patch.object(self.event_manager, '_generate_id') as mock_gen_id:
+            mock_gen_id.side_effect = ['ABC123', 'ABC123', 'DEF456']
+            event_id1 = self.assert_register_callback_success(name)
+            event_id2 = self.assert_register_callback_success(name)
+
+        assert event_id1 == 'ABC123'
+        assert event_id2 != 'ABC123'
