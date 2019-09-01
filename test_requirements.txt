@@ -1,5 +1,5 @@
 # Unit tests
-pytest==2.8.3
-pytest-cov==2.2.0
+pytest==4.6.5
+pytest-cov==2.7.1
 pytest-twisted==1.11
 mock==2.0.0
