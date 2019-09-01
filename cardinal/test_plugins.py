@@ -114,11 +114,11 @@ class TestPluginManager(object):
         # This plugin won't be found in the plugins directory
         'nonexistent',
         # This plugin is missing a setup() function
-        'no_setup',
+        'setup_missing',
         # This plugin's setup() function takes three arguments
         'setup_too_many_arguments',
         # This plugin has both a config.yaml and config.json
-        'ambiguous_config',
+        'config_ambiguous',
     ])
     def test_load_invalid(self, plugins):
         self.assert_failed_load(plugins)
@@ -130,19 +130,57 @@ class TestPluginManager(object):
     def test_load_valid(self, plugins):
         self.assert_valid_load(plugins)
 
-    def test_cardinal_passed_correctly(self):
+    def test_load_cardinal_passed(self):
         name = 'setup_one_argument'
         self.assert_valid_load(name)
         assert self.plugin_manager.plugins[name]['module'].cardinal is \
             self.cardinal
 
-    def test_config_passed_correctly(self):
+    def test_load_config_passed(self):
         name = 'setup_two_arguments'
         self.assert_valid_load(name, assert_config_is_none=False)
         assert self.plugin_manager.plugins[name]['module'].cardinal is \
             self.cardinal
         assert self.plugin_manager.plugins[name]['module'].config == \
             {'test': True}
+
+    def test_load_invalid_json_config(self):
+        name = 'config_invalid_json'
+        self.assert_valid_load(name)  # no error for some reason
+
+        # invalid json should be ignored
+        assert self.plugin_manager.plugins[name]['config'] is None
+
+    def test_load_invalid_yaml_config(self):
+        name = 'config_invalid_yaml'
+        self.assert_valid_load(name)  # no error for some reason
+
+        # invalid json should be ignored
+        assert self.plugin_manager.plugins[name]['config'] is None
+
+    def test_get_config_unloaded_plugin(self):
+        name = 'nonexistent_plugin'
+        with pytest.raises(exceptions.ConfigNotFoundError):
+            self.plugin_manager.get_config(name)
+
+    def test_get_config_plugin_without_config(self):
+        name = 'valid'
+        self.assert_valid_load(name)
+
+        with pytest.raises(exceptions.ConfigNotFoundError):
+            self.plugin_manager.get_config(name)
+
+    def test_get_config_json(self):
+        name = 'config_valid_json'
+        self.assert_valid_load(name, assert_config_is_none=False)
+
+        self.plugin_manager.get_config(name) == {'test': True}
+
+    def test_get_config_yaml(self):
+        name = 'config_valid_yaml'
+        self.assert_valid_load(name, assert_config_is_none=False)
+
+        self.plugin_manager.get_config(name) == {'test': True}
 
     def test_plugin_iteration(self):
         plugins = [
@@ -170,7 +208,7 @@ class TestPluginManager(object):
         assert manager.plugins == {}
 
     def test_reload_valid_succeeds(self):
-        name = 'reload_valid'
+        name = 'valid'
         plugins = [name]
 
         self.cardinal.reloads = 0
@@ -187,8 +225,8 @@ class TestPluginManager(object):
         self.assert_valid_load(plugins)
         assert self.cardinal.reloads == 2
 
-    def test_reload_unclean_close_succeeds(self):
-        name = 'unclean_close'
+    def test_reload_exception_in_close_succeeds(self):
+        name = 'close_raises_exception'
         plugins = [name]
 
         self.cardinal.reloads = 0
@@ -213,19 +251,26 @@ class TestPluginManager(object):
         name = 'test_never_loaded_plugin'
         plugins = [name]
 
+        assert self.plugin_manager.plugins == {}
+
         failed_plugins = self.plugin_manager.unload(plugins)
 
         assert failed_plugins == plugins
         assert self.plugin_manager.plugins == {}
 
-    def test_unload_unclean_close_fails(self):
-        name = 'unclean_close'
+    def test_unload_exception_in_close_fails(self):
+        name = 'close_raises_exception'
         plugins = [name]
 
         self.assert_valid_load(plugins)
 
         failed_plugins = self.plugin_manager.unload(plugins)
 
+        # Failed plugins represents a list of plugins that errored on unload
+        # but the plugin should still be removed from the PluginManager.
+        #
+        # FIXME Unfortunately, this means that a plugin might fail to remove
+        # its callbacks from an event, and then be inaccessible by Cardinal.
         assert failed_plugins == plugins
         assert self.plugin_manager.plugins == {}
 
@@ -234,7 +279,7 @@ class TestPluginManager(object):
         'valid',
         ['valid'],  # test list format
         # This plugin has a no-op close() method
-        'clean_close'
+        'close_no_arguments',
     ])
     def test_unload_valid_succeeds(self, plugins):
         self.assert_valid_load(plugins)
@@ -243,6 +288,49 @@ class TestPluginManager(object):
 
         assert failed_plugins == []
         assert self.plugin_manager.plugins.keys() == []
+
+    def test_unload_passes_cardinal(self):
+        plugin = 'close_one_argument'
+
+        self.assert_valid_load(plugin)
+        module = self.plugin_manager.plugins[plugin]['module']
+
+        failed_plugins = self.plugin_manager.unload(plugin)
+
+        assert failed_plugins == []
+        assert self.plugin_manager.plugins.keys() == []
+
+        # Our close() method will set module.cardinal for us to inspect
+        assert module.cardinal is self.cardinal
+
+    def test_unload_too_many_arguments_in_close(self):
+        plugin = 'close_too_many_arguments'
+
+        self.assert_valid_load(plugin)
+        module = self.plugin_manager.plugins[plugin]['module']
+
+        failed_plugins = self.plugin_manager.unload(plugin)
+
+        assert failed_plugins == [plugin]
+        assert self.plugin_manager.plugins.keys() == []
+
+        # Our close() method will set module.called to True if called
+        assert module.called is False
+
+    def test_unload_all(self):
+        self.assert_valid_load([
+            'valid',
+            'close_no_arguments',
+            'close_too_many_arguments',
+        ])
+
+        assert len(self.plugin_manager.plugins) == 3
+
+        # Doesn't return what failed to unload cleanly, but should unload
+        # everything regardless
+        self.plugin_manager.unload_all()
+
+        assert self.plugin_manager.plugins == {}
 
 
 class TestEventManager(object):

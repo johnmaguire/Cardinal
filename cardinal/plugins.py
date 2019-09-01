@@ -299,47 +299,47 @@ class PluginManager(object):
 
         """
         # Initialize variable to hold plugin config
-        json_config = False
-        yaml_config = False
+        json_config = None
+        yaml_config = None
 
         # Attempt to load and parse JSON config file
-        file = os.path.join(
+        file_ = os.path.join(
             self.plugins_directory,
             plugin,
             'config.json'
         )
         try:
-            f = open(file, 'r')
+            f = open(file_, 'r')
             json_config = json.load(f)
             f.close()
         # File did not exist or we can't open it for another reason
         except IOError:
             self.logger.debug(
-                "Can't open %s - maybe it doesn't exist?" % file
+                "Can't open %s - maybe it doesn't exist?" % file_
             )
         # Thrown by json.load() when the content isn't valid JSON
         except ValueError:
             self.logger.warning(
-                "Invalid JSON in %s, skipping it" % file
+                "Invalid JSON in %s, skipping it" % file_
             )
 
         # Attempt to load and parse YAML config file
-        file = os.path.join(
+        file_ = os.path.join(
             self.plugins_directory,
             plugin,
             'config.yaml'
         )
         try:
-            f = open(file, 'r')
+            f = open(file_, 'r')
             yaml_config = yaml.load(f)
             f.close()
         except IOError:
             self.logger.debug(
-                "Can't open %s - maybe it doesn't exist?" % file
+                "Can't open %s - maybe it doesn't exist?" % file_
             )
-        except ValueError:
+        except yaml.YAMLError:
             self.logger.warning(
-                "Invalid YAML in %s, skipping it" % file
+                "Invalid YAML in %s, skipping it" % file_
             )
         # Loaded YAML successfully
         else:

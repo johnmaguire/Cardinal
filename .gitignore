@@ -1,5 +1,5 @@
 # Cardinal's custom config file
-config.json
+/config.json
 
 *.py[cod]
 
