@@ -523,7 +523,7 @@ class TestCardinalBot(object):
 
 
 class TestCardinalBotFactory(object):
-    def setup_method(self, method):
+    def setup_method(self):
         self.factory = CardinalBotFactory(
             network='irc.TestNet.test'
         )
