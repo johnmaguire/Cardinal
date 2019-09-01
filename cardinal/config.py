@@ -95,17 +95,17 @@ class ConfigParser(object):
           spec -- Should be a built ConfigSpec
 
         Raises:
-          ValueError -- If a valid config spec is not passed in.
+          TypeError -- If a valid config spec is not passed in.
 
         """
         if not isinstance(spec, ConfigSpec):
-            raise ValueError("Spec must be a config spec")
+            raise TypeError("Spec must be a config spec")
 
         self.logger = logging.getLogger(__name__)
         self.spec = spec
         self.config = {}
 
-    def _utf8_json(self, json_object, called_by_self=False):
+    def _utf8_json(self, json_object):
         """Converts json.load() or json.loads() return to UTF-8.
 
         By default, json.load() will return an object with unicode strings.
@@ -114,27 +114,18 @@ class ConfigParser(object):
 
         Keyword arguments:
           json_object -- Dict object returned by json.load() / json.loads().
-          called_by_self -- Internal parameter only used for sanity checking.
 
         Returns:
           dict -- A UTF-8 encoded version of json_object.
-
-        Raises:
-          ValueError -- When the json_object isn't a dict.
-
         """
-        if not called_by_self and not isinstance(json_object, dict):
-            raise ValueError("Object must be a dict")
-
         if isinstance(json_object, dict):
-            return {
-                self._utf8_json(key, True):
-                    self._utf8_json(value, True)
-                    for key, value in json_object.iteritems()
-            }
+            return dict(
+                (self._utf8_json(key), self._utf8_json(value))
+                for key, value in json_object.iteritems()
+            )
         elif isinstance(json_object, list):
             return [
-                self._utf8_json(element, True)
+                self._utf8_json(element)
                 for element in json_object
             ]
         elif isinstance(json_object, unicode):
@@ -142,7 +133,7 @@ class ConfigParser(object):
         else:
             return json_object
 
-    def load_config(self, file):
+    def load_config(self, file_):
         """Attempts to load a JSON config file for Cardinal.
 
         Takes a file path, attempts to decode its contents from JSON, then
@@ -160,33 +151,29 @@ class ConfigParser(object):
         """
         # Attempt to load and parse the config file
         try:
-            f = open(file, 'r')
+            f = open(file_, 'r')
             json_config = self._utf8_json(json.load(f))
             f.close()
         # File did not exist or we can't open it for another reason
         except IOError:
             self.logger.warning(
-                "Can't open %s (using defaults / command-line values)" % file
+                "Can't open %s (using defaults / command-line values)" % file_
             )
         # Thrown by json.load() when the content isn't valid JSON
         except ValueError:
             self.logger.warning(
                 "Invalid JSON in %s, (using defaults / command-line values)" %
-                file
+                file_
             )
         else:
             # For every option,
             for option in self.spec.options:
-                try:
-                    # If the option wasn't defined in the config, default
-                    if option not in json_config:
-                        json_config[option] = None
+                # If the option wasn't defined in the config, default
+                if option not in json_config:
+                    json_config[option] = None
 
-                    self.config[option] = self.spec.return_value_or_default(
-                        option, json_config[option])
-                except KeyError:
-                    self.logger.warning("Option %s not in spec -- ignored" %
-                                        option)
+                self.config[option] = self.spec.return_value_or_default(
+                    option, json_config[option])
 
         # If we didn't load the config earlier, or there was nothing in it...
         if self.config == {} and self.spec.options != {}:

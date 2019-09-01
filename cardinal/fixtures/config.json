@@ -1,0 +1,16 @@
+{
+	"string": "value",
+	"ignored_string": "ignored",
+	"int": 3,
+	"bool": false,
+	"dict": {
+		"dict": {
+			"string": "value"
+		},
+		"list": [
+			"foo",
+			"bar",
+			"baz"
+		]
+	}
+}
