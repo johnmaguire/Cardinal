@@ -23,15 +23,15 @@ class ConfigSpec(object):
           default -- Optionally, what the option should default to.
 
         Raises:
-          ValueError -- If the option is not a string or type isn't a class.
+          TypeError -- If the option is not a string or type isn't a class.
 
         """
         # Name must be a string
         if not isinstance(name, basestring):
-            raise ValueError("Name must be a string")
+            raise TypeError("Name must be a string")
 
         if not inspect.isclass(type):
-            raise ValueError("Type must be a class")
+            raise TypeError("Type must be a class")
 
         # Ensure that the name is in UTF-8 encoding
         name = name.encode('utf-8')
