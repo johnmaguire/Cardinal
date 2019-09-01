@@ -23,9 +23,6 @@ def test_exceptions():
         raise exceptions.ConfigNotFoundError
 
     with pytest.raises(exceptions.CardinalException):
-        raise exceptions.AmbiguousConfigError
-
-    with pytest.raises(exceptions.CardinalException):
         raise exceptions.EventAlreadyExistsError
 
     with pytest.raises(exceptions.CardinalException):

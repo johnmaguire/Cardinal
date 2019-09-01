@@ -9,11 +9,9 @@ import inspect
 import linecache
 import random
 import json
-import yaml
 from collections import defaultdict
 
 from cardinal.exceptions import (
-    AmbiguousConfigError,
     CommandNotFoundError,
     ConfigNotFoundError,
     EventAlreadyExistsError,
@@ -288,19 +286,17 @@ class PluginManager(object):
                 raise PluginError("Unknown arguments for close function")
 
     def _load_plugin_config(self, plugin):
-        """Loads a JSON or YAML config for a given plugin
+        """Loads a JSON config for a given plugin
 
         Keyword arguments:
           plugin -- Name of plugin to load config for.
 
         Raises:
-          AmbiguousConfigError -- Raised when two configs exist for plugin.
           ConfigNotFoundError -- Raised when expected config isn't found.
 
         """
         # Initialize variable to hold plugin config
-        json_config = None
-        yaml_config = None
+        config = None
 
         # Attempt to load and parse JSON config file
         file_ = os.path.join(
@@ -310,7 +306,7 @@ class PluginManager(object):
         )
         try:
             f = open(file_, 'r')
-            json_config = json.load(f)
+            config = json.load(f)
             f.close()
         # File did not exist or we can't open it for another reason
         except IOError:
@@ -323,44 +319,14 @@ class PluginManager(object):
                 "Invalid JSON in %s, skipping it" % file_
             )
 
-        # Attempt to load and parse YAML config file
-        file_ = os.path.join(
-            self.plugins_directory,
-            plugin,
-            'config.yaml'
-        )
-        try:
-            f = open(file_, 'r')
-            yaml_config = yaml.load(f, Loader=yaml.FullLoader)
-            f.close()
-        except IOError:
-            self.logger.debug(
-                "Can't open %s - maybe it doesn't exist?" % file_
-            )
-        except yaml.YAMLError:
-            self.logger.warning(
-                "Invalid YAML in %s, skipping it" % file_
-            )
-        # Loaded YAML successfully
-        else:
-            # If we already loaded JSON, this is a problem because we won't
-            # know which config to use.
-            if json_config is not None:
-                raise AmbiguousConfigError(
-                    "Found both a JSON and YAML config for plugin"
-                )
-
-            # No JSON config, found YAML config, return it
-            return yaml_config
-
         # If neither config was found, raise an exception
-        if not yaml_config and not json_config:
+        if not config:
             raise ConfigNotFoundError(
                 "No config found for plugin: %s" % plugin
             )
 
-        # Return JSON config, since YAML config wasn't found
-        return json_config
+        # Return config
+        return config
 
     def _get_plugin_commands(self, instance):
         """Find the commands in a plugin and return them as callables.
@@ -497,12 +463,6 @@ class PluginManager(object):
             config = None
             try:
                 config = self._load_plugin_config(plugin)
-            except AmbiguousConfigError:
-                # If two configs exist for the plugin, bail on loading
-                self.logger.exception("Could not load plugin: %s" % plugin)
-                failed_plugins.append(plugin)
-
-                continue
             except ConfigNotFoundError:
                 self.logger.debug(
                     "No config found for plugin: %s" % plugin

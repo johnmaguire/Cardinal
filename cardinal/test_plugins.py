@@ -123,8 +123,6 @@ class TestPluginManager(object):
         'setup_missing',
         # This plugin's setup() function takes three arguments
         'setup_too_many_arguments',
-        # This plugin has both a config.yaml and config.json
-        'config_ambiguous',
     ])
     def test_load_invalid(self, plugins):
         self.assert_load_failed(plugins)
@@ -132,9 +130,12 @@ class TestPluginManager(object):
     @pytest.mark.parametrize("plugins", [
         'valid',
         ['valid'],  # test list format
+        # This plugin has both a config.yaml and config.json which used to be
+        # disallowed, but now config.yaml is ignored
+        'config_ambiguous',
     ])
     def test_load_valid(self, plugins):
-        self.assert_load_success(plugins)
+        self.assert_load_success(plugins, assert_config_is_none=False)
 
     def test_load_cardinal_passed(self):
         name = 'setup_one_argument'
@@ -152,13 +153,6 @@ class TestPluginManager(object):
 
     def test_load_invalid_json_config(self):
         name = 'config_invalid_json'
-        self.assert_load_success(name)  # no error for some reason
-
-        # invalid json should be ignored
-        assert self.plugin_manager.plugins[name]['config'] is None
-
-    def test_load_invalid_yaml_config(self):
-        name = 'config_invalid_yaml'
         self.assert_load_success(name)  # no error for some reason
 
         # invalid json should be ignored
@@ -182,11 +176,12 @@ class TestPluginManager(object):
 
         self.plugin_manager.get_config(name) == {'test': True}
 
-    def test_get_config_yaml(self):
+    def test_get_config_yaml_ignored(self):
         name = 'config_valid_yaml'
         self.assert_load_success(name, assert_config_is_none=False)
 
-        self.plugin_manager.get_config(name) == {'test': True}
+        with pytest.raises(exceptions.ConfigNotFoundError):
+            self.plugin_manager.get_config(name)
 
     def test_plugin_iteration(self):
         plugins = [
