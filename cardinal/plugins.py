@@ -734,13 +734,13 @@ class PluginManager(object):
                 message, flags=re.IGNORECASE)
 
         # Iterate through all loaded commands
+        dl = []
         for command in self.itercommands(channel):
-
             # Check whether the current command has a regex to match by, and if
             # it does, and the message given to us matches the regex, then call
             # the command.
             if hasattr(command, 'regex') and re.search(command.regex, message):
-                command(self.cardinal, user, channel, message)
+                dl.append(self._call_command(command, user, channel, message))
                 called_command = True
                 continue
 
@@ -755,15 +755,17 @@ class PluginManager(object):
             if (hasattr(command, 'commands') and
                     get_command.group(1) in command.commands):
                 # Matched this command, so call it.
-                self._call_command(command, user, channel, message)
+                dl.append(self._call_command(command, user, channel, message))
                 called_command = True
                 continue
 
         # Since standard command regex wasn't found, there's no need to raise
         # an exception - we weren't exactly expecting to find a command anyway.
         # Alternatively, if we called a command, no need to raise an exception.
-        if not get_command or called_command:
-            return
+        if called_command:
+            return defer.DeferredList(dl)
+        elif not get_command:
+            return defer.succeed(None)
 
         # Since we found something that matched a command regex, yet no plugins
         # that were loaded had a command matching, we can raise an exception.
@@ -790,6 +792,8 @@ class PluginManager(object):
             self.logger.error('Unhandled error: {}'.format(failure))
 
         d.addErrback(errback)
+
+        return d
 
 
 class EventManager(object):

@@ -21,6 +21,7 @@ sys.path.insert(0, FIXTURE_PATH)
 class TestPluginManager(object):
     def setup_method(self):
         mock_cardinal = self.cardinal = Mock(spec=CardinalBot)
+        mock_cardinal.nickname = 'Cardinal'
         mock_cardinal.event_manager = self.event_manager = \
             EventManager(mock_cardinal)
 
@@ -32,6 +33,7 @@ class TestPluginManager(object):
     def assert_load_success(self,
                             plugins,
                             assert_callbacks_is_empty=True,
+                            assert_commands_is_empty=True,
                             assert_config_is_none=True):
         failed_plugins = self.plugin_manager.load(plugins)
 
@@ -61,7 +63,8 @@ class TestPluginManager(object):
                 self.plugin_manager.plugins[name]['instance'],
                 getattr(self.plugin_manager.plugins[name]['module'],
                         class_))
-            assert self.plugin_manager.plugins[name]['commands'] == []
+            if assert_commands_is_empty:
+                assert self.plugin_manager.plugins[name]['commands'] == []
             if assert_callbacks_is_empty:
                 assert self.plugin_manager.plugins[name]['callbacks'] == []
                 assert self.plugin_manager.plugins[name]['callback_ids'] == {}
@@ -379,6 +382,256 @@ class TestPluginManager(object):
 
         assert failed_plugins == [name]
         assert self.plugin_manager.plugins == {}
+
+    def test_load_command_registration(self):
+        name = 'commands'
+
+        self.assert_load_success(name, assert_commands_is_empty=False)
+        instance = self.plugin_manager.plugins[name]['instance']
+
+        assert self.plugin_manager.plugins[name]['commands'] == [
+            instance.command1,
+            instance.command2,
+            instance.regex_command,
+        ]
+
+    def test_itercommands(self):
+        name = 'commands'
+
+        self.assert_load_success(name, assert_commands_is_empty=False)
+        instance = self.plugin_manager.plugins[name]['instance']
+        commands = [
+            instance.command1,
+            instance.command2,
+            instance.regex_command,
+        ]
+
+        for command in self.plugin_manager.itercommands():
+            commands.remove(command)
+
+        assert commands == []
+
+    @defer.inlineCallbacks
+    def test_call_command_no_regex_match(self):
+        yield self.plugin_manager.call_command(('nick', 'ident', 'host'),
+                                               "#channel",
+                                               "this isn't a command")
+
+    @defer.inlineCallbacks
+    def test_call_command_no_command_match(self):
+        # FIXME: this isn't really an error...
+        with pytest.raises(exceptions.CommandNotFoundError):
+            yield self.plugin_manager.call_command(('nick', 'ident', 'host'),
+                                                   "#channel",
+                                                   ".command")
+
+    @defer.inlineCallbacks
+    def test_call_command_no_natural_command_match(self):
+        # FIXME: this isn't really an error...
+        with pytest.raises(exceptions.CommandNotFoundError):
+            yield self.plugin_manager.call_command(('nick', 'ident', 'host'),
+                                                   "#channel",
+                                                   "{}: command".format(
+                                                       self.cardinal.nickname))
+
+    @defer.inlineCallbacks
+    def test_command_called(self):
+        name = 'commands'
+
+        self.assert_load_success(name, assert_commands_is_empty=False)
+        instance = self.plugin_manager.plugins[name]['instance']
+
+        user = ('user', 'ident', 'vhost')
+        channel = '#channel'
+        message = '.command1 foobar'
+
+        expected_calls = []
+        assert instance.command1_calls == expected_calls
+        assert instance.command2_calls == []
+        assert instance.regex_command_calls == []
+
+        expected_calls.append((self.cardinal, user, channel, message))
+        yield self.plugin_manager.call_command(user, channel, message)
+        assert instance.command1_calls == expected_calls
+        assert instance.command2_calls == []
+        assert instance.regex_command_calls == []
+
+        message = '.command1_alias bar bar bar'
+        expected_calls.append((self.cardinal, user, channel, message))
+        yield self.plugin_manager.call_command(user, channel, message)
+        assert instance.command1_calls == expected_calls
+        assert instance.command2_calls == []
+        assert instance.regex_command_calls == []
+
+        message = 'this shouldnt trigger'
+        yield self.plugin_manager.call_command(user, channel, message)
+        assert instance.command1_calls == expected_calls
+        assert instance.command2_calls == []
+        assert instance.regex_command_calls == []
+
+    @defer.inlineCallbacks
+    def test_regex_command_called(self):
+        name = 'commands'
+
+        self.assert_load_success(name, assert_commands_is_empty=False)
+        instance = self.plugin_manager.plugins[name]['instance']
+
+        user = ('user', 'ident', 'vhost')
+        channel = '#channel'
+        message = 'regex foobar'
+
+        expected_calls = []
+        assert instance.regex_command_calls == expected_calls
+        assert instance.command1_calls == []
+        assert instance.command2_calls == []
+
+        expected_calls.append((self.cardinal, user, channel, message))
+        yield self.plugin_manager.call_command(user, channel, message)
+        assert instance.regex_command_calls == expected_calls
+        assert instance.command1_calls == []
+        assert instance.command2_calls == []
+
+        message = 'regex bar bar bar'
+        expected_calls.append((self.cardinal, user, channel, message))
+        yield self.plugin_manager.call_command(user, channel, message)
+        assert instance.regex_command_calls == expected_calls
+        assert instance.command1_calls == []
+        assert instance.command2_calls == []
+
+        message = 'this shouldnt trigger'
+        yield self.plugin_manager.call_command(user, channel, message)
+        assert instance.regex_command_calls == expected_calls
+        assert instance.command1_calls == []
+        assert instance.command2_calls == []
+
+    @defer.inlineCallbacks
+    def test_command_raises_exception_caught(self):
+        name = 'command_raises_exception'
+
+        self.assert_load_success(name, assert_commands_is_empty=False)
+        instance = self.plugin_manager.plugins[name]['instance']
+
+        user = ('user', 'ident', 'vhost')
+        channel = '#channel'
+        message = '.command foobar'
+
+        expected_calls = []
+        assert instance.command_calls == expected_calls
+
+        expected_calls.append((self.cardinal, user, channel, message))
+        yield self.plugin_manager.call_command(user, channel, message)
+        assert instance.command_calls == expected_calls
+
+    def test_blacklist_unloaded_plugin(self):
+        name = 'commands'
+        channel = '#channel'
+
+        assert self.plugin_manager.blacklist(name, channel) is False
+
+    def test_blacklist_invalid_channel(self):
+        name = 'commands'
+        channel = 321
+
+        with pytest.raises(TypeError):
+            self.plugin_manager.blacklist(name, channel)
+
+    def test_blacklist(self):
+        name = 'commands'
+        channel = '#channel'
+        self.assert_load_success(name, assert_commands_is_empty=False)
+
+        assert self.plugin_manager.blacklist(name, channel) is True
+        assert self.plugin_manager.plugins[name]['blacklist'] == [channel]
+
+    def test_blacklist_multiple_channels(self):
+        name = 'commands'
+        channels = ['#channel1', '#channel2']
+        self.assert_load_success(name, assert_commands_is_empty=False)
+
+        assert self.plugin_manager.blacklist(name, channels) is True
+        assert self.plugin_manager.plugins[name]['blacklist'] == channels
+
+    def test_unblacklist_invalid_channel(self):
+        name = 'commands'
+        channel = 321
+
+        with pytest.raises(TypeError):
+            self.plugin_manager.unblacklist(name, channel)
+
+    def test_unblacklist_unloaded_plugin(self):
+        name = 'commands'
+        channel = '#channel'
+
+        assert self.plugin_manager.unblacklist(name, channel) is False
+
+    def test_unblacklist(self):
+        name = 'commands'
+        channel = '#channel'
+        self.assert_load_success(name, assert_commands_is_empty=False)
+
+        assert self.plugin_manager.blacklist(name, channel) is True
+        assert self.plugin_manager.plugins[name]['blacklist'] == [channel]
+
+        assert self.plugin_manager.unblacklist(name, channel) == []
+        assert self.plugin_manager.plugins[name]['blacklist'] == []
+
+    def test_unblacklist_multiple_channels(self):
+        name = 'commands'
+        channels = ['#channel1', '#channel2']
+        self.assert_load_success(name, assert_commands_is_empty=False)
+
+        assert self.plugin_manager.blacklist(name, channels) is True
+        assert self.plugin_manager.plugins[name]['blacklist'] == channels
+
+        assert self.plugin_manager.unblacklist(name, channels) == []
+        assert self.plugin_manager.plugins[name]['blacklist'] == []
+
+    def test_unblacklist_non_blacklisted_channels(self):
+        name = 'commands'
+        channel = '#channel'
+        self.assert_load_success(name, assert_commands_is_empty=False)
+
+        assert self.plugin_manager.blacklist(name, channel) is True
+        assert self.plugin_manager.plugins[name]['blacklist'] == [channel]
+
+        assert self.plugin_manager.unblacklist(
+            name, [channel, '#notblacklisted']) == ['#notblacklisted']
+        assert self.plugin_manager.plugins[name]['blacklist'] == []
+
+    def test_itercommands_adheres_to_blacklist(self):
+        name = 'commands'
+        channel = '#channel'
+
+        self.assert_load_success(name, assert_commands_is_empty=False)
+        self.plugin_manager.blacklist(name, channel)
+
+        commands = [command for command in self.plugin_manager.itercommands()]
+        assert len(commands) == 3
+
+        commands = [command for command in
+                    self.plugin_manager.itercommands(channel)]
+        assert len(commands) == 0
+
+    @defer.inlineCallbacks
+    def test_call_command_adheres_to_blacklist(self):
+        name = 'commands'
+        channel = '#channel'
+
+        self.assert_load_success(name, assert_commands_is_empty=False)
+        instance = self.plugin_manager.plugins[name]['instance']
+
+        self.plugin_manager.blacklist(name, channel)
+
+        user = ('user', 'ident', 'vhost')
+        message = '.command1 foobar'
+
+        expected_calls = []
+        assert instance.command1_calls == expected_calls
+        # FIXME this should maybe not fire if we find a command but it is
+        # blacklisted
+        with pytest.raises(exceptions.CommandNotFoundError):
+            yield self.plugin_manager.call_command(user, channel, message)
+        assert instance.command1_calls == expected_calls
 
 
 class TestEventManager(object):
