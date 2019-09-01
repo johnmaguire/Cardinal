@@ -21,15 +21,18 @@ sys.path.insert(0, FIXTURE_PATH)
 class TestPluginManager(object):
     def setup_method(self):
         mock_cardinal = self.cardinal = Mock(spec=CardinalBot)
+        mock_cardinal.event_manager = self.event_manager = \
+            EventManager(mock_cardinal)
 
         self.plugin_manager = PluginManager(
             mock_cardinal,
             _plugin_module_import_prefix='fake_plugins',
             _plugin_module_directory_suffix='cardinal/fixtures/fake_plugins')
 
-    def assert_valid_load(self,
-                          plugins,
-                          assert_config_is_none=True):
+    def assert_load_success(self,
+                            plugins,
+                            assert_callbacks_is_empty=True,
+                            assert_config_is_none=True):
         failed_plugins = self.plugin_manager.load(plugins)
 
         # regardless of the whether plugins was a string or list, the rest of
@@ -59,13 +62,14 @@ class TestPluginManager(object):
                 getattr(self.plugin_manager.plugins[name]['module'],
                         class_))
             assert self.plugin_manager.plugins[name]['commands'] == []
-            assert self.plugin_manager.plugins[name]['callbacks'] == []
-            assert self.plugin_manager.plugins[name]['callback_ids'] == {}
+            if assert_callbacks_is_empty:
+                assert self.plugin_manager.plugins[name]['callbacks'] == []
+                assert self.plugin_manager.plugins[name]['callback_ids'] == {}
             if assert_config_is_none:
                 assert self.plugin_manager.plugins[name]['config'] is None
             assert self.plugin_manager.plugins[name]['blacklist'] == []
 
-    def assert_failed_load(self, plugins):
+    def assert_load_failed(self, plugins):
         failed_plugins = self.plugin_manager.load(plugins)
 
         # regardless of the whether plugins was a string or list, the rest of
@@ -106,9 +110,8 @@ class TestPluginManager(object):
         object(),
     ])
     def test_load_plugins_not_a_list_or_string_typeerror(self, plugins):
-        manager = PluginManager(Mock())
         with pytest.raises(TypeError):
-            manager.load(plugins)
+            self.plugin_manager.load(plugins)
 
     @pytest.mark.parametrize("plugins", [
         # This plugin won't be found in the plugins directory
@@ -121,24 +124,24 @@ class TestPluginManager(object):
         'config_ambiguous',
     ])
     def test_load_invalid(self, plugins):
-        self.assert_failed_load(plugins)
+        self.assert_load_failed(plugins)
 
     @pytest.mark.parametrize("plugins", [
         'valid',
         ['valid'],  # test list format
     ])
     def test_load_valid(self, plugins):
-        self.assert_valid_load(plugins)
+        self.assert_load_success(plugins)
 
     def test_load_cardinal_passed(self):
         name = 'setup_one_argument'
-        self.assert_valid_load(name)
+        self.assert_load_success(name)
         assert self.plugin_manager.plugins[name]['module'].cardinal is \
             self.cardinal
 
     def test_load_config_passed(self):
         name = 'setup_two_arguments'
-        self.assert_valid_load(name, assert_config_is_none=False)
+        self.assert_load_success(name, assert_config_is_none=False)
         assert self.plugin_manager.plugins[name]['module'].cardinal is \
             self.cardinal
         assert self.plugin_manager.plugins[name]['module'].config == \
@@ -146,14 +149,14 @@ class TestPluginManager(object):
 
     def test_load_invalid_json_config(self):
         name = 'config_invalid_json'
-        self.assert_valid_load(name)  # no error for some reason
+        self.assert_load_success(name)  # no error for some reason
 
         # invalid json should be ignored
         assert self.plugin_manager.plugins[name]['config'] is None
 
     def test_load_invalid_yaml_config(self):
         name = 'config_invalid_yaml'
-        self.assert_valid_load(name)  # no error for some reason
+        self.assert_load_success(name)  # no error for some reason
 
         # invalid json should be ignored
         assert self.plugin_manager.plugins[name]['config'] is None
@@ -165,20 +168,20 @@ class TestPluginManager(object):
 
     def test_get_config_plugin_without_config(self):
         name = 'valid'
-        self.assert_valid_load(name)
+        self.assert_load_success(name)
 
         with pytest.raises(exceptions.ConfigNotFoundError):
             self.plugin_manager.get_config(name)
 
     def test_get_config_json(self):
         name = 'config_valid_json'
-        self.assert_valid_load(name, assert_config_is_none=False)
+        self.assert_load_success(name, assert_config_is_none=False)
 
         self.plugin_manager.get_config(name) == {'test': True}
 
     def test_get_config_yaml(self):
         name = 'config_valid_yaml'
-        self.assert_valid_load(name, assert_config_is_none=False)
+        self.assert_load_success(name, assert_config_is_none=False)
 
         self.plugin_manager.get_config(name) == {'test': True}
 
@@ -188,24 +191,10 @@ class TestPluginManager(object):
             'setup_two_arguments',
             'valid',
         ]
-        self.assert_valid_load(plugins, assert_config_is_none=False)
+        self.assert_load_success(plugins, assert_config_is_none=False)
 
         for plugin in self.plugin_manager:
             assert plugin == self.plugin_manager.plugins[plugin['name']]
-
-    @patch.object(PluginManager, '_register_plugin_callbacks')
-    def test_load_bad_callback_fails(self, mock):
-        name = 'valid'
-        plugins = [name]
-
-        manager = PluginManager(Mock(),
-                                _plugin_module_import_prefix='fake_plugins')
-        mock.side_effect = Exception()
-
-        failed_plugins = manager.load(plugins)
-
-        assert failed_plugins == plugins
-        assert manager.plugins == {}
 
     def test_reload_valid_succeeds(self):
         name = 'valid'
@@ -214,15 +203,15 @@ class TestPluginManager(object):
         self.cardinal.reloads = 0
 
         # first load is not considered a reload
-        self.assert_valid_load(plugins)
+        self.assert_load_success(plugins)
         assert self.cardinal.reloads == 0
 
         # second load is
-        self.assert_valid_load(plugins)
+        self.assert_load_success(plugins)
         assert self.cardinal.reloads == 1
 
         # and so on...
-        self.assert_valid_load(plugins)
+        self.assert_load_success(plugins)
         assert self.cardinal.reloads == 2
 
     def test_reload_exception_in_close_succeeds(self):
@@ -231,10 +220,10 @@ class TestPluginManager(object):
 
         self.cardinal.reloads = 0
 
-        self.assert_valid_load(plugins)
+        self.assert_load_success(plugins)
 
         # should reload successfully despite bad close()
-        self.assert_valid_load(plugins)
+        self.assert_load_success(plugins)
         assert self.cardinal.reloads == 1
 
     @pytest.mark.parametrize("plugins", [
@@ -243,9 +232,8 @@ class TestPluginManager(object):
         object(),
     ])
     def test_unload_plugins_not_a_list_or_string_typeerror(self, plugins):
-        manager = PluginManager(Mock())
         with pytest.raises(TypeError):
-            manager.unload(plugins)
+            self.plugin_manager.unload(plugins)
 
     def test_unload_plugins_never_loaded_plugin_fails(self):
         name = 'test_never_loaded_plugin'
@@ -262,7 +250,7 @@ class TestPluginManager(object):
         name = 'close_raises_exception'
         plugins = [name]
 
-        self.assert_valid_load(plugins)
+        self.assert_load_success(plugins)
 
         failed_plugins = self.plugin_manager.unload(plugins)
 
@@ -282,7 +270,7 @@ class TestPluginManager(object):
         'close_no_arguments',
     ])
     def test_unload_valid_succeeds(self, plugins):
-        self.assert_valid_load(plugins)
+        self.assert_load_success(plugins)
 
         failed_plugins = self.plugin_manager.unload(plugins)
 
@@ -292,7 +280,7 @@ class TestPluginManager(object):
     def test_unload_passes_cardinal(self):
         plugin = 'close_one_argument'
 
-        self.assert_valid_load(plugin)
+        self.assert_load_success(plugin)
         module = self.plugin_manager.plugins[plugin]['module']
 
         failed_plugins = self.plugin_manager.unload(plugin)
@@ -306,7 +294,7 @@ class TestPluginManager(object):
     def test_unload_too_many_arguments_in_close(self):
         plugin = 'close_too_many_arguments'
 
-        self.assert_valid_load(plugin)
+        self.assert_load_success(plugin)
         module = self.plugin_manager.plugins[plugin]['module']
 
         failed_plugins = self.plugin_manager.unload(plugin)
@@ -318,7 +306,7 @@ class TestPluginManager(object):
         assert module.called is False
 
     def test_unload_all(self):
-        self.assert_valid_load([
+        self.assert_load_success([
             'valid',
             'close_no_arguments',
             'close_too_many_arguments',
@@ -330,6 +318,66 @@ class TestPluginManager(object):
         # everything regardless
         self.plugin_manager.unload_all()
 
+        assert self.plugin_manager.plugins == {}
+
+    def test_event_callback_registered(self):
+        name = 'event_callback'
+        event = 'irc.raw'
+
+        self.assert_load_success(name, assert_callbacks_is_empty=False)
+        instance = self.plugin_manager.plugins[name]['instance']
+
+        # test that plugin manager is tracking the callback
+        assert len(self.plugin_manager.plugins[name]['callback_ids']) == 1
+        assert self.plugin_manager.plugins[name]['callbacks'] == [
+            {
+                'event_names': [event],
+                'method': instance.irc_raw_callback,
+            }
+        ]
+
+        # test that event manager had callback registered
+        self.event_manager.register(event, 1)
+
+        message = 'this is a test message'
+        self.event_manager.fire(event, message)
+
+        assert instance.cardinal is self.cardinal
+        assert instance.messages == [message]
+
+        self.event_manager.fire(event, message)
+        assert instance.messages == [message, message]
+
+    def test_event_callback_unregistered(self):
+        name = 'event_callback'
+        event = 'irc.raw'
+
+        self.assert_load_success(name, assert_callbacks_is_empty=False)
+        instance = self.plugin_manager.plugins[name]['instance']
+
+        # make sure an event is sent to the callback
+        self.event_manager.register(event, 1)
+        message = 'this is a test message'
+        self.event_manager.fire(event, message)
+        assert instance.messages == [message]
+
+        # unload and make sure no more events are sent
+        self.plugin_manager.unload(name)
+
+        self.event_manager.fire(event, message)
+        assert instance.messages == [message]
+
+    def test_load_bad_callback_fails(self):
+        name = 'event_callback'
+        event = 'irc.raw'
+
+        # this will cause registration to fail, as our callback only takes 1
+        # param other than cardinal
+        self.event_manager.register(event, 2)
+
+        failed_plugins = self.plugin_manager.load(name)
+
+        assert failed_plugins == [name]
         assert self.plugin_manager.plugins == {}
 
 

@@ -1,7 +1,6 @@
 from __future__ import absolute_import, print_function, division
 
 import re
-import functools
 
 import six
 
@@ -17,12 +16,8 @@ def command(triggers):
         raise TypeError("Command must be a trigger string or list of triggers")
 
     def wrap(f):
-        @functools.wraps(f)
-        def inner(*args, **kwargs):
-            return f(*args, **kwargs)
-
-        inner.commands = triggers
-        return inner
+        f.commands = triggers
+        return f
 
     return wrap
 
@@ -33,12 +28,8 @@ def regex(expression):
         raise TypeError("Regular expression must be a string or regex type")
 
     def wrap(f):
-        @functools.wraps(f)
-        def inner(*args, **kwargs):
-            return f(*args, **kwargs)
-
-        inner.regex = expression
-        return inner
+        f.regex = expression
+        return f
 
     return wrap
 
@@ -46,23 +37,19 @@ def regex(expression):
 def help(lines):
     # For backwards compatibility
     if isinstance(lines, six.string_types):
-             lines = [lines]
+        lines = [lines]
 
     if not isinstance(lines, list):
         raise TypeError("Help must be a help string or list of help strings")
 
     def wrap(f):
-        @functools.wraps(f)
-        def inner(*args, **kwargs):
-            return f(*args, **kwargs)
-
         # Create help list or prepend to it
-        if not hasattr(inner, 'help'):
-            inner.help = lines
+        if not hasattr(f, 'help'):
+            f.help = lines
         else:
-            inner.help = lines + inner.help
+            f.help = lines + f.help
 
-        return inner
+        return f
 
     return wrap
 
@@ -75,11 +62,7 @@ def event(triggers):
         raise TypeError("Event must be a trigger string or list of triggers")
 
     def wrap(f):
-        @functools.wraps(f)
-        def inner(*args, **kwargs):
-            return f(*args, **kwargs)
-
-        inner.events = triggers
-        return inner
+        f.events = triggers
+        return f
 
     return wrap

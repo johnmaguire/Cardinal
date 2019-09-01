@@ -589,16 +589,7 @@ class PluginManager(object):
                 failed_plugins.append(plugin)
                 continue
 
-            try:
-                self._unregister_plugin_callbacks(plugin)
-            except Exception:
-                # If we fail to unregister callbacks, log the exception and
-                # continue with rest of the unload process; we don't consider
-                # this a failed unload, since errors occur when expected
-                # callbacks didn't exist anyway.
-                self.logger.exception(
-                    "Didn't remove all plugin callbacks: %s", plugin
-                )
+            self._unregister_plugin_callbacks(plugin)
 
             try:
                 self._close_plugin_instance(plugin)
@@ -881,7 +872,7 @@ class EventManager(object):
         if event_name not in self.registered_events:
             if num_func_args < 1:
                 raise EventCallbackError(
-                    "Callback must take at least one argument")
+                    "Callback must take at least one argument (cardinal)")
 
             return self._add_callback(event_name, callback)
 
