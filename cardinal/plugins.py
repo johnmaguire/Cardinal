@@ -331,7 +331,7 @@ class PluginManager(object):
         )
         try:
             f = open(file_, 'r')
-            yaml_config = yaml.load(f)
+            yaml_config = yaml.load(f, Loader=yaml.FullLoader)
             f.close()
         except IOError:
             self.logger.debug(
