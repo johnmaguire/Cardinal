@@ -31,7 +31,7 @@ Plus, Cardinal is still in active development! Features are being added as quick
 
 ### Configuration
 
-Copy the `config/config.example.json` (virtualenv) or `config/config.docker.json` (Docker) file to `config.json` (or, if you are using Cardinal on multiple networks, something like `config.freenode.json` -- you will need to pass the `--config` option in this case) and modify it to suit your needs, or view Cardinal's command line options with `./cardinal -h`. Not all options may be configured from the command line.
+Copy the `config/config.example.json` (virtualenv) or `config/config.docker.json` (Docker) file to `config/config.json` (or, if you are using Cardinal on multiple networks, something like `config.freenode.json`) and modify it to suit your needs.
 
 You should also add your nick and vhost to the `plugins/admin/config.json` file in the format `nick@vhost` in order to take advantage of admin-only commands.
 
@@ -43,16 +43,14 @@ You can run Cardinal as a Docker container, or install Cardinal inside of a [Pyt
 
 First, install [Docker](https://docs.docker.com/install/) and [docker-compose](https://docs.docker.com/compose/install/).
 
-After configuring Cardinal (see above), simply run `docker-compose up -d` if you are storing your config as `config.json`. Otherwise, you will need to create a `docker-compose.override.yml` file like so:
+After configuring Cardinal (see above), simply run `docker-compose up -d` if you are storing your config as `config/config.json`. Otherwise, you will need to create a `docker-compose.override.yml` file like so:
 
 ```yaml
 version: "2.1"
 services:
     cardinal:
-        command: --config /config/config.darkscience.json
+        command: config/config.darkscience.json
 ```
-
-The `config/` directory is mounted at `/config/`, so simply set the filename appropriately, then run `docker-compose up -d`.
 
 #### virtualenv
 
@@ -62,7 +60,7 @@ Make sure you have Python 2.7 installed, and run `pip install -r requirements.tx
 
 **Note:** Make sure you have `libssl-dev` and `libffi-dev` installed on Debian (or the equivelant package for your distro) or installation of some dependencies may not work correctly.
 
-After installation, simply type `./cardinal.py`.
+After installation, simply type `./cardinal.py config/config.json` (change `config/config.json` to your config location).
 
 ## Writing Plugins
 

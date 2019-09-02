@@ -4,8 +4,8 @@ services:
         container_name: cardinal
         image: jmaguire/cardinal
         build: .
-        command: --config /config/config.json
+        command: config/config.json
         volumes:
-            - ./storage/:/storage/
-            - ./config/:/config/
+            - ./storage/:/usr/src/app/storage/
+            - ./config/:/usr/src/app/config/
         restart: unless-stopped
