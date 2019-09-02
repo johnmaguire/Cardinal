@@ -150,59 +150,16 @@ class ConfigParser(object):
 
         """
         # Attempt to load and parse the config file
-        try:
-            f = open(file_, 'r')
-            json_config = self._utf8_json(json.load(f))
-            f.close()
-        # File did not exist or we can't open it for another reason
-        except IOError:
-            self.logger.warning(
-                "Can't open %s (using defaults / command-line values)" % file_
-            )
-        # Thrown by json.load() when the content isn't valid JSON
-        except ValueError:
-            self.logger.warning(
-                "Invalid JSON in %s, (using defaults / command-line values)" %
-                file_
-            )
-        else:
-            # For every option,
-            for option in self.spec.options:
-                # If the option wasn't defined in the config, default
-                if option not in json_config:
-                    json_config[option] = None
+        f = open(file_, 'r')
+        json_config = self._utf8_json(json.load(f))
+        f.close()
 
-                self.config[option] = self.spec.return_value_or_default(
-                    option, json_config[option])
-
-        # If we didn't load the config earlier, or there was nothing in it...
-        if self.config == {} and self.spec.options != {}:
-            for option in self.spec.options:
-                # Grab the default
-                self.config[option] = self.spec.options[option][1]
-
-        return self.config
-
-    def merge_argparse_args_into_config(self, args):
-        """Merges the args returned by argparse.ArgumentParser into the config.
-
-        Keyword arguments:
-          args -- The args object returned by argsparse.parse_args().
-
-        Returns:
-          dict -- Dictionary object of the entire config.
-
-        """
+        # For every option,
         for option in self.spec.options:
-            try:
-                # If the value exists in args and is set, then update the
-                # config's value
-                value = getattr(args, option)
-                if value is not None:
-                    self.config[option] = value
-            except AttributeError:
-                self.logger.debug(
-                    "Option %s not in CLI arguments -- not updated" % option
-                )
+            # If the option wasn't defined in the config, default
+            value = json_config[option] if option in json_config else None
+
+            self.config[option] = self.spec.return_value_or_default(
+                option, value)
 
         return self.config

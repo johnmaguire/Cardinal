@@ -57,9 +57,11 @@ class TestConfigSpec(object):
 
 
 class TestConfigParser(object):
+    DEFAULT = '_default_'
+
     def setup_method(self):
         config_spec = self.config_spec = ConfigSpec()
-        config_spec.add_option("not_in_json", basestring)
+        config_spec.add_option("not_in_json", basestring, default=self.DEFAULT)
         config_spec.add_option("string", basestring)
         config_spec.add_option("int", int)
         config_spec.add_option("bool", bool)
@@ -72,26 +74,22 @@ class TestConfigParser(object):
             ConfigParser("not a ConfigSpec")
 
     def test_load_config_nonexistent_file(self):
-        # For some reason, this silently fails
-        self.config_parser.load_config(
-            os.path.join(FIXTURE_DIRECTORY, 'nonexistent.json'))
+        # if the config file doesn't exist, error
+        with pytest.raises(IOError):
+            self.config_parser.load_config(
+                os.path.join(FIXTURE_DIRECTORY, 'nonexistent.json'))
 
-        # should all be set to defaults
-        assert self.config_parser.config['string'] is None
-        assert self.config_parser.config['int'] is None
-        assert self.config_parser.config['bool'] is None
-        assert self.config_parser.config['dict'] is None
+        # nothing loaded
+        assert self.config_parser.config == {}
 
     def test_load_config_invalid_file(self):
-        # For some reason, this silently fails
-        self.config_parser.load_config(
-            os.path.join(FIXTURE_DIRECTORY, 'invalid-json-config.json'))
+        # if the config is invalid, error
+        with pytest.raises(ValueError):
+            self.config_parser.load_config(
+                os.path.join(FIXTURE_DIRECTORY, 'invalid-json-config.json'))
 
-        # should all be set to defaults
-        assert self.config_parser.config['string'] is None
-        assert self.config_parser.config['int'] is None
-        assert self.config_parser.config['bool'] is None
-        assert self.config_parser.config['dict'] is None
+        # nothing loaded
+        assert self.config_parser.config == {}
 
     def test_load_config_picks_up_values(self):
         self.config_parser.load_config(
@@ -105,54 +103,8 @@ class TestConfigParser(object):
             'list': ['foo', 'bar', 'baz'],
         }
 
-        # This should get set to None when it's not found in the file
-        assert self.config_parser.config['not_in_json'] is None
+        # If not found in the file, default
+        assert self.config_parser.config['not_in_json'] == self.DEFAULT
 
         # This was in the file but not the spec and should not appear in config
         assert 'ignored_string' not in self.config_parser.config
-
-    def test_merge_argparse_args_into_config(self):
-        class args:
-            string = 'value'
-            int = 3
-            bool = False
-            dict = {'foo': 'bar'}
-            ignored_string = 'asdf'
-
-        self.config_parser.merge_argparse_args_into_config(args)
-
-        assert self.config_parser.config['string'] == 'value'
-        assert self.config_parser.config['int'] == 3
-        assert self.config_parser.config['bool'] is False
-        assert self.config_parser.config['dict'] == {'foo': 'bar'}
-
-        # defaults only get set by load_config, not
-        # merge_argparse_args_into_config
-        assert 'not_in_json' not in self.config_parser.config
-
-        # This was in the file but not the spec and should not appear in config
-        assert 'ignored_string' not in self.config_parser.config
-
-    def test_merge_argparse_args_into_config_overwrites_config(self):
-        self.config_parser.load_config(
-            os.path.join(FIXTURE_DIRECTORY, 'config.json'))
-
-        assert self.config_parser.config['string'] == 'value'
-        assert self.config_parser.config['int'] == 3
-        assert self.config_parser.config['bool'] is False
-        assert self.config_parser.config['dict'] == {
-            'dict': {'string': 'value'},
-            'list': ['foo', 'bar', 'baz'],
-        }
-
-        class args:
-            string = 'new_value'
-            int = 5
-            dict = {'foo': 'bar'}
-
-        self.config_parser.merge_argparse_args_into_config(args)
-
-        assert self.config_parser.config['string'] == 'new_value'
-        assert self.config_parser.config['int'] == 5
-        assert self.config_parser.config['bool'] is False  # no value to update
-        assert self.config_parser.config['dict'] == {'foo': 'bar'}
