@@ -1,10 +1,7 @@
+from cardinal.decorators import command, help
+
+
 class AdminPlugin(object):
-    # A dictionary which will contain the owner nicks and vhosts
-    owners = None
-
-    # A list of trusted vhosts
-    trusted_vhosts = None
-
     def __init__(self, cardinal, config):
         self.owners = {}
         self.trusted_vhosts = []
@@ -28,6 +25,10 @@ class AdminPlugin(object):
 
         return False
 
+    @command('eval')
+    @help("A super dangerous command that runs eval() on the input. "
+          "(admin only)")
+    @help("Syntax: .eval <command>")
     def eval(self, cardinal, user, channel, msg):
         if self.is_owner(user):
             command = ' '.join(msg.split()[1:])
@@ -40,12 +41,10 @@ class AdminPlugin(object):
                                               (e.__class__, e))
                     raise
 
-    eval.commands = ['eval']
-    eval.help = ["A super dangerous command that runs eval() on the input. " +
-                 "(admin only)",
-
-                 "Syntax: .eval <command>"]
-
+    @command('exec')
+    @help("A dangerous command that runs exec() on the input. " +
+          "(admin only)")
+    @help("Syntax: .exec <command>")
     def execute(self, cardinal, user, channel, msg):
         if self.is_owner(user):
             command = ' '.join(msg.split()[1:])
@@ -58,12 +57,10 @@ class AdminPlugin(object):
                                               (e.__class__, e))
                     raise
 
-    execute.commands = ['exec']
-    execute.help = ["A dangerous command that runs exec() on the input. " +
-                    "(admin only)",
-
-                    "Syntax: .exec <command>"]
-
+    @command(['load', 'reload'])
+    @help("If no plugins are given after the command, reload all plugins. "
+          "Otherwise, load (or reload) the selected plugins. (admin only)")
+    @help("Syntax: .load [plugin [plugin ...]]")
     def load_plugins(self, cardinal, user, channel, msg):
         if self.is_owner(user):
             cardinal.sendMsg(channel, "%s: Loading plugins..." % user.group(1))
@@ -90,13 +87,9 @@ class AdminPlugin(object):
                 cardinal.sendMsg(channel, "Plugins failed to load: %s." %
                                           ', '.join(sorted(failed)))
 
-    load_plugins.commands = ['load', 'reload']
-    load_plugins.help = ["If no plugins are given after the command, reload " +
-                         "all plugins. Otherwise, load (or reload) the " +
-                         "selected plugins. (admin only)",
-
-                         "Syntax: .reload [plugin [plugin ...]]"]
-
+    @command('unload')
+    @help("Unload selected plugins. (admin only)")
+    @help("Syntax: .unload <plugin [plugin ...]>")
     def unload_plugins(self, cardinal, user, channel, msg):
         nick = user.group(1)
 
@@ -124,10 +117,9 @@ class AdminPlugin(object):
                 cardinal.sendMsg(channel, "Unknown plugins: %s." %
                                           ', '.join(sorted(unknown)))
 
-    unload_plugins.commands = ['unload']
-    unload_plugins.help = ["Unload selected plugins. (admin only)",
-                           "Syntax: .unload <plugin [plugin ...]>"]
-
+    @command('disable')
+    @help("Disable plugins in a channel. (admin only)")
+    @help("Syntax: .disable <plugin> <channel [channel ...]>")
     def disable_plugins(self, cardinal, user, channel, msg):
         if not self.is_owner(user):
             return
@@ -153,10 +145,9 @@ class AdminPlugin(object):
         cardinal.sendMsg(channel, "Added to blacklist: %s." %
                                   ', '.join(sorted(channels)))
 
-    disable_plugins.commands = ['disable']
-    disable_plugins.help = ["Disable plugins in a channel. (admin only)",
-                            "Syntax: .disable <plugin> <channel [channel ...]>"]
-
+    @command('enable')
+    @help("Enable plugins in a channel. (admin only)")
+    @help("Syntax: .enable <plugin> <channel [channel ...]>")
     def enable_plugins(self, cardinal, user, channel, msg):
         if not self.is_owner(user):
             return
@@ -190,10 +181,9 @@ class AdminPlugin(object):
             cardinal.sendMsg(channel, "Wasn't in blacklist: %s." %
                                       ', '.join(sorted(not_blacklisted)))
 
-    enable_plugins.commands = ['enable']
-    enable_plugins.help = ["Enable plugins in a channel. (admin only)",
-                           "Syntax: .enable <plugin> <channel [channel ...]>"]
-
+    @command('join')
+    @help("Joins selected channels. (admin only)")
+    @help("Syntax: .join <channel [channel ...]>")
     def join(self, cardinal, user, channel, msg):
         if self.is_owner(user):
             channels = msg.split()
@@ -201,10 +191,9 @@ class AdminPlugin(object):
             for channel in channels:
                 cardinal.join(channel)
 
-    join.commands = ['join']
-    join.help = ["Joins selected channels. (admin only)",
-                 "Syntax: .join <channel [channel ...]>"]
-
+    @command('part')
+    @help("Parts selected channels. (admin only)")
+    @help("Syntax: .join <channel [channel ...]>")
     def part(self, cardinal, user, channel, msg):
         if not self.is_owner(user):
             return
@@ -217,28 +206,21 @@ class AdminPlugin(object):
         elif channel != user:
             cardinal.part(channel)
 
-    part.commands = ['part']
-    part.help = ["Parts selected channels. (admin only)",
-                 "Syntax: .join <channel [channel ...]>"]
-
+    @command('quit')
+    @help("Quits the network with a quit message, if one is defined. "
+          "(admin only)")
+    @help("Syntax: .quit [message]")
     def quit(self, cardinal, user, channel, msg):
         if self.is_owner(user):
             cardinal.disconnect(' '.join(msg.split(' ')[1:]))
 
-    quit.commands = ['quit']
-    quit.help = ["Quits the network with a quit message, if one is defined. " +
-                 "(admin only)",
-
-                 "Syntax: .quit [message]"]
-
+    @command('dbg_quit')
+    @help("Quits the network without setting disconnect flag "
+         "(for testing reconnection, admin only)")
+    @help("Syntax: .dbg_quit")
     def debug_quit(self, cardinal, user, channel, msg):
         if self.is_owner(user):
             cardinal.quit('Debug disconnect')
-    debug_quit.commands = ['dbg_quit']
-    debug_quit.help = ["Quits the network without setting disconnect flag " +
-                       "(for testing reconnection, admin only)",
-
-                       "Syntax: .dbg_quit"]
 
 
 def setup(cardinal, config):
