@@ -5,8 +5,9 @@ import urllib2
 import socket
 import HTMLParser
 import logging
-
 from datetime import datetime
+
+from cardinal.decorators import regex
 
 URL_REGEX = re.compile(r"(?:^|\s)((?:https?://)?(?:[a-z0-9.\-]+[.][a-z]{2,4}/?)(?:[^\s()<>]*|\((?:[^\s()<>]+|(?:\([^\s()<>]+\)))*\))+(?:\((?:[^\s()<>]+|(?:\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:\'\".,<>?]))", flags=re.IGNORECASE|re.DOTALL)
 TITLE_REGEX = re.compile(r'<title(\s+.*?)?>(.*?)</title>', flags=re.IGNORECASE|re.DOTALL)
@@ -50,6 +51,7 @@ class URLsPlugin(object):
 
         cardinal.event_manager.register('urls.detection', 2)
 
+    @regex(URL_REGEX)
     def get_title(self, cardinal, user, channel, msg):
         # Find every URL within the message
         urls = re.findall(URL_REGEX, msg)
@@ -104,8 +106,6 @@ class URLsPlugin(object):
 
                     cardinal.sendMsg(channel, "URL Found: %s" % title_to_send)
                     continue
-
-    get_title.regex = URL_REGEX
 
     def close(self, cardinal):
         cardinal.event_manager.remove('urls.detection')
