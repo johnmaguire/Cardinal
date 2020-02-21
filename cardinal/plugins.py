@@ -75,10 +75,10 @@ class PluginManager(object):
         self.iteration_counter = 0
 
         # Make sure we operate on a list
-        if plugins is not None and not isinstance(plugins, list):
-            raise TypeError("Plugins argument must be a list")
-        elif plugins is None:
+        if plugins is None:
             return
+        elif not isinstance(plugins, list):
+            raise TypeError("Plugins argument must be a list")
 
         self.load(plugins)
 
