@@ -14,7 +14,6 @@
 
     "plugins": [
         "admin",
-        "calculator",
         "help",
         "join_on_invite",
         "lastfm",
