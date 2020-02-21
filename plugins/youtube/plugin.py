@@ -4,6 +4,7 @@ import urllib
 import urllib2
 import logging
 
+from cardinal.decorators import command, event, help
 from cardinal.exceptions import EventRejectedMessage
 
 VIDEO_URL_REGEX = re.compile(r'https?:\/\/(?:www\.)?youtube\..{2,4}\/watch\?.*(?:v=(.+?))(?:(?:&.*)|$)', flags=re.IGNORECASE)
@@ -27,10 +28,9 @@ class YouTubePlugin(object):
         if 'api_key' in config:
             self.api_key = config['api_key']
 
-        self.callback_id = cardinal.event_manager.register_callback(
-            'urls.detection', self._get_video_info
-        )
-
+    @command(['youtube', 'yt'])
+    @help("Get the first YouTube result for a given search.")
+    @help("Syntax: .youtube <search query>")
     def search(self, cardinal, user, channel, msg):
         # Before we do anything, let's make sure we'll be able to query YouTube
         if self.api_key is None:
@@ -87,10 +87,7 @@ class YouTubePlugin(object):
             self.logger.exception("Failed to parse info for %s'" % video_id)
             raise EventRejectedMessage
 
-    search.commands = ['youtube', 'yt']
-    search.help = ["Get the first YouTube result for a given search.",
-                   "Syntax: .youtube <search query>"]
-
+    @event('urls.detection')
     def _get_video_info(self, cardinal, channel, url):
         match = re.match(VIDEO_URL_REGEX, url)
         if not match:
@@ -138,9 +135,6 @@ class YouTubePlugin(object):
 
         return ("[ Title: %s | Uploaded by: %s | %s views | https://www.youtube.com/watch?v=%s ]" %
                 (title, uploader, "{:,}".format(views), video_id))
-
-    def close(self, cardinal):
-        cardinal.event_manager.remove_callback('urls.detection', self.callback_id)
 
 def setup(cardinal, config):
     return YouTubePlugin(cardinal, config)
