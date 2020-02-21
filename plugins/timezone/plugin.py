@@ -4,10 +4,15 @@ from datetime import datetime
 import pytz
 from pytz.exceptions import UnknownTimeZoneError
 
+from cardinal.decorators import command, help
+
 TIME_FORMAT = '%b %d, %I:%M:%S %p UTC%z'
 
 
 class TimezonePlugin(object):
+    @command(['time'])
+    @help("Returns the current time in a given time zone or GMT offset.")
+    @help("Syntax: time <GMT offset or timezone>")
     def get_time(self, cardinal, user, channel, msg):
         utc = pytz.utc
         now = datetime.now(utc)
@@ -17,6 +22,11 @@ class TimezonePlugin(object):
         except IndexError:
             # no timezone specified, default to UTC
             return cardinal.sendMsg(channel, now.strftime(fmt))
+
+        # handle common offset formats
+        if (tz_input.startswith('UTC') or tz_input.startswith('GMT')) and \
+                len(tz_input) > 3 and tz_input[3] in ('+', '-'):
+            tz_input = tz_input[3:]
 
         offset = None
         try:
@@ -43,9 +53,6 @@ class TimezonePlugin(object):
 
         now = user_tz.normalize(now)
         cardinal.sendMsg(channel, now.strftime(TIME_FORMAT))
-
-    get_time.commands = ['time']
-    get_time.help = ['Returns the current time in a given time zone or GMT offset. Syntax: time <GMT offset or timzone>']
 
 def setup():
     return TimezonePlugin()
