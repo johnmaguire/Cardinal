@@ -1,6 +1,6 @@
 from cardinal.decorators import command, help
 
-from google import search
+from googlesearch import search
 
 MAX_RESULTS = 3
 
@@ -19,7 +19,7 @@ class GoogleSearch(object):
         cardinal.sendMsg(channel, "Top results for '%s':" % search_string)
 
         counter = MAX_RESULTS
-        for url in search(search_string, only_standard=True):
+        for url in search(search_string):
             cardinal.sendMsg(channel, url.encode('ascii'))
 
             counter -= 1
