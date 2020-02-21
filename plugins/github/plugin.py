@@ -4,6 +4,7 @@ import urllib
 import urllib2
 import logging
 
+from cardinal.decorators import command, event, help
 from cardinal.exceptions import EventRejectedMessage
 
 REPO_URL_REGEX  = re.compile(r'https://(?:www\.)?github\..{2,4}/([^/]+)/([^/]+)', flags=re.IGNORECASE)
@@ -32,10 +33,9 @@ class GithubPlugin(object):
             if config['max_show_issues']:
                 self.max_show_issues = config['max_show_issues']
 
-        self.callback_id = cardinal.event_manager.register_callback(
-            'urls.detection', self._get_repo_info
-        )
-
+    @command('issue')
+    @help("Find a Github repo or issue (or combination thereof)")
+    @help("Syntax: .issue [username/repository] <id or search query>")
     def search(self, cardinal, user, channel, msg):
         # Grab the search query
         try:
@@ -70,9 +70,22 @@ class GithubPlugin(object):
         except urllib2.HTTPError:
             cardinal.sendMsg(channel, "Couldn't find %s#%d" % (repo, int(query)))
 
-    search.commands = ['issue']
-    search.help = ["Find a Github repo or issue (or combination thereof)",
-                   "Syntax: .issue [username/repository] <id or search query>"]
+    @event('urls.detection')
+    def get_repo_info(self, cardinal, channel, url):
+        match = re.match(ISSUE_URL_REGEX, url)
+        if not match:
+            match = re.match(REPO_URL_REGEX, url)
+        if not match:
+            raise EventRejectedMessage
+
+        groups = match.groups()
+        try:
+            if len(groups) == 3:
+                self._show_issue(cardinal, channel, '%s/%s' % (groups[0], groups[1]), int(groups[2]))
+            elif len(groups) == 2:
+                self._show_repo(cardinal, channel, '%s/%s' % (groups[0], groups[1]))
+        except urllib2.HTTPError:
+            raise EventRejectedMessage
 
     def _format_issue(self, issue):
         message = "#%s: %s" % (issue['number'], issue['title'])
@@ -108,22 +121,6 @@ class GithubPlugin(object):
 
         cardinal.sendMsg(channel, message.encode('utf8'))
 
-    def _get_repo_info(self, cardinal, channel, url):
-        match = re.match(ISSUE_URL_REGEX, url)
-        if not match:
-            match = re.match(REPO_URL_REGEX, url)
-        if not match:
-            raise EventRejectedMessage
-
-        groups = match.groups()
-        try:
-            if len(groups) == 3:
-                self._show_issue(cardinal, channel, '%s/%s' % (groups[0], groups[1]), int(groups[2]))
-            elif len(groups) == 2:
-                self._show_repo(cardinal, channel, '%s/%s' % (groups[0], groups[1]))
-        except urllib2.HTTPError:
-            raise EventRejectedMessage
-
     def _form_request(self, endpoint, params={}):
         # Make request to specified endpoint and return JSON decoded result
         uh = urllib2.urlopen("https://api.github.com/" +
@@ -132,8 +129,6 @@ class GithubPlugin(object):
 
         return json.load(uh)
 
-    def close(self, cardinal):
-        cardinal.event_manager.remove_callback('urls.detection', self.callback_id)
 
 def setup(cardinal, config):
     return GithubPlugin(cardinal, config)
