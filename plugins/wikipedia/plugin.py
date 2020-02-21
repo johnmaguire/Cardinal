@@ -4,6 +4,7 @@ import logging
 
 from bs4 import BeautifulSoup
 
+from cardinal.decorators import command, event, help
 from cardinal.exceptions import EventRejectedMessage
 
 ARTICLE_URL_REGEX = "https?:\/\/(?:\w{2}\.)?wikipedia\..{2,4}\/wiki\/(.+)"
@@ -31,9 +32,6 @@ class WikipediaPlugin(object):
             self.logger.warning("No language in config -- using defaults: %s" %
                 DEFAULT_LANGUAGE_CODE)
             self._language_code = DEFAULT_LANGUAGE_CODE
-
-        self._callback_id = cardinal.event_manager.register_callback(
-            'urls.detection', self.url_callback)
 
     def _get_article_info(self, name):
         name = name.replace(' ', '_')
@@ -72,6 +70,7 @@ class WikipediaPlugin(object):
 
         return ("[ Wikipedia: %s | %s | %s ]" % (title, first_paragraph, url)).encode('utf-8')
 
+    @event('urls.detection')
     def url_callback(self, cardinal, channel, url):
         match = re.match(ARTICLE_URL_REGEX, url)
         if not match:
@@ -80,20 +79,15 @@ class WikipediaPlugin(object):
         article_info = self._get_article_info(match.group(1))
         cardinal.sendMsg(channel, article_info)
 
+    @command(['wiki', 'wikipedia'])
+    @help("Gets a summary and link to a Wikipedia page")
+    @help("Syntax: .wiki <article>")
     def lookup_article(self, cardinal, user, channel, message):
         name = message.split(' ', 1)[1]
 
         article_info = self._get_article_info(name)
         cardinal.sendMsg(channel, article_info)
 
-    lookup_article.commands = ['wiki', 'wikipedia']
-    lookup_article.help = ["Gets a summary and link to a Wikipedia page",
-                           "Syntax: .wiki <article>"]
-
-    def close(self, cardinal):
-        """Removes registered callback."""
-        cardinal.event_manager.remove_callback(
-            "urls.detection", self._callback_id)
 
 def setup(cardinal, config):
     return WikipediaPlugin(cardinal, config)
