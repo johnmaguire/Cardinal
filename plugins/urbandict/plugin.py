@@ -1,10 +1,15 @@
 from urllib import urlopen
 import json
 
+from cardinal.decorators import command, help
+
 URBANDICT_API_PREFIX = 'http://api.urbandictionary.com/v0/define?term='
 
 
 class UrbanDictPlugin(object):
+    @command(['ud', 'urbandict'])
+    @help('Returns the top Urban Dictionary definition for a given word.')
+    @help('Syntax: .ud <word>')
     def get_ud(self, cardinal, user, channel, msg):
         try:
             word = msg.split(' ', 1)[1]
@@ -25,10 +30,6 @@ class UrbanDictPlugin(object):
             cardinal.sendMsg(channel, response.encode('utf-8'))
         except Exception:
             cardinal.sendMsg(channel, "Could not retrieve definition for %s" % word)
-
-    get_ud.commands = ['ud']
-    get_ud.help = ['Returns the top Urban Dictionary definition for a given word.',
-                   'Syntax: .ud <word>']
 
 
 def setup():
