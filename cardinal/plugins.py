@@ -9,7 +9,7 @@ import inspect
 import linecache
 import random
 import json
-from collections import defaultdict
+from collections import OrderedDict, defaultdict
 
 from cardinal.exceptions import (
     CommandNotFoundError,
@@ -306,7 +306,7 @@ class PluginManager(object):
         )
         try:
             f = open(file_, 'r')
-            config = json.load(f)
+            config = json.load(f, object_pairs_hook=OrderedDict)
             f.close()
         # File did not exist or we can't open it for another reason
         except IOError:

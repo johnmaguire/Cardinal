@@ -4,10 +4,11 @@ import inspect
 import logging
 import os
 import sys
+from collections import OrderedDict
 
+import pytest
 from twisted.internet.task import defer
 from mock import Mock, patch
-import pytest
 
 from cardinal import exceptions
 from cardinal.bot import CardinalBot
@@ -174,7 +175,13 @@ class TestPluginManager(object):
         name = 'config_valid_json'
         self.assert_load_success(name, assert_config_is_none=False)
 
-        self.plugin_manager.get_config(name) == {'test': True}
+        assert self.plugin_manager.get_config(name) == {'test': True}
+
+    def test_config_is_ordereddict(self):
+        name = 'config_valid_json'
+        self.assert_load_success(name, assert_config_is_none=False)
+
+        assert isinstance(self.plugin_manager.get_config(name), OrderedDict)
 
     def test_get_config_yaml_ignored(self):
         name = 'config_valid_yaml'
