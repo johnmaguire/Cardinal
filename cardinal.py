@@ -81,7 +81,7 @@ https://github.com/JohnMaguire/Cardinal
         # Need to setup a logger early
         logger = setup_logging()
         logger.exception("Unable to load config: {}".format(config_file))
-        os.exit(1)
+        sys.exit(1)
 
     # Config loaded, setup the logger
     logger = setup_logging(config['logging'])
