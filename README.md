@@ -2,30 +2,24 @@
 
 [![Build Status](https://travis-ci.org/JohnMaguire/Cardinal.svg?branch=master)](https://travis-ci.org/JohnMaguire/Cardinal) [![Coverage Status](https://coveralls.io/repos/JohnMaguire/Cardinal/badge.svg?branch=master&service=github)](https://coveralls.io/github/JohnMaguire/Cardinal?branch=master)
 
-Another IRC bot, you say? Just what the world needed!
+Python Twisted IRC bot with a focus on ease of development.
 
-Cardinal is a modular, Twisted-based IRC bot written in Python. Batteries included!
-
-Cardinal's goal is to make plugin development easy and powerful, and to fill in the gaps where other Python IRC bots fall short.
-
-You can join us at #cardinal on the [DarkScience](http://www.darkscience.net/) IRC network (irc.darkscience.net/+6697 &mdash; SSL required)
+You can find us at #cardinal on the [DarkScience](http://www.darkscience.net/) IRC network (irc.darkscience.net/+6697 &mdash; SSL required)
 
 ## What can Cardinal do?
 
-Anything, as long as you're creative enough! But Cardinal does come with some plugins to get you started...
+Anything, if you're creative! But Cardinal does come with some plugins to get you started...
 
-* Fetching URL information (custom parsers for Github, YouTube, and Wikipedia)
-* On-the-fly Googling
-* Weather lookup
-* Last.fm integration
+* Fetching URL titles
+* Google searches
+* Weather report
+* Now playing w/ Last.fm
 * Reminders
-* Calculator & unit conversion
-* Notes (use Cardinal as an info bot)
 * Urban Dictionary definitions
-* Admin control (hot load plugins, inspect running code, etc.)
+* Wikipedia definitions
 * ... and more!
 
-Plus, Cardinal is still in active development! Features are being added as quickly as they can be thought up and coded. But Cardinal's killer feature is the ease of writing new plugins.
+And Cardinal is still in development! But what makes Cardinaly truly special is the ease of adding new functionality.
 
 ## Basic Usage
 
@@ -49,7 +43,7 @@ After configuring Cardinal (see above), simply run `docker-compose up -d` if you
 version: "2.1"
 services:
     cardinal:
-        command: config/config.darkscience.json
+        command: config/my_config_file.json
 ```
 
 #### virtualenv
@@ -64,7 +58,8 @@ After installation, simply type `./cardinal.py config/config.json` (change `conf
 
 ## Writing Plugins
 
-Cardinal plugins are designed to be simple to write while still providing tons of power. Here's a sample to show what a very simple plugin might look like:
+Cardinal was designed with ease of development in mind.
+
 ```python
 from cardinal.decorators import command, help
 
@@ -73,19 +68,17 @@ class HelloWorldPlugin(object):
 	@help("Responds to the user with a greeting.")
 	@help("Syntax: .hello")
     def hello(self, cardinal, user, channel, msg):
-        nick, ident, vhost = user.group(1), user.group(2), user.group(3)
-        cardinal.sendMsg(channel, "Hello %s!" % nick)
+        nick, ident, vhost = user
+        cardinal.sendMsg(channel, "Hello {}!".format(nick))
 
 def setup():
     return HelloWorldPlugin()
 ```
 
-While it's not difficult to write plugins for Cardinal, lots of optional functionality is provided, and thus this section is too large to include in the README. Please [visit the wiki](https://github.com/JohnMaguire/Cardinal/wiki/Writing-Plugins) to learn about writing plugins.
+[Visit the wiki](https://github.com/JohnMaguire/Cardinal/wiki/Writing-Plugins) for detailed instructions.
 
 ## Contributing
 
-If you have found a bug, feel free to submit a patch or simply open an issue on this repository.
-
-If you're submitting a pull request, you may add your name to the CONTRIBUTORS file with a separate commit in the same branch as your modification.
+Pull requests and bug reports accepted. If you're submitting a pull request, you may add your name to the CONTRIBUTORS file with a separate commit in the same branch as your modification.
 
 Cardinal is a public, open-source project, licensed under the MIT License. Anyone may contribute.
