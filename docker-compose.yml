@@ -8,4 +8,5 @@ services:
         volumes:
             - ./storage/:/usr/src/app/storage/
             - ./config/:/usr/src/app/config/
+            - ./plugins/:/usr/src/app/plugins/
         restart: unless-stopped

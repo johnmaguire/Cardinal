@@ -1,7 +1,11 @@
-# Cardinal's custom config file
-/config.json
-
 *.py[cod]
+
+# Cardinal configuration files
+/config/*
+!/config/config.example.json
+
+# Docker
+docker-compose.override.yml
 
 # C extensions
 *.so

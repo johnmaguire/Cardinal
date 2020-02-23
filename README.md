@@ -17,6 +17,7 @@ Anything, if you're creative! But Cardinal does come with some plugins to get yo
 * Reminders
 * Urban Dictionary definitions
 * Wikipedia definitions
+* Stock ticker
 * ... and more!
 
 And Cardinal is still in development! But what makes Cardinaly truly special is the ease of adding new functionality.
@@ -25,17 +26,13 @@ And Cardinal is still in development! But what makes Cardinaly truly special is 
 
 ### Configuration
 
-Copy the `config/config.example.json` (virtualenv) or `config/config.docker.json` (Docker) file to `config/config.json` (or, if you are using Cardinal on multiple networks, something like `config.freenode.json`) and modify it to suit your needs.
+Copy the `config.example.json` file to `config/config.json` (you can use another filename as well, such as `config.freenode.json` if you plan to run Cardinal on multiple networks).
 
-You should also add your nick and vhost to the `plugins/admin/config.json` file in the format `nick@vhost` in order to take advantage of admin-only commands.
+At bare minimum, you should also add your nick and vhost to the `plugins/admin/config.json` file in the format `nick@vhost` in order to take advantage of admin-only commands (such as reloading plugins, telling Cardinal to join a channel, or blacklisting plugins within a channel).
 
-### Installation & Running
+### Running
 
-You can run Cardinal as a Docker container, or install Cardinal inside of a [Python virtualenv](http://docs.python-guide.org/en/latest/dev/virtualenvs/).
-
-#### Docker
-
-First, install [Docker](https://docs.docker.com/install/) and [docker-compose](https://docs.docker.com/compose/install/).
+Cardinal is run via a Docker container. To get started, install [Docker](https://docs.docker.com/install/) and [docker-compose](https://docs.docker.com/compose/install/).
 
 After configuring Cardinal (see above), simply run `docker-compose up -d` if you are storing your config as `config/config.json`. Otherwise, you will need to create a `docker-compose.override.yml` file like so:
 
@@ -46,16 +43,6 @@ services:
         command: config/my_config_file.json
 ```
 
-#### virtualenv
-
-`virtualenv -p /usr/bin/python2.7 . && source bin/activate`
-
-Make sure you have Python 2.7 installed, and run `pip install -r requirements.txt` to install all Python dependencies.
-
-**Note:** Make sure you have `libssl-dev` and `libffi-dev` installed on Debian (or the equivelant package for your distro) or installation of some dependencies may not work correctly.
-
-After installation, simply type `./cardinal.py config/config.json` (change `config/config.json` to your config location).
-
 ## Writing Plugins
 
 Cardinal was designed with ease of development in mind.
@@ -64,9 +51,9 @@ Cardinal was designed with ease of development in mind.
 from cardinal.decorators import command, help
 
 class HelloWorldPlugin(object):
-	@command(['hello', 'hi'])
-	@help("Responds to the user with a greeting.")
-	@help("Syntax: .hello")
+    @command(['hello', 'hi'])
+    @help("Responds to the user with a greeting.")
+    @help("Syntax: .hello")
     def hello(self, cardinal, user, channel, msg):
         nick, ident, vhost = user
         cardinal.sendMsg(channel, "Hello {}!".format(nick))
@@ -79,6 +66,6 @@ def setup():
 
 ## Contributing
 
-Pull requests and bug reports accepted. If you're submitting a pull request, you may add your name to the CONTRIBUTORS file with a separate commit in the same branch as your modification.
-
 Cardinal is a public, open-source project, licensed under the MIT License. Anyone may contribute.
+
+If you're submitting a pull request, you may add your name to the CONTRIBUTORS file with a separate commit in the same branch as your modification.
