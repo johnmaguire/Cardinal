@@ -1,0 +1,10 @@
+{
+	"channels": ["#finance"],
+	"api_key": "",
+	"stocks": {
+		"INX": "S&P 500",
+		"DJI": "Dow",
+		"VEU": "Foreign",
+		"AGG": "US Bond"
+	}
+}
