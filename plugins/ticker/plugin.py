@@ -98,7 +98,7 @@ class TickerPlugin(object):
     @regex(CHECK_REGEX)
     def check(self, cardinal, user, channel, msg):
         """Check a specific stock for current value and daily change"""
-        nick = user.group(1)
+        nick = user.nick
 
         match = re.match(CHECK_REGEX, msg)
         symbol = match.group(1)
@@ -151,12 +151,15 @@ class TickerPlugin(object):
         data = self.get_time_series_daily(symbol)
 
         today = datetime.date.today()
-        yesterday = today - datetime.timedelta(days=1)
+        last_day = today - datetime.timedelta(days=1)
+
+        while data.get(last_day.strftime('%Y-%m-%d'), None) is None:
+           last_day = last_day - datetime.timedelta(days=1)
 
         current_value = data[today.strftime('%Y-%m-%d')]
-        yesterday_value = data[yesterday.strftime('%Y-%m-%d')]
+        last_day_value = data[last_day.strftime('%Y-%m-%d')]
 
-        percentage = (((current_value['close'] / yesterday_value['close']) - 1)
+        percentage = (((current_value['close'] / last_day_value['close']) - 1)
                       * 100)
         return {'current': current_value['close'],
                 'percentage': percentage,
