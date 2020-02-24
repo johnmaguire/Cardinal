@@ -14,18 +14,19 @@
 
     "plugins": [
         "admin",
+        "github",
+        "google",
         "help",
         "join_on_invite",
         "lastfm",
         "ping",
         "remind",
+        "timezone",
+        "urbandict",
         "urls",
         "weather",
         "wikipedia",
-        "youtube",
-        "google",
-        "timezone",
-        "github"
+        "youtube"
     ],
 
     "logging": {
