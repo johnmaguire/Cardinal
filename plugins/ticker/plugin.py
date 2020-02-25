@@ -6,12 +6,13 @@ import pytz
 import requests
 from twisted.internet import error, reactor
 
+from cardinal.bot import user_info
 from cardinal.decorators import regex
 
 # Alpha Vantage API key
 AV_API_URL = "https://www.alphavantage.co/query"
 
-CHECK_REGEX = '^!check (.+)'
+CHECK_REGEX = r'^(?:<(.+?)>\s+)?!check (.+)'
 
 
 def colorize(percentage):
@@ -29,6 +30,7 @@ class TickerPlugin(object):
         self.config = config or {}
         self.config.setdefault('channels', [])
         self.config.setdefault('stocks', [])
+        self.config.setdefault('relay_bots', [])
 
         if not self.config["channels"]:
             self.logger.warning("No channels for ticker defined in config --"
@@ -43,8 +45,26 @@ class TickerPlugin(object):
             raise ValueError("No more than 5 stocks may be present in ticker "
                              "config")
 
+        self.relay_bots = []
+        for relay_bot in self.config['relay_bots']:
+            user = user_info(
+                relay_bot['nick'],
+                relay_bot['user'],
+                relay_bot['vhost'])
+            self.relay_bots.append(user)
+
         self.call_id = None
         self.wait()
+
+    def is_relay_bot(self, user):
+        """Compares a user against the registered relay bots."""
+        for bot in self.relay_bots:
+            if (bot.nick is None or bot.nick == user.nick) and \
+                    (bot.user is None or bot.user == user.user) and \
+                    (bot.vhost is None or bot.vhost == user.vhost):
+                return True
+
+        return False
 
     def wait(self):
         """Tell the reactor to call tick() at the next 15 minute interval"""
@@ -101,7 +121,14 @@ class TickerPlugin(object):
         nick = user.nick
 
         match = re.match(CHECK_REGEX, msg)
-        symbol = match.group(1)
+        if match.group(1):
+            # this group should only be present when a relay bot is relaying a
+            # message for another user
+            if not self.is_relay_bot(user):
+                return
+
+            nick = match.group(1)
+        symbol = match.group(2)
         try:
             data = self.get_daily(symbol)
         except Exception:
@@ -109,11 +136,12 @@ class TickerPlugin(object):
                 channel, "{}: Is your symbol correct?".format(nick))
             return
 
-        cardinal.sendMsg(channel,
-                         "Symbol: \x02{}\x02 | Current: {} | Daily Change: {}".format(
-                             symbol,
-                             data['current'],
-                             colorize(data['percentage'])))
+        cardinal.sendMsg(
+            channel,
+            "Symbol: \x02{}\x02 | Current: {} | Daily Change: {}".format(
+                symbol,
+                data['current'],
+                colorize(data['percentage'])))
 
     def close(self, cardinal):
         if self.call_id:
@@ -135,7 +163,8 @@ class TickerPlugin(object):
     def get_time_series_daily(self, symbol, outputsize='compact'):
         data = self.make_av_request('TIME_SERIES_DAILY',
                                     {'symbol': symbol,
-                                     'outputsize': outputsize,})
+                                     'outputsize': outputsize,
+                                     })
         try:
             data = data['Time Series (Daily)']
         except KeyError:
@@ -154,7 +183,7 @@ class TickerPlugin(object):
         last_day = today - datetime.timedelta(days=1)
 
         while data.get(last_day.strftime('%Y-%m-%d'), None) is None:
-           last_day = last_day - datetime.timedelta(days=1)
+            last_day = last_day - datetime.timedelta(days=1)
 
         current_value = data[today.strftime('%Y-%m-%d')]
         last_day_value = data[last_day.strftime('%Y-%m-%d')]
