@@ -434,18 +434,12 @@ class PluginManager(object):
             # modules that have already been imported previously
             try:
                 if plugin in self.plugins.keys():
-                    self.logger.info("Already loaded, reloading: %s" % plugin)
                     reload_flag = True
+                    self.logger.info("Already loaded, unloading first: %s" %
+                                     plugin)
 
-                    # We don't consider this a failed plugin unless it doesn't
-                    # load correctly
-                    try:
-                        self._close_plugin_instance(plugin)
-                    except Exception:
-                        self.logger.exception(
-                            "Didn't close plugin cleanly: %s" % plugin
-                        )
                     module_to_import = self.plugins[plugin]['module']
+                    self.unload(plugin)
                 else:
                     module_to_import = plugin
 
@@ -491,9 +485,6 @@ class PluginManager(object):
                 failed_plugins.append(plugin)
 
                 continue
-
-            if plugin in self.plugins:
-                self.unload(plugin)
 
             self.plugins[plugin] = {
                 'name': plugin,

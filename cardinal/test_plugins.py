@@ -231,6 +231,21 @@ class TestPluginManager(object):
         self.assert_load_success(plugins)
         assert self.cardinal.reloads == 1
 
+    def test_reload_reregisters_event(self):
+        name = 'registers_event'
+        plugins = [name]
+
+        self.cardinal.reloads = 0
+        assert 'test.event' not in self.event_manager.registered_events
+
+        self.assert_load_success(plugins)
+        assert 'test.event' in self.event_manager.registered_events
+
+        self.assert_load_success(plugins)
+        assert 'test.event' in self.event_manager.registered_events
+
+        assert self.cardinal.reloads == 1
+
     @pytest.mark.parametrize("plugins", [
         12345,
         0.0,
