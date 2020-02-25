@@ -1,0 +1,16 @@
+{
+	"admins": [
+		{
+			"nick": "your_nickname",
+			"vhost": "your.vhost",
+			"ident": "yourusername"
+		},
+		{
+			"nick": "your_nickname",
+			"vhost": "your.vhost"
+		},
+		{
+			"vhost": "your.vhost"
+		}
+	]
+}
