@@ -89,21 +89,20 @@ https://github.com/JohnMaguire/Cardinal
     logger.info("Config loaded: {}".format(config_file))
 
     # Determine storage directory
-    storage_path = None
     if config['storage'] is not None:
         if config['storage'].startswith('/'):
-            storage_path = config['storage']
+            config['storage'] = config['storage']
         else:
-            storage_path = os.path.join(
+            config['storage'] = os.path.join(
                 os.path.dirname(os.path.realpath(__file__)),
                 config['storage']
             )
 
-        logger.info("Storage path: {}".format(storage_path))
+        logger.info("Storage path: {}".format(config['storage']))
 
         directories = [
-            os.path.join(storage_path, 'database'),
-            os.path.join(storage_path, 'logs'),
+            os.path.join(config['storage'], 'database'),
+            os.path.join(config['storage'], 'logs'),
         ]
 
         for directory in directories:
@@ -126,7 +125,7 @@ https://github.com/JohnMaguire/Cardinal
                                  config['username'],
                                  config['realname'],
                                  config['plugins'],
-                                 storage_path)
+                                 config['storage'])
 
     if not config['ssl']:
         logger.info(
