@@ -131,6 +131,12 @@ class CardinalBot(irc.IRCClient, object):
             self.logger.info("Attempting to identify with NickServ")
             self.msg("NickServ", "IDENTIFY %s" % (self.factory.password,))
 
+        # For servers that support it, set the bot mode
+        #
+        # FIXME: is it possible that the server renames us before this? if so,
+        # the mode registration would fail erroneously
+        self.send("MODE {} +B".format(self.nickname))
+
         # Attempt to join channels
         for channel in self.factory.channels:
             self.join(channel)

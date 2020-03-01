@@ -87,12 +87,14 @@ class TestCardinalBot(object):
 
     @patch.object(CardinalBot, 'join')
     @patch.object(CardinalBot, 'msg')
+    @patch.object(CardinalBot, 'send')
     @patch('cardinal.bot.PluginManager', autospec=True)
-    def test_signedOn_joins_and_instantiates_plugin_manager(
+    def test_signedOn_sets_bot_mode_joins_and_instantiates_plugin_manager(
             self,
             mock_plugin_manager,
+            mock_send,
             mock_msg,
-            mock_join
+            mock_join,
     ):
         # we want to make sure this is created
         del self.cardinal.plugin_manager
@@ -103,10 +105,12 @@ class TestCardinalBot(object):
         mock_factory.channels = channels
         mock_factory.password = None
 
+        self.cardinal.nickname = nickname = 'Cardinal'
         self.cardinal.signedOn()
 
         assert not mock_msg.called  # no nickserv password provided
         assert mock_join.mock_calls == [call(channel) for channel in channels]
+        mock_send.assert_called_once_with("MODE {} +B".format(nickname))
 
         mock_plugin_manager.assert_called_once()
         assert isinstance(self.cardinal.plugin_manager, plugins.PluginManager)
@@ -116,12 +120,14 @@ class TestCardinalBot(object):
 
     @patch.object(CardinalBot, 'join')
     @patch.object(CardinalBot, 'msg')
+    @patch.object(CardinalBot, 'send')
     @patch('cardinal.bot.PluginManager', autospec=True)
     def test_signedOn_messages_nickserv(
             self,
             mock_plugin_manager,
+            _mock_send,
             mock_msg,
-            mock_join
+            mock_join,
     ):
         mock_factory = self.cardinal.factory = Mock()
         mock_factory.channels = []
