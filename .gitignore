@@ -4,8 +4,8 @@
 /config/*
 !/config/config.example.json
 
-# Docker
-docker-compose.override.yml
+# Docker-compose overrides
+docker-compose.*.yml
 
 # C extensions
 *.so
