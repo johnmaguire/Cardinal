@@ -11,10 +11,11 @@ You can find us at #cardinal on the [DarkScience](http://www.darkscience.net/) I
 Anything, if you're creative! But Cardinal does come with some plugins to get you started...
 
 * Fetching URL titles
-* Google searches
-* Weather report
-* Now playing w/ Last.fm
+* sed-like substitutions
 * Reminders
+* Weather reports
+* Google searches
+* Now playing w/ Last.fm
 * Urban Dictionary definitions
 * Wikipedia definitions
 * Stock ticker
