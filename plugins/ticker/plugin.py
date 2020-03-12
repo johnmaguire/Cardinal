@@ -4,7 +4,8 @@ import re
 
 import pytz
 import requests
-from twisted.internet import error, reactor
+from twisted.internet import defer, error, reactor
+from twisted.internet.threads import deferToThread
 
 from cardinal.bot import user_info
 from cardinal.decorators import regex
@@ -75,6 +76,7 @@ class TickerPlugin(object):
 
         self.call_id = reactor.callLater(minutes_to_sleep * 60, self.tick)
 
+    @defer.inlineCallbacks
     def tick(self):
         """Send a message with daily stock movements"""
         # If it's after 4pm ET or before 9:30am ET on a weekday, or if it's
@@ -97,7 +99,8 @@ class TickerPlugin(object):
         try:
             results = {}
             for symbol, name in self.config["stocks"].items():
-                results[symbol] = colorize(self.get_daily_change(symbol))
+                change = yield self.get_daily_change(symbol)
+                results[symbol] = colorize(change)
 
             messages = []
             for symbol, result in results.items():
@@ -116,6 +119,7 @@ class TickerPlugin(object):
         self.wait()
 
     @regex(CHECK_REGEX)
+    @defer.inlineCallbacks
     def check(self, cardinal, user, channel, msg):
         """Check a specific stock for current value and daily change"""
         nick = user.nick
@@ -130,8 +134,10 @@ class TickerPlugin(object):
             nick = match.group(1)
         symbol = match.group(2)
         try:
-            data = self.get_daily(symbol)
-        except Exception:
+            data = yield self.get_daily(symbol)
+        except Exception as exc:
+            self.logger.warning("Error trying to look up symbol {}: {}".format(
+                symbol, exc))
             cardinal.sendMsg(
                 channel, "{}: Is your symbol correct?".format(nick))
             return
@@ -150,6 +156,7 @@ class TickerPlugin(object):
             except error.AlreadyCancelled as e:
                 self.logger.debug(e)
 
+    @defer.inlineCallbacks
     def make_av_request(self, function, params=None):
         if params is None:
             params = {}
@@ -157,14 +164,15 @@ class TickerPlugin(object):
         params['apikey'] = self.config["api_key"]
         params['datatype'] = 'json'
 
-        r = requests.get(AV_API_URL, params=params)
-        return r.json()
+        r = yield deferToThread(requests.get, AV_API_URL, params=params)
+        defer.returnValue(r.json())
 
+    @defer.inlineCallbacks
     def get_time_series_daily(self, symbol, outputsize='compact'):
-        data = self.make_av_request('TIME_SERIES_DAILY',
-                                    {'symbol': symbol,
-                                     'outputsize': outputsize,
-                                     })
+        data = yield self.make_av_request('TIME_SERIES_DAILY',
+                                          {'symbol': symbol,
+                                           'outputsize': outputsize,
+                                           })
         try:
             data = data['Time Series (Daily)']
         except KeyError:
@@ -174,10 +182,11 @@ class TickerPlugin(object):
             values = {k[3:]: float(v) for k, v in values.items()}
             data[date] = values
 
-        return data
+        defer.returnValue(data)
 
+    @defer.inlineCallbacks
     def get_daily(self, symbol):
-        data = self.get_time_series_daily(symbol)
+        data = yield self.get_time_series_daily(symbol)
 
         today = datetime.date.today()
         last_day = today - datetime.timedelta(days=1)
@@ -190,12 +199,14 @@ class TickerPlugin(object):
 
         percentage = (((current_value['close'] / last_day_value['close']) - 1)
                       * 100)
-        return {'current': current_value['close'],
-                'percentage': percentage,
-                }
+        defer.returnValue({'current': current_value['close'],
+                           'percentage': percentage,
+                           })
 
+    @defer.inlineCallbacks
     def get_daily_change(self, symbol):
-        return self.get_daily(symbol)['percentage']
+        res = yield self.get_daily(symbol)
+        defer.returnValue(res['percentage'])
 
 
 def setup(cardinal, config):
