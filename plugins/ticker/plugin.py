@@ -29,6 +29,7 @@ class TickerPlugin(object):
         self.cardinal = cardinal
 
         self.config = config or {}
+        self.config.setdefault('api_key', None)
         self.config.setdefault('channels', [])
         self.config.setdefault('stocks', [])
         self.config.setdefault('relay_bots', [])
