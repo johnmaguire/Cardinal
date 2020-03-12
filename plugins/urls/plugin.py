@@ -9,6 +9,7 @@ import logging
 from datetime import datetime
 
 from twisted.internet import defer
+from twisted.internet.threads import deferToThread
 
 from cardinal.decorators import regex
 
@@ -84,8 +85,8 @@ class URLsPlugin(object):
                 o.addheaders = [
                     ('User-agent', 'Mozilla/5.0 (Windows NT 6.2; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/32.0.1667.0 Safari/537.36')
                 ]
-                f = o.open(url, timeout=self.timeout)
-            except Exception, e:
+                f = yield deferToThread(o.open, url, timeout=self.timeout)
+            except Exception as e:
                 self.logger.exception("Unable to load URL: %s" % url)
                 defer.returnValue(None)
 
