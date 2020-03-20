@@ -494,8 +494,9 @@ class TestTickerPlugin(object):
             .strftime('%Y-%m-%d')
 
         expected = (symbol,
-                    get_delta(data[yesterday]['4. close'],
-                              data[today]['4. close']))
+                    get_delta(data[today]['4. close'],
+                              data[yesterday]['4. close']),)
+
 
         with mock_api(response):
             result = yield self.plugin.get_daily_change(symbol)
@@ -517,9 +518,10 @@ class TestTickerPlugin(object):
             'current': float(data[today]['4. close']),
             'close': float(data[today]['4. close']),
             'open': float(data[today]['1. open']),
-            'percentage': get_delta(data[yesterday]['4. close'],
-                                    data[today]['4. close']),
+            'percentage': get_delta(data[today]['4. close'],
+                                    data[yesterday]['4. close']),
         }
+
 
         with mock_api(response):
             result = yield self.plugin.get_daily(symbol)
@@ -548,8 +550,8 @@ class TestTickerPlugin(object):
             'current': float(data[basically_today]['4. close']),
             'close': float(data[basically_today]['4. close']),
             'open': float(data[basically_today]['1. open']),
-            'percentage': get_delta(data[three_days_ago]['4. close'],
-                                    data[basically_today]['4. close']),
+            'percentage': get_delta(data[basically_today]['4. close'],
+                                    data[three_days_ago]['4. close']),
         }
 
         with mock_api(response):

@@ -442,7 +442,7 @@ class TickerPlugin(object):
         current_value = data[today.strftime('%Y-%m-%d')]
         last_day_value = data[last_day.strftime('%Y-%m-%d')]
 
-        percentage = get_delta(last_day_value['close'], current_value['close'])
+        percentage = get_delta(current_value['close'], last_day_value['close'])
         defer.returnValue({'current': current_value['close'],
                            'close': current_value['close'],
                            'open': current_value['open'],
