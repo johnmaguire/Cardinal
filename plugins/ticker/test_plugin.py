@@ -255,6 +255,46 @@ class TestTickerPlugin(object):
             channel,
             output_msg)
 
+    @pytest.mark.parametrize("message_pairs", [
+        (("!predict INX +5%",
+          "Prediction by nick for \x02INX\x02 at market close: 105.00 (\x03095.00%\x03) ",
+         ),
+         ("!predict INX -5%",
+          "Prediction by nick for \x02INX\x02 at market close: 95.00 (\x0304-5.00%\x03) "
+          "(replaces old prediction of 105.00 (\x03095.00%\x03) set at {})"
+         ),
+         )
+    ])
+    @patch.object(plugin, 'est_now')
+    @pytest_twisted.inlineCallbacks
+    def test_predict_replace(self, mock_now, message_pairs):
+        channel = "#finance"
+
+        tz = pytz.timezone('America/New_York')
+        now = datetime.datetime.now(tz).replace(hour=10)
+        mock_now.return_value = now
+
+        response = make_time_series_daily_response('INX')
+        response['Time Series (Daily)'] \
+            [now.strftime("%Y-%m-%d")] \
+            ['1. open'] = str(100)
+
+        for input_msg, output_msg in message_pairs:
+            with mock_api(response):
+                yield self.plugin.predict(self.mock_cardinal,
+                                          user_info("nick", "user", "vhost"),
+                                          channel,
+                                          input_msg)
+
+            assert 'INX' in self.plugin.predictions
+            assert len(self.plugin.predictions['INX']) == 1
+
+            self.mock_cardinal.sendMsg.assert_called_with(
+                channel,
+            output_msg.format(now.strftime('%Y-%m-%d %H:%M:%S %Z'))
+            if '{}' in output_msg else
+            output_msg)
+
     @pytest.mark.parametrize("input_msg,output_msg", [
         ("<nick> !predict INX +5%",
          "Prediction by nick for \x02INX\x02 at market close: 105.00 (\x03095.00%\x03) ",
@@ -268,7 +308,8 @@ class TestTickerPlugin(object):
     def test_predict_relay_bot(self, mock_now, input_msg, output_msg):
         channel = "#finance"
 
-        now = datetime.datetime.now().replace(hour=10)
+        tz = pytz.timezone('America/New_York')
+        now = datetime.datetime.now(tz).replace(hour=10)
         mock_now.return_value = now
 
         response = make_time_series_daily_response('INX')

@@ -353,7 +353,7 @@ class TickerPlugin(object):
                 .format(
                     old_prediction,
                     colorize(get_delta(old_prediction, old_base)),
-                    old_datetime.strftime('%x %X %Z'),
+                    dt.strftime('%Y-%m-%d %H:%M:%S %Z'),
                 )
 
         # Save the prediction
