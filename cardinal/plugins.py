@@ -10,6 +10,7 @@ import linecache
 import random
 import json
 from collections import OrderedDict, defaultdict
+from copy import copy
 
 from cardinal.exceptions import (
     CommandNotFoundError,
@@ -46,7 +47,10 @@ class PluginManager(object):
     (additional arguments) which will be up to the plugin for handling.
     """
 
-    def __init__(self, cardinal, plugins=None,
+    def __init__(self,
+                 cardinal,
+                 plugins,
+                 blacklist,
                  _plugin_module_import_prefix='plugins',
                  _plugin_module_directory_suffix='plugins'):
         """Creates a new instance, optionally with a list of plugins to load
@@ -86,12 +90,7 @@ class PluginManager(object):
         # Used for iterating PluginManager plugins
         self.iteration_counter = 0
 
-        # Make sure we operate on a list
-        if plugins is None:
-            return
-        elif not isinstance(plugins, list):
-            raise TypeError("Plugins argument must be a list")
-
+        self._blacklist = blacklist
         self.load(plugins)
 
     def __iter__(self):
@@ -494,7 +493,9 @@ class PluginManager(object):
                 'callbacks': callbacks,
                 'callback_ids': callback_ids,
                 'config': config,
-                'blacklist': [],
+                'blacklist': copy(self._blacklist[plugin]) \
+                    if plugin in self._blacklist else \
+                    [],
             }
 
             if reload_flag:

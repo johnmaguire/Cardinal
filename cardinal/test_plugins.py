@@ -8,10 +8,10 @@ from collections import OrderedDict
 
 import pytest
 from twisted.internet.task import defer
-from mock import Mock, patch
+from mock import Mock, PropertyMock, patch
 
 from cardinal import exceptions
-from cardinal.bot import CardinalBot
+from cardinal.bot import CardinalBot, CardinalBotFactory
 from cardinal.plugins import EventManager, PluginManager
 
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
@@ -26,8 +26,12 @@ class TestPluginManager(object):
         mock_cardinal.event_manager = self.event_manager = \
             EventManager(mock_cardinal)
 
+        self.blacklist = {}
+
         self.plugin_manager = PluginManager(
             mock_cardinal,
+            [],
+            self.blacklist,
             _plugin_module_import_prefix='fake_plugins',
             _plugin_module_directory_suffix='cardinal/fixtures/fake_plugins')
 
@@ -35,6 +39,7 @@ class TestPluginManager(object):
                             plugins,
                             assert_callbacks_is_empty=True,
                             assert_commands_is_empty=True,
+                            assert_blacklist_is_empty=True,
                             assert_config_is_none=True):
         failed_plugins = self.plugin_manager.load(plugins)
 
@@ -71,7 +76,8 @@ class TestPluginManager(object):
                 assert self.plugin_manager.plugins[name]['callback_ids'] == {}
             if assert_config_is_none:
                 assert self.plugin_manager.plugins[name]['config'] is None
-            assert self.plugin_manager.plugins[name]['blacklist'] == []
+            if assert_blacklist_is_empty:
+                assert self.plugin_manager.plugins[name]['blacklist'] == []
 
     def assert_load_failed(self, plugins):
         failed_plugins = self.plugin_manager.load(plugins)
@@ -84,19 +90,15 @@ class TestPluginManager(object):
         assert failed_plugins == plugins
         assert self.plugin_manager.plugins == {}
 
-    def test_constructor_no_plugins(self):
-        manager = PluginManager(Mock())
-        assert len(manager.plugins) == 0
-
-    def test_constructor_no_plugins_empty_list(self):
-        manager = PluginManager(Mock(), [])
+    def test_constructor(self):
+        manager = PluginManager(Mock(), [], [])
         assert len(manager.plugins) == 0
 
     @patch.object(PluginManager, 'load')
-    def test_constructor_loads_plugins(self, mock):
+    def test_constructor_loads_plugins(self, load):
         plugins = ['foo', 'bar']
-        PluginManager(Mock(), plugins)
-        mock.assert_called_with(plugins)
+        PluginManager(Mock(), plugins, [])
+        load.assert_called_with(plugins)
 
     @pytest.mark.parametrize("plugins", [
         'a string',
@@ -558,6 +560,18 @@ class TestPluginManager(object):
         self.assert_load_success(name, assert_commands_is_empty=False)
 
         assert self.plugin_manager.blacklist(name, channel) is True
+        assert self.plugin_manager.plugins[name]['blacklist'] == [channel]
+
+    def test_blacklist_from_config(self):
+        name = 'commands'
+        channel = '#channel'
+
+        # this works since dict is by-reference in Python
+        self.blacklist[name] = [channel]
+        self.assert_load_success(name,
+                                 assert_commands_is_empty=False,
+                                 assert_blacklist_is_empty=False)
+
         assert self.plugin_manager.plugins[name]['blacklist'] == [channel]
 
     def test_blacklist_multiple_channels(self):

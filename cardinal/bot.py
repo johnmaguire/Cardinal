@@ -124,7 +124,9 @@ class CardinalBot(irc.IRCClient, object):
         self.factory.cardinal = self
 
         # Setup PluginManager
-        self.plugin_manager = PluginManager(self, self.factory.plugins)
+        self.plugin_manager = PluginManager(self,
+                                            self.factory.plugins,
+                                            self.factory.blacklist)
 
         # Attempt to identify with NickServ, if a password was given
         if self.factory.password:
@@ -498,6 +500,7 @@ class CardinalBotFactory(protocol.ClientFactory):
                  username=None,
                  realname=None,
                  plugins=None,
+                 blacklist=None,
                  storage=None):
         """Boots the bot, triggers connection, and initializes logging.
 
@@ -518,6 +521,9 @@ class CardinalBotFactory(protocol.ClientFactory):
         if channels is None:
             channels = []
 
+        if blacklist is None:
+            blacklist = []
+
         self.logger = logging.getLogger(__name__)
         self.network = network.lower()
         self.server_password = server_password
@@ -527,6 +533,7 @@ class CardinalBotFactory(protocol.ClientFactory):
         self.username = username
         self.realname = realname
         self.plugins = plugins
+        self.blacklist = blacklist
         self.storage_path = storage
 
         # Register SIGINT handler, so we can close the connection cleanly

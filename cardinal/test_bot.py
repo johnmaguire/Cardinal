@@ -112,7 +112,9 @@ class TestCardinalBot(object):
         assert mock_join.mock_calls == [call(channel) for channel in channels]
         mock_send.assert_called_once_with("MODE {} +B".format(nickname))
 
-        mock_plugin_manager.assert_called_once()
+        mock_plugin_manager.assert_called_once_with(self.cardinal,
+                                                    mock_factory.plugins,
+                                                    mock_factory.blacklist)
         assert isinstance(self.cardinal.plugin_manager, plugins.PluginManager)
 
         assert isinstance(self.cardinal.uptime, datetime)
@@ -575,6 +577,9 @@ class TestCardinalBotFactory(object):
         username = 'cardinal'
         realname = 'Mr. Cardinal'
         plugins = ['plugin1', 'plugin2']
+        blacklist = [
+            {'urls': '#finance'},
+        ]
         storage = '/path/to/storage'
 
         factory = CardinalBotFactory(
@@ -586,6 +591,7 @@ class TestCardinalBotFactory(object):
             username,
             realname,
             plugins,
+            blacklist,
             storage,
         )
 
@@ -597,6 +603,7 @@ class TestCardinalBotFactory(object):
         assert factory.username == username
         assert factory.realname == realname
         assert factory.plugins == plugins
+        assert factory.blacklist == blacklist
         assert factory.storage_path == storage
 
     def test_sigint_handler(self):
