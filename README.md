@@ -4,7 +4,7 @@
 
 Python Twisted IRC bot with a focus on ease of development.
 
-You can find us at #cardinal on the [DarkScience](http://www.darkscience.net/) IRC network (irc.darkscience.net/+6697 &mdash; SSL required)
+You can find us at #cardinal on the [DarkScience](http://www.darkscience.net/) IRC network (irc.darkscience.net/+6697 &mdash; SSL required \[[mibbit link](https://www.mibbit.com/#cardinal@irc.darkscience.net:+6697)\])
 
 ## What can Cardinal do?
 
