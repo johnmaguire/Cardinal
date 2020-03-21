@@ -1,6 +1,6 @@
 # Meet Cardinal.
 
-[![Build Status](https://travis-ci.org/JohnMaguire/Cardinal.svg?branch=master)](https://travis-ci.org/JohnMaguire/Cardinal) [![Coverage Status](https://coveralls.io/repos/JohnMaguire/Cardinal/badge.svg?branch=master&service=github)](https://coveralls.io/github/JohnMaguire/Cardinal?branch=master)
+[![Build Status](https://api.travis-ci.com/JohnMaguire/Cardinal.svg?branch=master)](https://travis-ci.com/JohnMaguire/Cardinal) [![Coverage Status](https://coveralls.io/repos/JohnMaguire/Cardinal/badge.svg?branch=master&service=github)](https://coveralls.io/github/JohnMaguire/Cardinal?branch=master)
 
 Python Twisted IRC bot with a focus on ease of development.
 
