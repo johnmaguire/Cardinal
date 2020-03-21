@@ -70,7 +70,7 @@ https://github.com/JohnMaguire/Cardinal
         'youtube',
         'urbandict'
     ])
-    spec.add_option('blacklist', list, [])
+    spec.add_option('blacklist', dict, {})
     spec.add_option('logging', dict, None)
 
     parser = ConfigParser(spec)

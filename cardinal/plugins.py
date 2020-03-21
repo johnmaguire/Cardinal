@@ -83,6 +83,9 @@ class PluginManager(object):
         # Set default to empty object
         self.plugins = {}
 
+        # Plugin blacklist from persistent config
+        self._blacklist = blacklist
+
         # To prevent circular dependencies, we can't sanity check this. Hope
         # for the best.
         self.cardinal = cardinal
@@ -90,7 +93,6 @@ class PluginManager(object):
         # Used for iterating PluginManager plugins
         self.iteration_counter = 0
 
-        self._blacklist = blacklist
         self.load(plugins)
 
     def __iter__(self):
