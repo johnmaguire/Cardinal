@@ -220,16 +220,16 @@ class TestTickerPlugin(object):
     def test_send_ticker(self):
         responses = [
             make_time_series_daily_response('DJI',
-                                            previous_close=100,
+                                            last_open=100,
                                             last_close=200),
             make_time_series_daily_response('AGG',
-                                            previous_close=100,
+                                            last_open=100,
                                             last_close=150.50),
             make_time_series_daily_response('VEU',
-                                            previous_close=100,
+                                            last_open=100,
                                             last_close=105),
             make_time_series_daily_response('INX',
-                                            previous_close=100,
+                                            last_open=100,
                                             last_close=50),
         ]
 
@@ -615,21 +615,6 @@ class TestTickerPlugin(object):
         assert saved_base == base
         assert saved_prediction == prediction
 
-
-    @defer.inlineCallbacks
-    def test_get_daily_change(self):
-        symbol = 'INX'
-
-        response = make_time_series_daily_response(symbol,
-                                                   last_close=500,
-                                                   previous_close=100)
-        expected = 400.0  # 400% increase
-
-        with mock_api(response):
-            result = yield self.plugin.get_daily_change(symbol)
-
-        assert result == expected
-
     @defer.inlineCallbacks
     def test_get_daily(self):
         symbol = 'INX'
@@ -649,10 +634,9 @@ class TestTickerPlugin(object):
             .strftime('%Y-%m-%d')
 
         expected = {
-            'current': last_close,
             'close': last_close,
             'open': last_open,
-            'percentage': get_delta(last_close, previous_close),
+            'change': get_delta(last_close, last_open),
         }
 
         with mock_api(response):
@@ -683,10 +667,9 @@ class TestTickerPlugin(object):
                                                    )
 
         expected = {
-            'current': last_close,
             'close': last_close,
             'open': last_open,
-            'percentage': get_delta(last_close, previous_close),
+            'change': get_delta(last_close, last_open),
         }
 
         with mock_api(response, fake_now):

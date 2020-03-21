@@ -187,10 +187,10 @@ class TickerPlugin(object):
         # we care about simultaneously
         deferreds = []
         for symbol, name in self.config["stocks"].items():
-            d = self.get_daily_change(symbol)
+            d = self.get_daily(symbol)
 
-            # add symbol to result for looping later
-            d.addCallback(lambda res: (symbol, res))
+            # convert result to a (symbol, delta) mapping for the list
+            d.addCallback(lambda res: (symbol, res['change']))
             deferreds.append(d)
         dl = defer.DeferredList(deferreds)
 
@@ -344,8 +344,8 @@ class TickerPlugin(object):
             channel,
             "Symbol: \x02{}\x02 | Current: {} | Daily Change: {}".format(
                 symbol,
-                data['current'],
-                colorize(data['percentage'])))
+                data['close'],
+                colorize(data['change'])))
 
     @regex(PREDICT_REGEX)
     @defer.inlineCallbacks
@@ -426,11 +426,6 @@ class TickerPlugin(object):
         self.predictions[symbol][nick] = (est_now(), base, prediction)
 
     @defer.inlineCallbacks
-    def get_daily_change(self, symbol):
-        res = yield self.get_daily(symbol)
-        defer.returnValue(res['percentage'])
-
-    @defer.inlineCallbacks
     def get_daily(self, symbol):
         data = yield self.get_time_series_daily(symbol)
 
@@ -446,25 +441,12 @@ class TickerPlugin(object):
         if data.get(today.strftime('%Y-%m-%d'), None) is None:
             raise Exception("Can't find data as far back as {}".format(today))
 
-        # This may not actually be the day prior to "today" if it's a Monday
-        # for example (then last_day would be the preceding Friday) -- same 5
-        # day limitation as above
-        last_day = today - datetime.timedelta(days=1)
-        count = 0
-        while data.get(last_day.strftime('%Y-%m-%d'), None) is None and count < 5:
-            count += 1
-            last_day = last_day - datetime.timedelta(days=1)
-        if data.get(last_day.strftime('%Y-%m-%d'), None) is None:
-            raise Exception("Can't find data as far back as {}".format(last_day))
+        todays_data = data[today.strftime('%Y-%m-%d')]
 
-        current_value = data[today.strftime('%Y-%m-%d')]
-        last_day_value = data[last_day.strftime('%Y-%m-%d')]
-
-        percentage = get_delta(current_value['close'], last_day_value['close'])
-        defer.returnValue({'current': current_value['close'],
-                           'close': current_value['close'],
-                           'open': current_value['open'],
-                           'percentage': percentage,
+        change = get_delta(todays_data['close'], todays_data['open'])
+        defer.returnValue({'close': todays_data['close'],
+                           'open': todays_data['open'],
+                           'change': change,
                            })
 
     @defer.inlineCallbacks
