@@ -22,14 +22,37 @@ from plugins.ticker.plugin import (
     sleep,
 )
 
+
+def get_fake_now(market_is_open=True):
+    tz = pytz.timezone('America/New_York')
+    fake_now = datetime.datetime.now(tz)
+    if market_is_open:
+        # Ensure it is open
+        fake_now = fake_now.replace(hour=10)
+        while fake_now.weekday() >= 5:
+            fake_now = fake_now - datetime.timedelta(days=1)
+    else:
+        # Ensure it is closed
+        fake_now = fake_now.replace(hour=18)
+
+    return fake_now
+
+
 @contextmanager
-def mock_api(response, raise_times=0, throttle_times=0):
+def mock_api(response,
+             fake_now=None,
+             raise_times=0,
+             throttle_times=0):
+    fake_now = fake_now or get_fake_now()
+    responses = copy.deepcopy(response) \
+        if isinstance(response, list) else \
+        [copy.deepcopy(response)]
+
     response_mock = MagicMock()
     type(response_mock).status_code = PropertyMock(return_value=200)
 
     # hack since nonlocal doesn't exist in py2
     context = {'raise_times': raise_times, 'throttle_times': throttle_times}
-
     def mock_deferToThread(*args, **kwargs):
         if context['raise_times'] > 0:
             context['raise_times'] -= 1
@@ -40,12 +63,14 @@ def mock_api(response, raise_times=0, throttle_times=0):
             response_mock.json.return_value = make_throttle_response()
 
         else:
-            response_mock.json.return_value = copy.deepcopy(response)
+            response_mock.json.return_value = responses.pop(0)
 
         return response_mock
 
-    with patch.object(plugin, 'deferToThread') as mock_defer:
+    with patch.object(plugin, 'deferToThread') as mock_defer, \
+            patch.object(plugin, 'est_now', return_value=fake_now):
         mock_defer.side_effect = mock_deferToThread
+
         yield mock_defer
 
 
@@ -58,9 +83,16 @@ def make_throttle_response():
     }
 
 
-def make_time_series_daily_response(symbol, compact=True):
+def make_time_series_daily_response(symbol,
+                                    last_open=None,
+                                    last_close=None,
+                                    previous_close=None,
+                                    start=None):
     """Mock response for TIME_SERIES_DAILY API"""
-    now = datetime.datetime.today()
+
+    last_market_day = start or datetime.datetime.today()
+    while last_market_day.weekday() >= 5:
+        last_market_day = last_market_day - datetime.timedelta(days=1)
 
     def make_random_response():
         open_ = random.randrange(95, 105) + random.random()
@@ -76,17 +108,33 @@ def make_time_series_daily_response(symbol, compact=True):
             "5. volume": "{}".format(volume)
         }
 
-    time_series_daily = {
-        (now - datetime.timedelta(days=days)).strftime("%Y-%m-%d"):
-            make_random_response()
-        for days in xrange(0, 60)
-    }
+    time_series_daily = {}
+    market_day = last_market_day
+    previous_market_day = last_market_day - datetime.timedelta(days=1)
+    for days in xrange(0, 60):
+        # don't add data for weekends
+        if market_day.weekday() < 5:
+            response = make_random_response()
+
+            # Override last open / last close for testing
+            if market_day == last_market_day:
+                if last_open:
+                    response["1. open"] = "{:.4f}".format(last_open)
+                if last_close:
+                    response["4. close"] = "{:.4f}".format(last_close)
+            if market_day == previous_market_day and previous_close:
+                response["4. close"] = "{:.4f}".format(previous_close)
+
+            time_series_daily[market_day.strftime("%Y-%m-%d")] = response
+        market_day = market_day - datetime.timedelta(days=1)
+
+    compact = True
     return {
         "Meta Data": {
             "1. Information": "Daily Prices (open, high, low, close) and "
                               "Volumes",
             "2. Symbol": symbol,
-            "3. Last Refreshed": now.strftime("%Y-%m-%d"),
+            "3. Last Refreshed": datetime.datetime.now().strftime("%Y-%m-%d"),
             "4. Output Size": "Compact" if compact else "Full size",
             "5. Time Zone": "US/Eastern"
         },
@@ -118,7 +166,8 @@ def test_sleep():
 class TestTickerPlugin(object):
     def setup_method(self, method):
         self.api_key = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-        self.channels = ['#test']
+        self.channel = '#test'
+        self.channels = [self.channel]
         self.stocks = OrderedDict({
             'INX': 'S&P 500',
             'DJI': 'Dow',
@@ -139,26 +188,133 @@ class TestTickerPlugin(object):
         })
         assert len(self.plugin.predictions) == 0
 
+    def test_config_defaults(self):
+        plugin = TickerPlugin(self.mock_cardinal, {
+            'api_key': self.api_key,
+        })
+        assert plugin.config['api_key'] == self.api_key
+        assert plugin.config['channels'] == []
+        assert plugin.config['stocks'] == {}
+        assert plugin.config['relay_bots'] == []
+        assert plugin.predictions == {}
+
+    def test_missing_api_key(self):
+        with pytest.raises(KeyError):
+            TickerPlugin(self.mock_cardinal, {})
+
+    def test_missing_stocks(self):
+        with pytest.raises(ValueError):
+            TickerPlugin(self.mock_cardinal, {
+                'api_key': self.api_key,
+                'stocks': {
+                    'a': 'a',
+                    'b': 'b',
+                    'c': 'c',
+                    'd': 'd',
+                    'e': 'e',
+                    'f': 'f',
+                },
+            })
+
     @defer.inlineCallbacks
     def test_send_ticker(self):
-        response = make_time_series_daily_response('INX')
+        responses = [
+            make_time_series_daily_response('DJI',
+                                            previous_close=100,
+                                            last_close=200),
+            make_time_series_daily_response('AGG',
+                                            previous_close=100,
+                                            last_close=150.50),
+            make_time_series_daily_response('VEU',
+                                            previous_close=100,
+                                            last_close=105),
+            make_time_series_daily_response('INX',
+                                            previous_close=100,
+                                            last_close=50),
+        ]
 
-        with mock_api(response):
+        with mock_api(responses, fake_now=get_fake_now(market_is_open=True)):
             yield self.plugin.send_ticker()
 
+        # @TODO test this message better
         assert len(self.mock_cardinal.sendMsg.mock_calls) == 1
 
-    @patch.object(plugin, 'reactor', new_callable=Clock)
+        self.mock_cardinal.sendMsg.assert_called_once_with(
+            self.channel,
+            'Dow (\x02DJI\x02): \x0309100.00%\x03 | '
+            'US Bond (\x02AGG\x02): \x030950.50%\x03 | '
+            'Foreign (\x02VEU\x02): \x03095.00%\x03 | '
+            'S&P 500 (\x02INX\x02): \x0304-50.00%\x03'
+        )
+
+    @pytest.mark.parametrize("dt,should_send_ticker,should_do_predictions", [
+        (datetime.datetime(2020, 3, 21, 16, 0, 0),  # Saturday 4pm
+         False,
+         False,),
+        (datetime.datetime(2020, 3, 22, 16, 0, 0),  # Sunday 4pm
+         False,
+         False,),
+        (datetime.datetime(2020, 3, 23, 15, 45, 45),  # Monday 3:45pm
+         True,
+         False,),
+        (datetime.datetime(2020, 3, 23, 16, 0, 30),  # Monday 4pm
+         True,
+         True,),
+        (datetime.datetime(2020, 3, 23, 16, 15, 0),  # Monday 4:15pm
+         False,
+         False,),
+        (datetime.datetime(2020, 3, 27, 9, 15, 0),  # Friday 9:15am
+         False,
+         False,),
+        (datetime.datetime(2020, 3, 27, 9, 30, 15),  # Friday 9:30am
+         True,
+         True,),
+        (datetime.datetime(2020, 3, 27, 9, 45, 15),  # Friday 9:45am
+         True,
+         False,),
+    ])
+    @patch.object(plugin.TickerPlugin, 'do_predictions')
+    @patch.object(plugin.TickerPlugin, 'send_ticker')
+    @patch.object(plugin, 'sleep')
     @patch.object(plugin, 'est_now')
-    @defer.inlineCallbacks
-    def test_do_predictions(self, mock_now, mock_reactor):
+    @pytest_twisted.inlineCallbacks
+    def test_tick(self,
+                  est_now,
+                  sleep,
+                  send_ticker,
+                  do_predictions,
+                  dt,
+                  should_send_ticker,
+                  should_do_predictions):
+        est_now.return_value = dt
+
+        yield self.plugin.tick()
+
+        if should_send_ticker:
+            send_ticker.assert_called_once_with()
+        else:
+            assert send_ticker.mock_calls == []
+
+        if should_do_predictions:
+            sleep.assert_called_once_with(60)
+            do_predictions.assert_called_once_with()
+        else:
+            assert sleep.mock_calls == []
+            assert do_predictions.mock_calls == []
+
+    @pytest.mark.parametrize("market_is_open", [True, False])
+    @patch.object(plugin, 'reactor', new_callable=Clock)
+    @pytest_twisted.inlineCallbacks
+    def test_do_predictions(self, mock_reactor, market_is_open):
         symbol = 'INX'
-        base = 100
+        base = 100.0
 
         user1 = 'user1'
         user2 = 'user2'
-        prediction1 = 105
-        prediction2 = 96
+        prediction1 = 105.0
+        prediction2 = 96.0
+
+        actual = 95.0
 
         yield self.plugin.save_prediction(
             symbol,
@@ -176,73 +332,83 @@ class TestTickerPlugin(object):
         assert len(self.plugin.predictions) == 1
         assert len(self.plugin.predictions[symbol]) == 2
 
-        tz = pytz.timezone('America/New_York')
-        now = datetime.datetime.now(tz).replace(hour=10)
-        mock_now.return_value = now
+        kwargs = {"last_open": actual} \
+            if market_is_open else \
+            {"last_close": actual}
+        response = make_time_series_daily_response(symbol, **kwargs)
 
-        response = make_time_series_daily_response(symbol)
-        response['Time Series (Daily)'][now.strftime("%Y-%m-%d")] \
-            ["1. open"] = "100"
-
-        with mock_api(response) as defer_mock:
+        with mock_api(response, fake_now=get_fake_now(market_is_open)) \
+                as defer_mock:
             d = self.plugin.do_predictions()
             mock_reactor.advance(15)
 
             yield d
 
-        channel = self.channels[0]
-
         assert len(self.mock_cardinal.sendMsg.mock_calls) == 3
         self.mock_cardinal.sendMsg.assert_called_with(
-            '#test',
+            self.channel,
             '{} had the closest guess for \x02{}\x02 out of {} predictions '
-            'with a prediction of {} (\x0304{:.2f}%\x03).'.format(
-                user2, symbol, 2, 96, -4))
+            'with a prediction of {} (\x0304{:.2f}%\x03) '
+            'compared to the actual {} of {} (\x0304{:.2f}%\x03).'.format(
+                user2,
+                symbol,
+                2,
+                prediction2,
+                -4,
+                'open' if market_is_open else 'close',
+                actual,
+                -5))
 
-    @pytest.mark.parametrize("prediction,base,input_,message", [
-        (105,
-         100,
-         ("nick", "INX", 105),
-         "Prediction by nick for \x02INX\02: 105 (\x03095.00%\x03). "
-         "Actual value at open: 105 (\x03095.00%\x03). "
-         "Prediction set at 2020-03-20 10:50:00 EDT."),
-    ])
     @patch.object(plugin, 'est_now')
-    def test_send_prediction(self, mock_now, prediction, base, input_, message):
-        tz = pytz.timezone('America/New_York')
-        mock_now.return_value = tz.localize(datetime.datetime(2020, 3, 20, 10, 50, 0, 0))
+    def test_send_prediction(self, mock_now):
+        prediction = 105
+        actual = 110
+        base = 100
+        nick = "nick"
+        symbol = "INX"
 
-        nick, symbol, actual = input_
+        # Set the datetime to a known value so the message can be tested
+        tz = pytz.timezone('America/New_York')
+        mock_now.return_value = tz.localize(
+            datetime.datetime(2020, 3, 20, 10, 50, 0, 0))
+
         self.plugin.save_prediction(symbol, nick, base, prediction)
         self.plugin.send_prediction(nick, symbol, actual)
+
+        message = "Prediction by nick for \x02INX\02: 105 (\x03095.00%\x03). " \
+                  "Actual value at open: 110 (\x030910.00%\x03). " \
+                  "Prediction set at 2020-03-20 10:50:00 EDT."
         self.mock_cardinal.sendMsg.assert_called_once_with('#test', message)
 
     @pytest.mark.skip(reason="Not written yet")
     def test_check(self):
         pass
 
-    @pytest.mark.parametrize("input_msg,output_msg", [
+    @pytest.mark.parametrize("input_msg,output_msg,market_is_open", [
         ("!predict INX +5%",
          "Prediction by nick for \x02INX\x02 at market close: 105.00 (\x03095.00%\x03) ",
+         True,
          ),
         ("!predict INX -5%",
          "Prediction by nick for \x02INX\x02 at market close: 95.00 (\x0304-5.00%\x03) ",
+         True,
+         ),
+        ("!predict INX -5%",
+         "Prediction by nick for \x02INX\x02 at market open: 95.00 (\x0304-5.00%\x03) ",
+         False,
          ),
     ])
-    @patch.object(plugin, 'est_now')
     @pytest_twisted.inlineCallbacks
-    def test_predict(self, mock_now, input_msg, output_msg):
+    def test_predict_market_open(self, input_msg, output_msg, market_is_open):
         channel = "#finance"
+        symbol = "INX"
 
-        now = datetime.datetime.now().replace(hour=10)
-        mock_now.return_value = now
+        fake_now = get_fake_now(market_is_open=market_is_open)
 
-        response = make_time_series_daily_response('INX')
-        response['Time Series (Daily)'] \
-            [now.strftime("%Y-%m-%d")] \
-            ['1. open'] = str(100)
+        kwargs = {'last_open': 100} if market_is_open else {'last_close': 100}
+        response = make_time_series_daily_response(symbol, **kwargs)
 
-        with mock_api(response):
+        with mock_api(response, fake_now=fake_now):
             yield self.plugin.predict(self.mock_cardinal,
                                       user_info("nick", "user", "vhost"),
                                       channel,
@@ -265,35 +431,29 @@ class TestTickerPlugin(object):
          ),
          )
     ])
-    @patch.object(plugin, 'est_now')
     @pytest_twisted.inlineCallbacks
-    def test_predict_replace(self, mock_now, message_pairs):
+    def test_predict_replace(self, message_pairs):
         channel = "#finance"
+        symbol = 'INX'
 
-        tz = pytz.timezone('America/New_York')
-        now = datetime.datetime.now(tz).replace(hour=10)
-        mock_now.return_value = now
+        response = make_time_series_daily_response(symbol, last_open=100)
 
-        response = make_time_series_daily_response('INX')
-        response['Time Series (Daily)'] \
-            [now.strftime("%Y-%m-%d")] \
-            ['1. open'] = str(100)
-
+        fake_now = get_fake_now()
         for input_msg, output_msg in message_pairs:
-            with mock_api(response):
+            with mock_api(response, fake_now):
                 yield self.plugin.predict(self.mock_cardinal,
                                           user_info("nick", "user", "vhost"),
                                           channel,
                                           input_msg)
 
-            assert 'INX' in self.plugin.predictions
-            assert len(self.plugin.predictions['INX']) == 1
+                assert symbol in self.plugin.predictions
+                assert len(self.plugin.predictions[symbol]) == 1
 
-            self.mock_cardinal.sendMsg.assert_called_with(
-                channel,
-            output_msg.format(now.strftime('%Y-%m-%d %H:%M:%S %Z'))
-            if '{}' in output_msg else
-            output_msg)
+                self.mock_cardinal.sendMsg.assert_called_with(
+                    channel,
+                    output_msg.format(fake_now.strftime('%Y-%m-%d %H:%M:%S %Z'))
+                    if '{}' in output_msg else
+                    output_msg)
 
     @pytest.mark.parametrize("input_msg,output_msg", [
         ("<nick> !predict INX +5%",
@@ -303,28 +463,20 @@ class TestTickerPlugin(object):
          "Prediction by nick for \x02INX\x02 at market close: 95.00 (\x0304-5.00%\x03) ",
          ),
     ])
-    @patch.object(plugin, 'est_now')
     @pytest_twisted.inlineCallbacks
-    def test_predict_relay_bot(self, mock_now, input_msg, output_msg):
+    def test_predict_relay_bot(self, input_msg, output_msg):
+        symbol = 'INX'
         channel = "#finance"
 
-        tz = pytz.timezone('America/New_York')
-        now = datetime.datetime.now(tz).replace(hour=10)
-        mock_now.return_value = now
-
-        response = make_time_series_daily_response('INX')
-        response['Time Series (Daily)'] \
-            [now.strftime("%Y-%m-%d")] \
-            ['1. open'] = str(100)
-
+        response = make_time_series_daily_response(symbol, last_open=100)
         with mock_api(response):
             yield self.plugin.predict(self.mock_cardinal,
                                       user_info("relay.bot", "relay", "relay"),
                                       channel,
                                       input_msg)
 
-        assert 'INX' in self.plugin.predictions
-        assert len(self.plugin.predictions['INX']) == 1
+        assert symbol in self.plugin.predictions
+        assert len(self.plugin.predictions[symbol]) == 1
 
         self.mock_cardinal.sendMsg.assert_called_once_with(
             channel,
@@ -378,11 +530,9 @@ class TestTickerPlugin(object):
             ("whoami", "INX", 95, 100),
         ),
     ])
-    @patch.object(plugin, 'est_now')
     @pytest_twisted.inlineCallbacks
     def test_parse_prediction_open(
             self,
-            mock_now,
             user,
             message,
             value,
@@ -390,14 +540,7 @@ class TestTickerPlugin(object):
     ):
         symbol = 'INX'
 
-        now = datetime.datetime.now().replace(hour=10)
-        mock_now.return_value = now
-
-        response = make_time_series_daily_response(symbol)
-        response['Time Series (Daily)'] \
-            [now.strftime("%Y-%m-%d")] \
-            ['1. open'] = str(value)
-
+        response = make_time_series_daily_response(symbol, last_open=value)
         with mock_api(response):
             result = yield self.plugin.parse_prediction(user, message)
 
@@ -435,11 +578,9 @@ class TestTickerPlugin(object):
             ("whoami", "INX", 95, 100),
         ),
     ])
-    @patch.object(plugin, 'est_now')
     @pytest_twisted.inlineCallbacks
     def test_parse_prediction_close(
             self,
-            mock_now,
             user,
             message,
             value,
@@ -447,15 +588,9 @@ class TestTickerPlugin(object):
     ):
         symbol = 'INX'
 
-        now = datetime.datetime.now().replace(hour=18)
-        mock_now.return_value = now
+        response = make_time_series_daily_response(symbol, last_close=value)
 
-        response = make_time_series_daily_response(symbol)
-        response['Time Series (Daily)'] \
-            [now.strftime("%Y-%m-%d")] \
-            ['4. close'] = str(value)
-
-        with mock_api(response):
+        with mock_api(response, fake_now=get_fake_now(market_is_open=False)):
             result = yield self.plugin.parse_prediction(user, message)
 
         assert result == expected
@@ -485,29 +620,28 @@ class TestTickerPlugin(object):
     def test_get_daily_change(self):
         symbol = 'INX'
 
-        response = make_time_series_daily_response(symbol)
-        data = response['Time Series (Daily)']
-
-        # Calculate expected value using randomly created response
-        today = datetime.date.today().strftime('%Y-%m-%d')
-        yesterday = (datetime.date.today() - datetime.timedelta(days=1)) \
-            .strftime('%Y-%m-%d')
-
-        expected = (symbol,
-                    get_delta(data[today]['4. close'],
-                              data[yesterday]['4. close']),)
-
+        response = make_time_series_daily_response(symbol,
+                                                   last_close=500,
+                                                   previous_close=100)
+        expected = 400.0  # 400% increase
 
         with mock_api(response):
             result = yield self.plugin.get_daily_change(symbol)
-            assert result == expected
+
+        assert result == expected
 
     @defer.inlineCallbacks
     def test_get_daily(self):
         symbol = 'INX'
+        last_open = 100.0
+        last_close = 101.0
+        previous_close = 102.0
 
-        response = make_time_series_daily_response(symbol)
-        data = response['Time Series (Daily)']
+        response = make_time_series_daily_response(symbol,
+                                                   last_open=last_open,
+                                                   last_close=last_close,
+                                                   previous_close=previous_close,
+                                                   )
 
         # Calculate expected value using randomly created response
         today = datetime.date.today().strftime('%Y-%m-%d')
@@ -515,48 +649,49 @@ class TestTickerPlugin(object):
             .strftime('%Y-%m-%d')
 
         expected = {
-            'current': float(data[today]['4. close']),
-            'close': float(data[today]['4. close']),
-            'open': float(data[today]['1. open']),
-            'percentage': get_delta(data[today]['4. close'],
-                                    data[yesterday]['4. close']),
+            'current': last_close,
+            'close': last_close,
+            'open': last_open,
+            'percentage': get_delta(last_close, previous_close),
         }
-
 
         with mock_api(response):
             result = yield self.plugin.get_daily(symbol)
-            assert result == expected
+        assert result == expected
 
     @defer.inlineCallbacks
     def test_get_daily_missing_days(self):
         symbol = 'INX'
+        last_open = 100.0
+        last_close = 101.0
+        previous_close = 102.0
 
-        response = make_time_series_daily_response(symbol)
-        data = response['Time Series (Daily)']
+        fake_now = datetime.datetime(
+            2020,
+            3,
+            22,  # a Sunday
+            12,
+            0,
+            0,
+        )
 
-        today = datetime.date.today()
-        two_days_ago = today - datetime.timedelta(days=2)
-
-        del response['Time Series (Daily)'][today.strftime('%Y-%m-%d')]
-        del response['Time Series (Daily)'][two_days_ago.strftime('%Y-%m-%d')]
-
-        # Calculate expected value using randomly created response
-        basically_today = (today - datetime.timedelta(days=1)) \
-            .strftime('%Y-%m-%d')
-        three_days_ago = (today - datetime.timedelta(days=3)) \
-            .strftime('%Y-%m-%d')
+        response = make_time_series_daily_response(symbol,
+                                                   last_open=last_open,
+                                                   last_close=last_close,
+                                                   previous_close=previous_close,
+                                                   start=fake_now,
+                                                   )
 
         expected = {
-            'current': float(data[basically_today]['4. close']),
-            'close': float(data[basically_today]['4. close']),
-            'open': float(data[basically_today]['1. open']),
-            'percentage': get_delta(data[basically_today]['4. close'],
-                                    data[three_days_ago]['4. close']),
+            'current': last_close,
+            'close': last_close,
+            'open': last_open,
+            'percentage': get_delta(last_close, previous_close),
         }
 
-        with mock_api(response):
+        with mock_api(response, fake_now):
             result = yield self.plugin.get_daily(symbol)
-            assert result == expected
+        assert result == expected
 
     @defer.inlineCallbacks
     def test_get_time_series_daily(self):

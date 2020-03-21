@@ -77,7 +77,7 @@ class TickerPlugin(object):
         self.config = config or {}
         self.config.setdefault('api_key', None)
         self.config.setdefault('channels', [])
-        self.config.setdefault('stocks', [])
+        self.config.setdefault('stocks', {})
         self.config.setdefault('relay_bots', [])
 
         if not self.config["channels"]:
@@ -135,6 +135,13 @@ class TickerPlugin(object):
     @defer.inlineCallbacks
     def tick(self):
         """Send a message with daily stock movements"""
+        # Start the timer for the next tick -- do this first, as the rest of
+        # this function may take time. While that's OK, and it shouldn't take
+        # anywhere close to 15 minutes, reloading the plugin during that time
+        # could result in close() cancelling the event, and then wait() getting
+        # called from the old (reloaded) instance.
+        self.wait()
+
         # If it's after 4pm ET or before 9:30am ET on a weekday, or if it's
         # a weekend (Saturday or Sunday), don't tick, just wait.
         now = est_now()
@@ -150,7 +157,9 @@ class TickerPlugin(object):
         is_close = now.hour == 16 and now.minute == 0
 
         # Determine if we should do predictions after sending ticker
-        do_predictions = True if is_open or is_close else False
+        should_do_predictions = True \
+            if is_market_open and (is_open or is_close) \
+            else False
 
         # If there are no stocks to send in the ticker, or no channels to send
         # them to, don't tick, just wait.
@@ -160,10 +169,7 @@ class TickerPlugin(object):
         if should_send_ticker:
             yield self.send_ticker()
 
-        # Start the timer for the next tick
-        self.wait()
-
-        if do_predictions:
+        if should_do_predictions:
             # Try to avoid hitting rate limiting (5 calls per minute) by giving
             # a minute of buffer after the ticker.
             yield sleep(60)
@@ -181,7 +187,11 @@ class TickerPlugin(object):
         # we care about simultaneously
         deferreds = []
         for symbol, name in self.config["stocks"].items():
-            deferreds.append(self.get_daily_change(symbol))
+            d = self.get_daily_change(symbol)
+
+            # add symbol to result for looping later
+            d.addCallback(lambda res: (symbol, res))
+            deferreds.append(d)
         dl = defer.DeferredList(deferreds)
 
         # Loop the results, ignoring errored requests
@@ -199,7 +209,7 @@ class TickerPlugin(object):
         # Format and send the results
         message_parts = []
         for symbol, result in results.items():
-            message_parts.append(self.format_symbol(symbol, change))
+            message_parts.append(self.format_symbol(symbol, result))
 
         message = ' | '.join(message_parts)
         for channel in self.config["channels"]:
@@ -256,16 +266,21 @@ class TickerPlugin(object):
                     actual,
                 )
 
+            market_open_close = 'open' if market_is_open() else 'close'
             for channel in self.config["channels"]:
                 self.cardinal.sendMsg(
                     channel,
                     "{} had the closest guess for \x02{}\x02 out of {} "
-                    "predictions with a prediction of {} ({}).".format(
+                    "predictions with a prediction of {} ({}) "
+                    "compared to the actual {} of {} ({}).".format(
                         closest_nick,
                         symbol,
                         len(self.predictions[symbol]),
                         closest_prediction,
-                        colorize(get_delta(closest_prediction, actual)),
+                        colorize(get_delta(closest_prediction, base)),
+                        market_open_close,
+                        actual,
+                        colorize(get_delta(actual, base)),
                     ))
 
             # Try to avoid hitting rate limiting (5 calls per minute) by
@@ -413,14 +428,16 @@ class TickerPlugin(object):
     @defer.inlineCallbacks
     def get_daily_change(self, symbol):
         res = yield self.get_daily(symbol)
-        defer.returnValue((symbol, res['percentage']))
+        defer.returnValue(res['percentage'])
 
     @defer.inlineCallbacks
     def get_daily(self, symbol):
         data = yield self.get_time_series_daily(symbol)
 
         # This may not actually be today if it's the morning before the market
-        # opens, or the weekend
+        # opens, or the weekend -- still, 5 days should be more than enough to
+        # get back to a day the market was open. If not, there's probably an
+        # issue with the data anyway.
         today = est_now()
         count = 0
         while data.get(today.strftime('%Y-%m-%d'), None) is None and count < 5:
@@ -430,7 +447,8 @@ class TickerPlugin(object):
             raise Exception("Can't find data as far back as {}".format(today))
 
         # This may not actually be the day prior to "today" if it's a Monday
-        # for example (then last_day would be the preceding Friday)
+        # for example (then last_day would be the preceding Friday) -- same 5
+        # day limitation as above
         last_day = today - datetime.timedelta(days=1)
         count = 0
         while data.get(last_day.strftime('%Y-%m-%d'), None) is None and count < 5:
