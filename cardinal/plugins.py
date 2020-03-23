@@ -915,7 +915,9 @@ class EventManager(object):
             d = defer.maybeDeferred(
                 callback, self.cardinal, *params)
 
-            def success(_result):
+            # It is necessary to pass callback_id in to this function in order
+            # to make sure it doesn't change when the loop iterates
+            def success(_result, callback_id=callback_id):
                 self.logger.debug(
                     "Callback {} accepted event '{}'"
                     .format(callback_id, name)
@@ -924,7 +926,9 @@ class EventManager(object):
                 return True
             d.addCallback(success)
 
-            def eventRejectedErrback(failure):
+            # It is necessary to pass callback_id in to this function in order
+            # to make sure it doesn't change when the loop iterates
+            def eventRejectedErrback(failure, callback_id=callback_id):
                 # If this exception is received, the plugin told us not to set
                 # the called flag true, so we can just log it and continue on.
                 # This might happen if a plugin realizes the event does not
@@ -940,7 +944,9 @@ class EventManager(object):
                 return False
             d.addErrback(eventRejectedErrback)
 
-            def errback(failure):
+            # It is necessary to pass callback_id in to this function in order
+            # to make sure it doesn't change when the loop iterates
+            def errback(failure, callback_id=callback_id):
                 self.logger.error(
                     "Unhandled error during callback {} for event '{}': {}"
                     .format(callback_id, name, failure)

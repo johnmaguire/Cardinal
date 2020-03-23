@@ -188,28 +188,32 @@ class TickerPlugin(object):
         deferreds = []
         for symbol, name in self.config["stocks"].items():
             d = self.get_daily(symbol)
+            deferreds.append(d)
 
             # convert result to a (symbol, delta) mapping for the list
-            d.addCallback(lambda res: (symbol, res['change']))
-            deferreds.append(d)
+            def errback(f):
+                self.logger.error("Failed to get stock {}: {}".format(
+                    symbol, f))
+                return f
+            def callback(res):
+                self.logger.debug("Got result for stock {}: {}".format(
+                    symbol, res['change']))
+                return (res['symbol'], res['change'])
+
+            d.addErrback(errback)
+            d.addCallback(callback)
+
         dl = defer.DeferredList(deferreds)
 
         # Loop the results, ignoring errored requests
         dl_results = yield dl
+        message_parts = []
         for success, result in dl_results:
             if not success:
-                self.logger.error(
-                    "Error fetching symbol {} for ticker -- skipping: {}"
-                    .format(result.getErrorMessage()))
-                del results[symbol]
-            else:
-                symbol, change = result
-                results[symbol] = change
+                continue
 
-        # Format and send the results
-        message_parts = []
-        for symbol, result in results.items():
-            message_parts.append(self.format_symbol(symbol, result))
+            symbol, change = result
+            message_parts.append(self.format_symbol(symbol, change))
 
         message = ' | '.join(message_parts)
         for channel in self.config["channels"]:
@@ -444,7 +448,8 @@ class TickerPlugin(object):
         todays_data = data[today.strftime('%Y-%m-%d')]
 
         change = get_delta(todays_data['close'], todays_data['open'])
-        defer.returnValue({'close': todays_data['close'],
+        defer.returnValue({'symbol': symbol,
+                           'close': todays_data['close'],
                            'open': todays_data['open'],
                            'change': change,
                            })

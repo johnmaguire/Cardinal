@@ -236,9 +236,6 @@ class TestTickerPlugin(object):
         with mock_api(responses, fake_now=get_fake_now(market_is_open=True)):
             yield self.plugin.send_ticker()
 
-        # @TODO test this message better
-        assert len(self.mock_cardinal.sendMsg.mock_calls) == 1
-
         self.mock_cardinal.sendMsg.assert_called_once_with(
             self.channel,
             'Dow (\x02DJI\x02): \x0309100.00%\x03 | '
@@ -634,6 +631,7 @@ class TestTickerPlugin(object):
             .strftime('%Y-%m-%d')
 
         expected = {
+            'symbol': symbol,
             'close': last_close,
             'open': last_open,
             'change': get_delta(last_close, last_open),
@@ -667,6 +665,7 @@ class TestTickerPlugin(object):
                                                    )
 
         expected = {
+            'symbol': symbol,
             'close': last_close,
             'open': last_open,
             'change': get_delta(last_close, last_open),
