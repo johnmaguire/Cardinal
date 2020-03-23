@@ -21,12 +21,12 @@ RETRY_WAIT = 15
 
 # Looks for !check followed by a symbol
 # Supports relayed messages.
-CHECK_REGEX = r'^(?:<(.+?)>\s+)?!check ([A-Za-z]+)$'
+CHECK_REGEX = r'^(?:<(.+?)>\s+)?!check ([\^:\.A-Za-z]+)$'
 
 # Looks for !predict followed by a symbol, followed by a decimal or whole
 # number, optionally followed by a percentage sign.
 # Supports relayed messages.
-PREDICT_REGEX = r'^(?:<(.+?)>\s+)?!predict ([A-za-z]+) ([-+])?(\d+(?:\.\d+)?)%$'
+PREDICT_REGEX = r'^(?:<(.+?)>\s+)?!predict ([\^:\.A-za-z]+) ([-+])?(\d+(?:\.\d+)?)%$'
 
 
 class ThrottledException(Exception):
