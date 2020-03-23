@@ -1,21 +1,21 @@
 from datetime import datetime, timedelta
 from cardinal.decorators import command, help
 
+
 class HelpPlugin(object):
-    # Gets a list of owners from the admin plugin instantiated within the
+    # Gets a list of admins from the admin plugin instantiated within the
     # Cardinal instance, if exists
-    def _get_owners(self, cardinal):
-        owners = False
+    def _get_admins(self, cardinal):
+        admins = False
         admin_config = cardinal.config('admin')
-        if admin_config is not None and 'owners' in admin_config:
-            owners = []
-            for owner in admin_config['owners']:
-                owner = owner.split('@')
-                owners.append(owner[0])
+        if admin_config is not None and 'admins' in admin_config:
+            admins = []
+            for admin in admin_config['admins']:
+                admins.append(admin['nick'])
 
-            owners = list(set(owners))
+            admins = sorted(list(set(admins)))
 
-        return ', '.join(owners) if owners else '(no registered owners)'
+        return ', '.join(admins) if admins else '(no registered admins)'
 
     # Pulls a list of all commands from Cardinal instance, using either the
     # first defined command alias or failing that, the command's name
@@ -105,7 +105,7 @@ class HelpPlugin(object):
     @help("Gives some basic information about the bot.")
     @help("Syntax: .info")
     def cmd_info(self, cardinal, user, channel, msg):
-        owners = self._get_owners(cardinal)
+        admins = self._get_admins(cardinal)
         meta = self._get_meta(cardinal)
 
         # Calculate uptime into readable format
@@ -115,10 +115,10 @@ class HelpPlugin(object):
 
         cardinal.sendMsg(
             channel,
-            "I am a Python-based Cardinal IRC bot. My owners are: %s. You can "
+            "I am a Python-based Cardinal IRC bot. My admins are: {}. You can "
             "find out more about me on my Github page: "
-            "http://johnmaguire.github.io/Cardinal (Try .help for commands.)" %
-            owners.encode('utf-8')
+            "https://github.com/JohnMaguire/Cardinal (Try .help for commands.)"
+            .format(admins.encode('utf-8'))
         )
         cardinal.sendMsg(
             channel,
@@ -126,6 +126,7 @@ class HelpPlugin(object):
             "brought online %s ago. Plugins have been reloaded %s times since "
             "then." % (uptime, booted, meta['reloads'])
         )
+
 
 def setup():
     return HelpPlugin()
