@@ -9,6 +9,7 @@ from twisted.internet import defer, error, reactor
 from twisted.internet.task import deferLater
 from twisted.internet.threads import deferToThread
 
+from cardinal import util
 from cardinal.bot import user_info
 from cardinal.decorators import regex
 
@@ -332,7 +333,7 @@ class TickerPlugin(object):
             if not self.is_relay_bot(user):
                 return
 
-            nick = match.group(1)
+            nick = util.strip_formatting(match.group(1))
 
         symbol = match.group(2).upper()
         try:
@@ -397,7 +398,7 @@ class TickerPlugin(object):
             if not self.is_relay_bot(user):
                 defer.returnValue(None)
 
-            nick = match.group(1)
+            nick = util.strip_formatting(match.group(1))
 
         # Convert symbol to uppercase
         symbol = match.group(2).upper()
