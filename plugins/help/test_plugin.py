@@ -40,15 +40,14 @@ class TestHelpPlugin(object):
         assert self.mock_cardinal.sendMsg.mock_calls == [
             call(
                 channel,
-                "I am a Python-based Cardinal IRC bot. My admins are: "
-                "test_foo, whoami. You can find out more about me on my "
-                "Github page: https://github.com/JohnMaguire/Cardinal "
-                "(Try .help for commands.)"
+                "I have been connected without downtime for 00:00:15, and was "
+                "initially launched 00:00:30 ago. Plugins have been reloaded "
+                "123 times since then.".format(reloads),
             ),
             call(
                 channel,
-                "I have been online without downtime for 00:00:15, and was "
-                "initially brought online 00:00:30 ago. Plugins have been "
-                "reloaded {} times since then.".format(reloads),
+                "My admins are: test_foo, whoami. Visit "
+                "https://github.com/JohnMaguire/Cardinal for more info about "
+                "me. (Use .help to see my commands.)",
             ),
         ]
