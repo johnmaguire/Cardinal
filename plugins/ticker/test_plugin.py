@@ -381,24 +381,46 @@ class TestTickerPlugin(object):
     def test_check(self):
         pass
 
-    @pytest.mark.parametrize("input_msg,output_msg,market_is_open", [
-        ("!predict INX +5%",
+    @pytest.mark.parametrize("symbol,input_msg,output_msg,market_is_open", [
+        ("INX",
+         "!predict INX +5%",
          "Prediction by nick for \x02INX\x02 at market close: 105.00 (\x03095.00%\x03) ",
          True,
          ),
-        ("!predict INX -5%",
+        ("INX",
+         "!predict INX -5%",
          "Prediction by nick for \x02INX\x02 at market close: 95.00 (\x0304-5.00%\x03) ",
          True,
          ),
-        ("!predict INX -5%",
+        ("INX",
+         "!predict INX -5%",
          "Prediction by nick for \x02INX\x02 at market open: 95.00 (\x0304-5.00%\x03) ",
+         False,
+         ),
+        # testing a few more formats of stock symbols
+        ("^RUT",
+         "!predict ^RUT -5%",
+         "Prediction by nick for \x02^RUT\x02 at market open: 95.00 (\x0304-5.00%\x03) ",
+         False,
+         ),
+        ("REE.MC",
+         "!predict REE.MC -5%",
+         "Prediction by nick for \x02REE.MC\x02 at market open: 95.00 (\x0304-5.00%\x03) ",
+         False,
+         ),
+        ("LON:HDLV",
+         "!predict LON:HDLV -5%",
+         "Prediction by nick for \x02LON:HDLV\x02 at market open: 95.00 (\x0304-5.00%\x03) ",
          False,
          ),
     ])
     @pytest_twisted.inlineCallbacks
-    def test_predict_market_open(self, input_msg, output_msg, market_is_open):
+    def test_predict_market_open(self,
+                                 symbol,
+                                 input_msg,
+                                 output_msg,
+                                 market_is_open):
         channel = "#finance"
-        symbol = "INX"
 
         fake_now = get_fake_now(market_is_open=market_is_open)
 
@@ -411,8 +433,8 @@ class TestTickerPlugin(object):
                                       channel,
                                       input_msg)
 
-        assert 'INX' in self.plugin.predictions
-        assert len(self.plugin.predictions['INX']) == 1
+        assert symbol in self.plugin.predictions
+        assert len(self.plugin.predictions[symbol]) == 1
 
         self.mock_cardinal.sendMsg.assert_called_once_with(
             channel,

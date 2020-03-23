@@ -20,14 +20,11 @@ AV_API_URL = "https://www.alphavantage.co/query"
 MAX_RETRIES = 3
 RETRY_WAIT = 15
 
-# Looks for !check followed by a symbol
-# Supports relayed messages.
-CHECK_REGEX = r'^(?:<(.+?)>\s+)?!check ([\^:\.A-Za-z]+)$'
+# Supports relayed messages
+CHECK_REGEX = r'^(?:<(.+?)>\s+)?!check (\^?[A-Za-z]+(?:[:\.][A-Za-z]+)?)$'
 
-# Looks for !predict followed by a symbol, followed by a decimal or whole
-# number, optionally followed by a percentage sign.
-# Supports relayed messages.
-PREDICT_REGEX = r'^(?:<(.+?)>\s+)?!predict ([\^:\.A-za-z]+) ([-+])?(\d+(?:\.\d+)?)%$'
+# Supports relayed messages
+PREDICT_REGEX = r'^(?:<(.+?)>\s+)?!predict (\^?[A-Za-z]+(?:[:\.][A-Za-z]+)?) ([-+])?(\d+(?:\.\d+)?)%$'
 
 
 class ThrottledException(Exception):
@@ -342,7 +339,7 @@ class TickerPlugin(object):
             self.logger.warning("Error trying to look up symbol {}: {}".format(
                 symbol, exc))
             cardinal.sendMsg(
-                channel, "{}: Is your symbol correct?".format(nick))
+                channel, "{}: I couldn't look that symbol up".format(nick))
             return
 
         cardinal.sendMsg(
@@ -355,11 +352,21 @@ class TickerPlugin(object):
     @regex(PREDICT_REGEX)
     @defer.inlineCallbacks
     def predict(self, cardinal, user, channel, msg):
-        # Parse prediction - this may fail if we matched the relay bot regex
-        # but a relay bot didn't send the message
-        prediction = yield self.parse_prediction(user, msg)
-        if prediction is None:
+        try:
+            prediction = yield self.parse_prediction(user, msg)
+        except Exception as exc:
+            self.logger.warning("Error trying to parse prediction: {}"
+                                .format(exc))
+            cardinal.sendMsg(
+                channel,
+                "{}: I couldn't look that symbol up".format(nick))
             return
+        else:
+            # This may happen if we matched the relay bot regex but a relay bot
+            # didn't send the message
+            if prediction is None:
+                return
+
         nick, symbol, prediction, base = prediction
 
         # If the user already had a prediction for the symbol, create a message
