@@ -13,6 +13,7 @@ from twisted.internet import defer
 from twisted.internet.task import Clock
 
 from cardinal.bot import CardinalBot, user_info
+from cardinal.unittest_util import get_mock_db
 from plugins.ticker import plugin
 from plugins.ticker.plugin import (
     TickerPlugin,
@@ -164,7 +165,8 @@ def test_sleep():
 
 
 class TestTickerPlugin(object):
-    def setup_method(self, method):
+    @pytest.fixture(autouse=True)
+    def setup_method_fixture(self, request, tmpdir):
         self.api_key = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
         self.channel = '#test'
         self.channels = [self.channel]
@@ -178,7 +180,13 @@ class TestTickerPlugin(object):
             {"nick": "relay.bot", "user": "relay", "vhost": "relay"},
         ]
 
+        d = tmpdir.mkdir('storage')
+
+        get_db, self.db = get_mock_db()
         self.mock_cardinal = Mock(spec=CardinalBot)
+        self.mock_cardinal.network = self.network = 'irc.darkscience.net'
+        self.mock_cardinal.storage_path = str(d.dirpath())
+        self.mock_cardinal.get_db.side_effect = get_db
 
         self.plugin = TickerPlugin(self.mock_cardinal, {
             'api_key': self.api_key,
@@ -186,7 +194,6 @@ class TestTickerPlugin(object):
             'stocks': self.stocks,
             'relay_bots': self.relay_bots,
         })
-        assert len(self.plugin.predictions) == 0
 
     def test_config_defaults(self):
         plugin = TickerPlugin(self.mock_cardinal, {
@@ -196,7 +203,6 @@ class TestTickerPlugin(object):
         assert plugin.config['channels'] == []
         assert plugin.config['stocks'] == {}
         assert plugin.config['relay_bots'] == []
-        assert plugin.predictions == {}
 
     def test_missing_api_key(self):
         with pytest.raises(KeyError):
@@ -326,8 +332,8 @@ class TestTickerPlugin(object):
             prediction2,
         )
 
-        assert len(self.plugin.predictions) == 1
-        assert len(self.plugin.predictions[symbol]) == 2
+        assert len(self.db['predictions']) == 1
+        assert len(self.db['predictions'][symbol]) == 2
 
         kwargs = {"last_open": actual} \
             if market_is_open else \
@@ -369,8 +375,11 @@ class TestTickerPlugin(object):
         mock_now.return_value = tz.localize(
             datetime.datetime(2020, 3, 20, 10, 50, 0, 0))
 
-        self.plugin.save_prediction(symbol, nick, base, prediction)
-        self.plugin.send_prediction(nick, symbol, actual)
+        prediction_ = {'when': '2020-03-20 10:50:00 EDT',
+                      'prediction': prediction,
+                      'base': base,
+                      }
+        self.plugin.send_prediction(nick, symbol, prediction_, actual)
 
         message = "Prediction by nick for \x02INX\02: 105 (\x03095.00%\x03). " \
                   "Actual value at open: 110 (\x030910.00%\x03). " \
@@ -433,8 +442,8 @@ class TestTickerPlugin(object):
                                       channel,
                                       input_msg)
 
-        assert symbol in self.plugin.predictions
-        assert len(self.plugin.predictions[symbol]) == 1
+        assert symbol in self.db['predictions']
+        assert len(self.db['predictions'][symbol]) == 1
 
         self.mock_cardinal.sendMsg.assert_called_once_with(
             channel,
@@ -465,8 +474,8 @@ class TestTickerPlugin(object):
                                           channel,
                                           input_msg)
 
-                assert symbol in self.plugin.predictions
-                assert len(self.plugin.predictions[symbol]) == 1
+                assert symbol in self.db['predictions']
+                assert len(self.db['predictions'][symbol]) == 1
 
                 self.mock_cardinal.sendMsg.assert_called_with(
                     channel,
@@ -494,8 +503,8 @@ class TestTickerPlugin(object):
                                       channel,
                                       input_msg)
 
-        assert symbol in self.plugin.predictions
-        assert len(self.plugin.predictions[symbol]) == 1
+        assert symbol in self.db['predictions']
+        assert len(self.db['predictions'][symbol]) == 1
 
         self.mock_cardinal.sendMsg.assert_called_once_with(
             channel,
@@ -514,7 +523,7 @@ class TestTickerPlugin(object):
                                   channel,
                                   input_msg)
 
-        assert len(self.plugin.predictions) == 0
+        assert len(self.db['predictions']) == 0
         assert self.mock_cardinal.sendMsg.mock_calls == []
 
     @pytest.mark.parametrize("user,message,value,expected", [
@@ -614,12 +623,22 @@ class TestTickerPlugin(object):
 
         assert result == expected
 
-    def test_save_prediction(self):
+    @patch.object(plugin, 'est_now')
+    def test_save_prediction(self, mock_now):
         symbol = 'INX'
         nick = 'whoami'
         base = 100
         prediction = 105
 
+        tz = pytz.timezone('America/New_York')
+        mock_now.return_value = tz.localize(datetime.datetime(
+            2020,
+            3,
+            23,
+            12,
+            0,
+            0,
+        ))
         self.plugin.save_prediction(
             symbol,
             nick,
@@ -627,12 +646,14 @@ class TestTickerPlugin(object):
             prediction,
         )
 
-        assert symbol in self.plugin.predictions
-        assert nick in self.plugin.predictions[symbol]
-        dt, saved_base, saved_prediction = self.plugin.predictions[symbol][nick]
-        assert isinstance(dt, datetime.datetime)
-        assert saved_base == base
-        assert saved_prediction == prediction
+        assert symbol in self.db['predictions']
+        assert nick in self.db['predictions'][symbol]
+        actual = self.db['predictions'][symbol][nick]
+        assert actual == {
+            'when': '2020-03-23 12:00:00 EDT',
+            'base': base,
+            'prediction': prediction,
+        }
 
     @defer.inlineCallbacks
     def test_get_daily(self):

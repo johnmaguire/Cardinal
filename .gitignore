@@ -56,8 +56,8 @@ nosetests.xml
 .idea/
 
 # Persistence files generated at runtime
-*.db
-*.log
+storage/database/*
+storage/logs/*
 
 # OS X
 .DS_Store

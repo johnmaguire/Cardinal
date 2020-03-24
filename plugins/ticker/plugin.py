@@ -99,7 +99,9 @@ class TickerPlugin(object):
                 relay_bot['vhost'])
             self.relay_bots.append(user)
 
-        self.predictions = defaultdict(dict)
+        self.db = cardinal.get_db('ticker', default={
+            'predictions': {},
+        })
 
         self.call_id = None
         self.wait()
@@ -227,7 +229,10 @@ class TickerPlugin(object):
     @defer.inlineCallbacks
     def do_predictions(self):
         # Loop each prediction, grouped by symbols to avoid rate limits
-        for symbol in self.predictions:
+        with self.db() as db:
+            predicted_symbols = db['predictions'].keys()
+
+        for symbol in predicted_symbols:
             try:
                 data = yield self.get_daily(symbol)
 
@@ -252,19 +257,23 @@ class TickerPlugin(object):
             closest_prediction = None
             closest_delta = None
             closest_nick = None
-            for nick, data in self.predictions[symbol].items():
-                datetime, base, prediction = data
 
+            with self.db() as db:
+                predictions = db['predictions'][symbol]
+                del db['predictions'][symbol]
+
+            for nick, prediction in predictions.items():
                 # Check if this is the closest guess for the symbol so far
-                delta = abs(actual - prediction)
+                delta = abs(actual - prediction['prediction'])
                 if not closest_delta or delta < closest_delta:
-                    closest_prediction = prediction
+                    closest_prediction = prediction['prediction']
                     closest_delta = delta
                     closest_nick = nick
 
                 self.send_prediction(
                     nick,
                     symbol,
+                    prediction,
                     actual,
                 )
 
@@ -277,29 +286,27 @@ class TickerPlugin(object):
                     "compared to the actual {} of {} ({}).".format(
                         closest_nick,
                         symbol,
-                        len(self.predictions[symbol]),
+                        len(predictions),
                         closest_prediction,
-                        colorize(get_delta(closest_prediction, base)),
+                        colorize(get_delta(closest_prediction,
+                                           prediction['base'])),
                         market_open_close,
                         actual,
-                        colorize(get_delta(actual, base)),
+                        colorize(get_delta(actual, prediction['base'])),
                     ))
 
             # Try to avoid hitting rate limiting (5 calls per minute) by
             # only checking predictions of 4 symbols per minute
             yield sleep(15)
 
-        # Clear all predictions
-        self.predictions = defaultdict(dict)
-
     def send_prediction(
         self,
         nick,
         symbol,
+        prediction,
         actual,
     ):
         market_open_close = 'open' if market_is_open() else 'close'
-        dt, base, prediction = self.predictions[symbol][nick]
 
         for channel in self.config["channels"]:
             self.cardinal.sendMsg(
@@ -309,12 +316,14 @@ class TickerPlugin(object):
                 "Prediction set at {}.".format(
                     nick,
                     symbol,
-                    prediction,
-                    colorize(get_delta(prediction, base)),
+                    prediction['prediction'],
+                    colorize(get_delta(
+                        prediction['prediction'], prediction['base'])),
                     market_open_close,
                     actual,
-                    colorize(get_delta(actual, base)),
-                    dt.strftime('%Y-%m-%d %H:%M:%S %Z')
+                    colorize(get_delta(
+                        actual, prediction['base'])),
+                    prediction['when']
                 ))
 
     @regex(CHECK_REGEX)
@@ -372,15 +381,17 @@ class TickerPlugin(object):
         # If the user already had a prediction for the symbol, create a message
         # with the old prediction's info
         try:
-            dt, old_base, old_prediction = self.predictions[symbol][nick]
+            with self.db() as db:
+                old_prediction = db['predictions'][symbol][nick]
         except KeyError:
             old_str = ''
         else:
             old_str = '(replaces old prediction of {:.2f} ({}) set at {})' \
                 .format(
-                    old_prediction,
-                    colorize(get_delta(old_prediction, old_base)),
-                    dt.strftime('%Y-%m-%d %H:%M:%S %Z'),
+                    old_prediction['prediction'],
+                    colorize(get_delta(old_prediction['prediction'],
+                                       old_prediction['base'])),
+                    old_prediction['when'],
                 )
 
         # Save the prediction
@@ -435,7 +446,19 @@ class TickerPlugin(object):
         ))
 
     def save_prediction(self, symbol, nick, base, prediction):
-        self.predictions[symbol][nick] = (est_now(), base, prediction)
+        # @TODO base may not be necessary after switching to quote
+        with self.db() as db:
+            predictions = db['predictions'].get(symbol, {})
+            predictions[nick] = {
+                'when': est_now().strftime('%Y-%m-%d %H:%M:%S %Z'),
+                'base': base,
+                'prediction': prediction,
+            }
+            db['predictions'][symbol] = predictions
+
+    def get_prediction(self, symbol, nick):
+        with self.db() as db:
+            return db['predictions'][symbol][nick]
 
     @defer.inlineCallbacks
     def get_daily(self, symbol):
