@@ -197,7 +197,7 @@ class TickerPlugin(object):
                 return f
             def callback(res):
                 self.logger.debug("Got result for stock {}: {}".format(
-                    symbol, res['change']))
+                    res['symbol'], res['change']))
                 return (res['symbol'], res['change'])
 
             d.addErrback(errback)
