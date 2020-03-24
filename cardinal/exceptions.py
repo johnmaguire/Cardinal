@@ -5,6 +5,10 @@ class CardinalException(Exception):
     """Base class that all Cardinal exceptions extend."""
 
 
+class LockInUseError(CardinalException):
+    """Raised when a lock is unavailable."""
+
+
 class InternalError(CardinalException):
     """Non-recoverable error in the internals of Cardinal."""
 

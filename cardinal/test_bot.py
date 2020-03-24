@@ -1,6 +1,9 @@
 import logging
 import os
+import shutil
 import signal
+import tempfile
+from contextlib import contextmanager
 from datetime import datetime
 
 import pytest
@@ -9,7 +12,23 @@ from twisted.internet import defer
 from twisted.internet.task import Clock
 
 from cardinal import exceptions, plugins
-from cardinal.bot import CardinalBot, CardinalBotFactory, user_info
+from cardinal.bot import (
+    LOCKED,
+    UNLOCKED,
+    CardinalBot,
+    CardinalBotFactory,
+    user_info,
+)
+
+
+@contextmanager
+def tempdir(name):
+    tempdir_path = os.path.join(tempfile.gettempdir(), name)
+    os.mkdir(tempdir_path)
+    try:
+        yield tempdir_path
+    finally:
+        shutil.rmtree(tempdir_path)
 
 
 class TestCardinalBot(object):
@@ -515,6 +534,100 @@ class TestCardinalBot(object):
         self.plugin_manager.unload_all.assert_called_once_with()
         assert mock_factory.disconnect is True
         quit_mock.assert_called_once_with(message)
+
+    def test_get_db(self):
+        network = 'irc.example.com'
+
+        assert self.cardinal.db_locks == {}
+
+        mock_factory = self.cardinal.factory = Mock(spec=CardinalBotFactory)
+        mock_factory.network = network
+
+        with tempdir('database') as database_path:
+            mock_factory.storage_path = os.path.dirname(database_path)
+
+            db = self.cardinal.get_db('test')
+
+        assert len(self.cardinal.db_locks) == 1
+        db_path = self.cardinal.db_locks.keys()[0]
+        lock = self.cardinal.db_locks[db_path]
+        assert lock == UNLOCKED
+        assert db_path.endswith(os.path.join(
+            'database', 'test-{}.json'.format(network)))
+
+        assert callable(db)
+
+    def test_get_db_not_network_specific(self):
+        mock_factory = self.cardinal.factory = Mock(spec=CardinalBotFactory)
+        mock_factory.network = 'irc.example.com'
+
+        with tempdir('database') as database_path:
+            mock_factory.storage_path = os.path.dirname(database_path)
+
+            db = self.cardinal.get_db('test', network_specific=False)
+
+        assert len(self.cardinal.db_locks) == 1
+        db_path = self.cardinal.db_locks.keys()[0]
+        # note lack of network formatted in below
+        assert db_path.endswith(os.path.join(
+            'database', 'test.json'))
+
+    def test_get_db_db(self):
+        mock_factory = self.cardinal.factory = Mock(spec=CardinalBotFactory)
+
+        with tempdir('database') as database_path:
+            mock_factory.storage_path = os.path.dirname(database_path)
+            db = self.cardinal.get_db('test', network_specific=False)
+
+            with db() as db1:
+                assert db1 == {}
+                db1['test'] = 'x'
+
+            with db() as db2:
+                assert db1 == db2
+
+    def test_db_contextmanager_locks(self):
+        mock_factory = self.cardinal.factory = Mock(spec=CardinalBotFactory)
+
+        with tempdir('database') as database_path:
+            mock_factory.storage_path = os.path.dirname(database_path)
+            db = self.cardinal.get_db('test', network_specific=False)
+
+            with db():
+                with pytest.raises(exceptions.LockInUseError):
+                    with db():
+                        pass
+
+    def test_db_contextmanager_locks_with_multiple_get_db_calls(self):
+        mock_factory = self.cardinal.factory = Mock(spec=CardinalBotFactory)
+
+        with tempdir('database') as database_path:
+            mock_factory.storage_path = os.path.dirname(database_path)
+            db1 = self.cardinal.get_db('test', network_specific=False)
+            db2 = self.cardinal.get_db('test', network_specific=False)
+
+            with db1():
+                with pytest.raises(exceptions.LockInUseError):
+                    with db2():
+                        pass
+
+    def test_db_contextmanager_exception(self):
+        mock_factory = self.cardinal.factory = Mock(spec=CardinalBotFactory)
+
+        with tempdir('database') as database_path:
+            mock_factory.storage_path = os.path.dirname(database_path)
+            db = self.cardinal.get_db('test', network_specific=False)
+
+            try:
+                with db() as db_ob:
+                    assert db_obj == {}
+                    db_obj['x'] = True
+                    raise Exception()
+            except Exception:
+                pass
+
+            with db() as db_obj:
+                assert db_obj == {}
 
     def test_get_user_tuple(self):
         assert CardinalBot.get_user_tuple('unit|test!unit~@unit/test') == \

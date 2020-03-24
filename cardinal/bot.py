@@ -1,9 +1,12 @@
-from __future__ import absolute_import, print_function, division
+
 
 import signal
+import json
 import logging
+import os
 import re
 from collections import namedtuple
+from contextlib import contextmanager
 from datetime import datetime
 
 from twisted.internet import defer, protocol, reactor
@@ -15,12 +18,16 @@ from cardinal.exceptions import (
     CommandNotFoundError,
     ConfigNotFoundError,
     InternalError,
+    LockInUseError,
     PluginError,
 )
 
 USER_REGEX = re.compile(r'^(.*?)!(.*?)@(.*?)$')
 
 user_info = namedtuple('user_info', ('nick', 'user', 'vhost'))
+
+UNLOCKED = 'unlocked'
+LOCKED = 'locked'
 
 
 class CardinalBot(irc.IRCClient, object):
@@ -110,6 +117,9 @@ class CardinalBot(irc.IRCClient, object):
         # State variables for the WHO command
         self._who_cache = {}
         self._who_deferreds = {}
+
+        # Database file locks
+        self.db_locks = {}
 
     def signedOn(self):
         """Called once we've connected to a network"""
@@ -466,6 +476,43 @@ class CardinalBot(irc.IRCClient, object):
         self.plugin_manager.unload_all()
         self.factory.disconnect = True
         self.quit(message)
+
+    def get_db(self, name, network_specific=True, default=None):
+        if default is None:
+            default = {}
+
+        db_path = os.path.join(self.storage_path, 'database', name + (
+            '-{}'.format(self.network) if network_specific else '') +
+            '.json')
+
+        if db_path not in self.db_locks:
+            self.db_locks[db_path] = UNLOCKED
+
+        @contextmanager
+        def db():
+            if self.db_locks[db_path] == LOCKED:
+                raise LockInUseError('DB {} locked'.format(db_path))
+
+            self.db_locks[db_path] = LOCKED
+
+            try:
+                if not os.path.exists(db_path):
+                    with open(db_path, 'w') as f:
+                        json.dump(default, f)
+
+                # Load the DB as JSON, use it, then save the result
+                with open(db_path, 'r+') as f:
+                    database = json.load(f)
+
+                    yield database
+
+                    f.seek(0)
+                    f.truncate()
+                    json.dump(database, f)
+            finally:
+                self.db_locks[db_path] = UNLOCKED
+
+        return db
 
     @staticmethod
     def get_user_tuple(string):
