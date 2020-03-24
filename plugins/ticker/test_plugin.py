@@ -226,16 +226,16 @@ class TestTickerPlugin(object):
     def test_send_ticker(self):
         responses = [
             make_time_series_daily_response('DJI',
-                                            last_open=100,
+                                            previous_close=100,
                                             last_close=200),
             make_time_series_daily_response('AGG',
-                                            last_open=100,
+                                            previous_close=100,
                                             last_close=150.50),
             make_time_series_daily_response('VEU',
-                                            last_open=100,
+                                            previous_close=100,
                                             last_close=105),
             make_time_series_daily_response('INX',
-                                            last_open=100,
+                                            previous_close=100,
                                             last_close=50),
         ]
 
@@ -668,16 +668,11 @@ class TestTickerPlugin(object):
                                                    previous_close=previous_close,
                                                    )
 
-        # Calculate expected value using randomly created response
-        today = datetime.date.today().strftime('%Y-%m-%d')
-        yesterday = (datetime.date.today() - datetime.timedelta(days=1)) \
-            .strftime('%Y-%m-%d')
-
         expected = {
             'symbol': symbol,
             'close': last_close,
             'open': last_open,
-            'change': get_delta(last_close, last_open),
+            'change': get_delta(last_close, previous_close),
         }
 
         with mock_api(response):
@@ -711,7 +706,7 @@ class TestTickerPlugin(object):
             'symbol': symbol,
             'close': last_close,
             'open': last_open,
-            'change': get_delta(last_close, last_open),
+            'change': get_delta(last_close, previous_close),
         }
 
         with mock_api(response, fake_now):

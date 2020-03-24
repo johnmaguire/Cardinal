@@ -476,9 +476,18 @@ class TickerPlugin(object):
         if data.get(today.strftime('%Y-%m-%d'), None) is None:
             raise Exception("Can't find data as far back as {}".format(today))
 
-        todays_data = data[today.strftime('%Y-%m-%d')]
+        previous_day = today - datetime.timedelta(days=1)
+        count = 0
+        while data.get(previous_day.strftime('%Y-%m-%d'), None) is None and count < 5:
+            count += 1
+            previous_day = previous_day - datetime.timedelta(days=1)
+        if data.get(previous_day.strftime('%Y-%m-%d'), None) is None:
+            raise Exception("Can't find data as far back as {}".format(previous_day))
 
-        change = get_delta(todays_data['close'], todays_data['open'])
+        todays_data = data[today.strftime('%Y-%m-%d')]
+        previous_days_data = data[previous_day.strftime('%Y-%m-%d')]
+
+        change = get_delta(todays_data['close'], previous_days_data['close'])
         defer.returnValue({'symbol': symbol,
                            'close': todays_data['close'],
                            'open': todays_data['open'],
