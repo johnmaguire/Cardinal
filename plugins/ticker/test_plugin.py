@@ -328,9 +328,7 @@ class TestTickerPlugin(object):
         assert len(self.db['predictions']) == 1
         assert len(self.db['predictions'][symbol]) == 2
 
-        kwargs = {"previous_close": actual} \
-            if market_is_open else \
-            {"last_close": actual}
+        kwargs = {"last_close": actual}
         response = make_time_series_daily_response(symbol, **kwargs)
 
         with mock_api(response, fake_now=get_fake_now(market_is_open)) \

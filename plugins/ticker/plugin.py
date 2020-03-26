@@ -231,12 +231,7 @@ class TickerPlugin(object):
             try:
                 data = yield self.get_daily(symbol)
 
-                # If the market just opened, grab the open
-                if market_is_open():
-                    actual = data['previous close']
-                # If it just closed, grab the close
-                else:
-                    actual = data['close']
+                actual = data['close']
             except Exception as e:
                 self.logger.exception(
                     "Failed to fetch information for symbol {} -- skipping"
@@ -418,7 +413,7 @@ class TickerPlugin(object):
 
         data = yield self.get_daily(symbol)
         if market_is_open():
-            # get value at open
+            # get value at previous close
             base = data['previous close']
         else:
             # get value at close
