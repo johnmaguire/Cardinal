@@ -335,7 +335,7 @@ class TestTickerPlugin(object):
         assert len(self.db['predictions']) == 1
         assert len(self.db['predictions'][symbol]) == 2
 
-        kwargs = {"last_open": actual} \
+        kwargs = {"previous_close": actual} \
             if market_is_open else \
             {"last_close": actual}
         response = make_time_series_daily_response(symbol, **kwargs)
@@ -424,16 +424,16 @@ class TestTickerPlugin(object):
          ),
     ])
     @pytest_twisted.inlineCallbacks
-    def test_predict_market_open(self,
-                                 symbol,
-                                 input_msg,
-                                 output_msg,
-                                 market_is_open):
+    def test_predict(self,
+                    symbol,
+                    input_msg,
+                    output_msg,
+                    market_is_open):
         channel = "#finance"
 
         fake_now = get_fake_now(market_is_open=market_is_open)
 
-        kwargs = {'last_open': 100} if market_is_open else {'last_close': 100}
+        kwargs = {'previous_close': 100} if market_is_open else {'last_close': 100}
         response = make_time_series_daily_response(symbol, **kwargs)
 
         with mock_api(response, fake_now=fake_now):
@@ -464,7 +464,7 @@ class TestTickerPlugin(object):
         channel = "#finance"
         symbol = 'INX'
 
-        response = make_time_series_daily_response(symbol, last_open=100)
+        response = make_time_series_daily_response(symbol, previous_close=100)
 
         fake_now = get_fake_now()
         for input_msg, output_msg in message_pairs:
@@ -496,7 +496,7 @@ class TestTickerPlugin(object):
         symbol = 'INX'
         channel = "#finance"
 
-        response = make_time_series_daily_response(symbol, last_open=100)
+        response = make_time_series_daily_response(symbol, previous_close=100)
         with mock_api(response):
             yield self.plugin.predict(self.mock_cardinal,
                                       user_info("relay.bot", "relay", "relay"),
@@ -568,7 +568,7 @@ class TestTickerPlugin(object):
     ):
         symbol = 'INX'
 
-        response = make_time_series_daily_response(symbol, last_open=value)
+        response = make_time_series_daily_response(symbol, previous_close=value)
         with mock_api(response):
             result = yield self.plugin.parse_prediction(user, message)
 
@@ -672,6 +672,7 @@ class TestTickerPlugin(object):
             'symbol': symbol,
             'close': last_close,
             'open': last_open,
+            'previous close': previous_close,
             'change': get_delta(last_close, previous_close),
         }
 
@@ -705,6 +706,7 @@ class TestTickerPlugin(object):
         expected = {
             'symbol': symbol,
             'close': last_close,
+            'previous close': previous_close,
             'open': last_open,
             'change': get_delta(last_close, previous_close),
         }

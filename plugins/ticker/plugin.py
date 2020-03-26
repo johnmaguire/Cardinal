@@ -238,7 +238,7 @@ class TickerPlugin(object):
 
                 # If the market just opened, grab the open
                 if market_is_open():
-                    actual = data['open']
+                    actual = data['previous close']
                 # If it just closed, grab the close
                 else:
                     actual = data['close']
@@ -424,7 +424,7 @@ class TickerPlugin(object):
         data = yield self.get_daily(symbol)
         if market_is_open():
             # get value at open
-            base = data['open']
+            base = data['previous close']
         else:
             # get value at close
             base = data['close']
@@ -490,6 +490,7 @@ class TickerPlugin(object):
         change = get_delta(todays_data['close'], previous_days_data['close'])
         defer.returnValue({'symbol': symbol,
                            'close': todays_data['close'],
+                           'previous close': previous_days_data['close'],
                            'open': todays_data['open'],
                            'change': change,
                            })
