@@ -1,4 +1,7 @@
+import datetime
+
 import pytest
+from twisted.internet import defer
 
 import util
 
@@ -11,3 +14,11 @@ import util
 ))
 def test_strip_formatting(input_, expected):
     assert util.strip_formatting(input_) == expected
+
+
+@defer.inlineCallbacks
+def test_sleep():
+    now = datetime.datetime.now()
+    yield util.sleep(1)
+    delta = datetime.datetime.now() - now
+    assert delta.seconds == 1

@@ -12,6 +12,7 @@ from mock import ANY, MagicMock, Mock, PropertyMock, call, patch
 from twisted.internet import defer
 from twisted.internet.task import Clock
 
+from cardinal import util
 from cardinal.bot import CardinalBot, user_info
 from cardinal.unittest_util import get_mock_db
 from plugins.ticker import plugin
@@ -20,7 +21,6 @@ from plugins.ticker.plugin import (
     colorize,
     est_now,
     get_delta,
-    sleep,
 )
 
 
@@ -156,13 +156,6 @@ def test_colorize():
     assert colorize(0.1) == '\x03090.10%\x03'
     assert colorize(0.159) == '\x03090.16%\x03'
 
-@defer.inlineCallbacks
-def test_sleep():
-    now = datetime.datetime.now()
-    yield sleep(1)
-    delta = datetime.datetime.now() - now
-    assert delta.seconds == 1
-
 
 class TestTickerPlugin(object):
     @pytest.fixture(autouse=True)
@@ -278,7 +271,7 @@ class TestTickerPlugin(object):
     ])
     @patch.object(plugin.TickerPlugin, 'do_predictions')
     @patch.object(plugin.TickerPlugin, 'send_ticker')
-    @patch.object(plugin, 'sleep')
+    @patch.object(util, 'sleep')
     @patch.object(plugin, 'est_now')
     @pytest_twisted.inlineCallbacks
     def test_tick(self,
@@ -306,7 +299,7 @@ class TestTickerPlugin(object):
             assert do_predictions.mock_calls == []
 
     @pytest.mark.parametrize("market_is_open", [True, False])
-    @patch.object(plugin, 'reactor', new_callable=Clock)
+    @patch.object(util, 'reactor', new_callable=Clock)
     @pytest_twisted.inlineCallbacks
     def test_do_predictions(self, mock_reactor, market_is_open):
         symbol = 'INX'
@@ -793,7 +786,7 @@ class TestTickerPlugin(object):
                 'datatype': 'json',
             })
 
-    @patch.object(plugin, 'reactor', new_callable=Clock)
+    @patch.object(util, 'reactor', new_callable=Clock)
     @defer.inlineCallbacks
     def test_make_av_request_retry_when_throttled(self, mock_reactor):
         # Verify that this returns the response unmodified, and that it
@@ -831,7 +824,7 @@ class TestTickerPlugin(object):
                 'datatype': 'json',
             })] * (throttle_times + 1))
 
-    @patch.object(plugin, 'reactor', new_callable=Clock)
+    @patch.object(util, 'reactor', new_callable=Clock)
     @defer.inlineCallbacks
     def test_make_av_request_retry_on_exception(self, mock_reactor):
         # Verify that this returns the response unmodified, and that it
@@ -869,7 +862,7 @@ class TestTickerPlugin(object):
                 'datatype': 'json',
             })] * (raise_times + 1))
 
-    @patch.object(plugin, 'reactor', new_callable=Clock)
+    @patch.object(util, 'reactor', new_callable=Clock)
     @defer.inlineCallbacks
     def test_make_av_request_give_up_after_max_retries(self, mock_reactor):
         # Verify that this returns the response unmodified, and that it

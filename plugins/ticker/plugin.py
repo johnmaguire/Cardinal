@@ -6,7 +6,6 @@ from collections import OrderedDict, defaultdict
 import pytz
 import requests
 from twisted.internet import defer, error, reactor
-from twisted.internet.task import deferLater
 from twisted.internet.threads import deferToThread
 
 from cardinal import util
@@ -50,10 +49,6 @@ def market_is_open():
             (now.hour == 16 and now.minute > 0)
 
     return not is_market_closed
-
-
-def sleep(secs):
-    return deferLater(reactor, secs, lambda: None)
 
 
 def get_delta(new_value, old_value):
@@ -172,7 +167,7 @@ class TickerPlugin(object):
         if should_do_predictions:
             # Try to avoid hitting rate limiting (5 calls per minute) by giving
             # a minute of buffer after the ticker.
-            yield sleep(60)
+            yield util.sleep(60)
             yield self.do_predictions()
 
     @defer.inlineCallbacks
@@ -297,7 +292,7 @@ class TickerPlugin(object):
 
             # Try to avoid hitting rate limiting (5 calls per minute) by
             # only checking predictions of 4 symbols per minute
-            yield sleep(15)
+            yield util.sleep(15)
 
     def send_prediction(
         self,
@@ -549,7 +544,7 @@ class TickerPlugin(object):
                 break
 
             # Otherwise, sleep 15 seconds to avoid rate limits before retrying
-            yield sleep(RETRY_WAIT)
+            yield util.sleep(RETRY_WAIT)
             continue
 
         defer.returnValue(result)
