@@ -11,6 +11,7 @@ from twisted.internet.threads import deferToThread
 from cardinal import util
 from cardinal.bot import user_info
 from cardinal.decorators import regex
+from cardinal.util import F
 
 # Alpha Vantage API key
 AV_API_URL = "https://www.alphavantage.co/query"
@@ -56,10 +57,11 @@ def get_delta(new_value, old_value):
 
 
 def colorize(percentage):
+    message = '{:.2f}%'.format(percentage)
     if percentage > 0:
-        return '\x0309{:.2f}%\x03'.format(percentage)
+        return F.C.light_green(message)
     else:
-        return '\x0304{:.2f}%\x03'.format(percentage)
+        return F.C.light_red(message)
 
 
 class TickerPlugin(object):
