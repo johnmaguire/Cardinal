@@ -73,7 +73,8 @@ class SedPlugin(object):
             self.history = defauldict(dict)
         else:
             for channel in self.history:
-                del self.history[channel][quitter]
+                if quitter in self.history[channel]:
+                    del self.history[channel][quitter]
 
 
 def setup():

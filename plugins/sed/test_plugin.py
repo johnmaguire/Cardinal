@@ -1,4 +1,5 @@
 import pytest
+from mock import Mock
 
 from cardinal.bot import user_info
 from plugins.sed.plugin import SedPlugin
@@ -38,6 +39,7 @@ def test_substitute_escaping(message, new_message):
 
     assert plugin.substitute(user, channel, message) == new_message
 
+
 def test_not_a_substitute():
     user = user_info('user', None, None)
     channel = '#channel'
@@ -46,3 +48,32 @@ def test_not_a_substitute():
     plugin.history[channel][user] = 'doesnt matter'
 
     assert plugin.substitute(user, channel, 'foobar') == None
+
+
+def test_on_quit():
+    channel = '#channel'
+    nick = 'nick'
+    msg = 'msg'
+
+    plugin = SedPlugin()
+    cardinal = Mock()
+
+    plugin.on_msg(cardinal, user_info(nick, None, None), channel, msg)
+    assert plugin.history[channel] == {
+        nick: msg
+    }
+
+    plugin.on_quit(cardinal, nick, 'message')
+    assert plugin.history[channel] == {}
+
+
+def test_on_quit():
+    channel = '#channel'
+
+    plugin = SedPlugin()
+    assert plugin.history[channel] == {}
+    cardinal = Mock()
+
+    # make sure this doesn't raise
+    plugin.on_quit(cardinal, 'quitter', 'message')
+    assert plugin.history[channel] == {}
