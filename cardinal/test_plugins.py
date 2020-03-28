@@ -397,10 +397,22 @@ class TestPluginManager(object):
         # param other than cardinal
         self.event_manager.register(event, 2)
 
-        failed_plugins = self.plugin_manager.load(name)
+        self.assert_load_failed([name])
 
-        assert failed_plugins == [name]
-        assert self.plugin_manager.plugins == {}
+    @defer.inlineCallbacks
+    def test_load_multiple_callbacks_one_fails(self):
+        name = 'multiple_event_callbacks_one_fails'
+        event = 'foo'
+
+        self.event_manager.register(event, 0)
+        self.assert_load_failed([name])
+
+        # if this actually fires the one good callback we should get an
+        # exception (we don't expect one)
+        res = yield self.event_manager.fire(event)
+
+        # this should return False if no callbacks fired
+        assert res == False
 
     def test_load_command_registration(self):
         name = 'commands'

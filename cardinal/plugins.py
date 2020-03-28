@@ -215,16 +215,26 @@ class PluginManager(object):
         # Initialize variable to hold events callback IDs
         callback_ids = defaultdict(list)
 
-        # Loop through list of dictionaries
-        for callback in callbacks:
-            # Loop through all events the callback should be registered to
-            for event_name in callback['event_names']:
-                # Get callback ID from register_callback method
-                callback_id = self.cardinal.event_manager.register_callback(
-                    event_name, callback['method'])
+        def rollback():
+            for event_name, ids in callback_ids.items():
+                for id_ in ids:
+                    self.cardinal.event_manager.remove_callback(
+                        event_name, id_)
 
-                # Append to list of callbacks for given event_name
-                callback_ids[event_name].append(callback_id)
+        # Loop through list of dictionaries
+        try:
+            for callback in callbacks:
+                # Loop through all events the callback should be registered to
+                for event_name in callback['event_names']:
+                    # Get callback ID from register_callback method
+                    id_ = self.cardinal.event_manager.register_callback(
+                        event_name, callback['method'])
+
+                    # Append to list of callbacks for given event_name
+                    callback_ids[event_name].append(id_)
+        except Exception:
+            rollback()
+            raise
 
         return callback_ids
 
@@ -478,11 +488,14 @@ class PluginManager(object):
             callbacks = self._get_plugin_callbacks(instance)
 
             try:
+                # do this last to ensure the rollback functionality works
+                # correctly to remove callbacks if loading fails
                 callback_ids = self._register_plugin_callbacks(callbacks)
             except Exception:
                 self.logger.exception(
                     "Could not register events for plugin: %s" % plugin
                 )
+
                 failed_plugins.append(plugin)
 
                 continue
