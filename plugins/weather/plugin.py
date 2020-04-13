@@ -22,8 +22,9 @@ CONSUMER_SECRET = "b816de899743153300c2c123521bb247cfb0c92a"
 
 
 class WeatherPlugin(object):
-    def __init__(self):
+    def __init__(self, cardinal):
         self.logger = logging.getLogger(__name__)
+        self.db = cardinal.get_db('weather')
 
     def api_call(self, method, url, params):
         method = method.upper()
@@ -74,15 +75,48 @@ class WeatherPlugin(object):
 
         return self.api_call('GET', FORECAST_URL, params)
 
+    @command('setw')
+    @help("Set your default weather location.")
+    @help("Syntax: .setw <location>")
+    def set_weather(self, cardinal, user, channel, msg):
+        try:
+            location = msg.split(' ', 1)[1]
+        except IndexError:
+            cardinal.sendMsg(channel, "Syntax: .setw <location>")
+            return
+
+        try:
+            res = self.get_forecast(location).json()
+            location = "{}, {}, {}".format(res['location']['city'],
+                                           res['location']['region'],
+                                           res['location']['country'])
+        except Exception:
+            cardinal.sendMsg(channel, "Sorry, I can't find that location.")
+            self.logger.exception(
+                "Error test fetching for location: '{}'".format(location))
+            return
+
+        with self.db() as db:
+            db[user.nick] = location
+
+        cardinal.sendMsg(channel, '{}: Your default weather location is now '
+                                  'set to {}. Next time you want the weather '
+                                  'at this location, just use .weather or .w'
+                                  .format(user.nick, location))
+
     @command(['weather', 'w'])
     @help("Retrieves the weather using the Yahoo! weather API.")
-    @help("Syntax: .weather <location>")
+    @help("Syntax: .weather [location]")
     def weather(self, cardinal, user, channel, msg):
         try:
             location = msg.split(' ', 1)[1]
         except IndexError:
-            cardinal.sendMsg(channel, "Syntax: .weather <location>")
-            return
+            with self.db() as db:
+                try:
+                    location = db[user.nick]
+                except KeyError:
+                    cardinal.sendMsg(channel, "Syntax: .weather <location>")
+                    return
 
         try:
             res = self.get_forecast(location).json()
@@ -90,6 +124,7 @@ class WeatherPlugin(object):
             cardinal.sendMsg(channel, "Error fetching weather data.")
             self.logger.exception(
                 "Error fetching forecast for location '{}'".format(location))
+            return
 
         try:
             location = "{}, {}, {}".format(res['location']['city'],
@@ -119,5 +154,5 @@ class WeatherPlugin(object):
                                                winds_k))
 
 
-def setup():
-    return WeatherPlugin()
+def setup(cardinal):
+    return WeatherPlugin(cardinal)
