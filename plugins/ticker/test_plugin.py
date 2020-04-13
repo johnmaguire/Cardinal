@@ -94,6 +94,10 @@ def make_time_series_daily_response(symbol,
     while last_market_day.weekday() >= 5:
         last_market_day = last_market_day - datetime.timedelta(days=1)
 
+    previous_market_day = last_market_day - datetime.timedelta(days=1)
+    while previous_market_day.weekday() >= 5:
+        previous_market_day = previous_market_day - datetime.timedelta(days=1)
+
     def make_random_response():
         open_ = random.randrange(95, 105) + random.random()
         high = random.randrange(106, 110) + random.random()
@@ -109,8 +113,7 @@ def make_time_series_daily_response(symbol,
         }
 
     time_series_daily = {}
-    market_day = last_market_day
-    previous_market_day = last_market_day - datetime.timedelta(days=1)
+    market_day = last_market_day  # this changes each iteration
     for days in range(0, 60):
         # don't add data for weekends
         if market_day.weekday() < 5:
