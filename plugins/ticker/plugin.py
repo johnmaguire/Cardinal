@@ -188,8 +188,6 @@ class TickerPlugin(object):
                 return f
 
             def callback(res):
-                self.logger.debug("Got result for stock {}: {}".format(
-                    res['symbol'], res['change']))
                 return (res['symbol'], res['change'])
 
             d.addErrback(errback)
@@ -449,40 +447,42 @@ class TickerPlugin(object):
 
     @defer.inlineCallbacks
     def get_daily(self, symbol):
-        data = yield self.get_time_series_daily(symbol)
-
-        # This may not actually be today if it's the morning before the market
-        # opens, or the weekend -- still, 5 days should be more than enough to
-        # get back to a day the market was open. If not, there's probably an
-        # issue with the data anyway.
-        today = est_now()
-        count = 0
-        while data.get(today.strftime('%Y-%m-%d'), None) is None and count < 5:
-            count += 1
-            today = today - datetime.timedelta(days=1)
-        if data.get(today.strftime('%Y-%m-%d'), None) is None:
-            raise Exception("Can't find data as far back as {}".format(today))
-
-        previous_day = today - datetime.timedelta(days=1)
-        count = 0
-        while data.get(previous_day.strftime('%Y-%m-%d'), None) is None and \
-                count < 5:
-            count += 1
-            previous_day = previous_day - datetime.timedelta(days=1)
-        if data.get(previous_day.strftime('%Y-%m-%d'), None) is None:
-            raise Exception("Can't find data as far back as {}".format(
-                previous_day))
-
-        todays_data = data[today.strftime('%Y-%m-%d')]
-        previous_days_data = data[previous_day.strftime('%Y-%m-%d')]
-
-        change = get_delta(todays_data['close'], previous_days_data['close'])
+        data = yield self.get_quote(symbol)
         defer.returnValue({'symbol': symbol,
-                           'close': todays_data['close'],
-                           'previous close': previous_days_data['close'],
-                           'open': todays_data['open'],
-                           'change': change,
+                           'close': data['price'],
+                           'previous close': data['previous close'],
+                           'open': data['open'],
+                           'change': data['change percent'],
                            })
+
+    @defer.inlineCallbacks
+    def get_quote(self, symbol):
+        data = yield self.make_av_request('GLOBAL_QUOTE',
+                                          {'symbol': symbol})
+
+        try:
+            data = data['Global Quote']
+        except:
+            raise KeyError("Response missing expected 'Global Quote' key: {}"
+                           .format(data))
+
+        data = {k[4:]: v for k, v in data.items()}
+
+        defer.returnValue({
+            'symbol': data['symbol'],
+            'open': float(data['open']),
+            'high': float(data['high']),
+            'low': float(data['low']),
+            'price': float(data['price']),
+            'volume': int(data['volume']),
+            'latest trading day': datetime.datetime.strptime(
+                data['latest trading day'],
+                '%Y-%m-%d',
+            ),
+            'previous close': float(data['previous close']),
+            'change': float(data['change']),
+            'change percent': float(data['change percent'][:-1]),
+        })
 
     @defer.inlineCallbacks
     def get_time_series_daily(self, symbol, outputsize='compact'):

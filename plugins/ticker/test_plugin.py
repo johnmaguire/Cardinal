@@ -83,6 +83,44 @@ def make_throttle_response():
     }
 
 
+def make_global_quote_response(symbol,
+                               open_=None,
+                               close=None,
+                               previous_close=None,
+                               latest_trading_day=None,
+                               ):
+    if latest_trading_day is None:
+        latest_trading_day = datetime.datetime.today()
+
+    open_ = open_ or \
+        random.randrange(95, 105) + random.random()
+    high = random.randrange(106, 110) + random.random()
+    low = random.randrange(90, 94) + random.random()
+    close = close or \
+        random.randrange(95, 105) + random.random()
+    previous_close = previous_close or \
+        random.randrange(95, 105) + random.random()
+    volume = random.randrange(100000, 999999)
+
+    change = close - previous_close
+    change_percent = 1.0 * close / previous_close * 100 - 100
+
+    return {
+        "Global Quote": {
+            "01. symbol": symbol.upper(),
+            "02. open": "{:.4f}".format(open_),
+            "03. high": "{:.4f}".format(high),
+            "04. low": "{:.4f}".format(low),
+            "05. price": "{:.4f}".format(close),
+            "06. volume": "{}".format(volume),
+            "07. latest trading day": latest_trading_day.strftime('%Y-%m-%d'),
+            "08. previous close": "{:.4f}".format(previous_close),
+            "09. change": "{:.4f}".format(change),
+            "10. change percent": "{:.4f}%".format(change_percent),
+        },
+    }
+
+
 def make_time_series_daily_response(symbol,
                                     last_open=None,
                                     last_close=None,
@@ -220,18 +258,18 @@ class TestTickerPlugin(object):
     @defer.inlineCallbacks
     def test_send_ticker(self):
         responses = [
-            make_time_series_daily_response('DJI',
-                                            previous_close=100,
-                                            last_close=200),
-            make_time_series_daily_response('AGG',
-                                            previous_close=100,
-                                            last_close=150.50),
-            make_time_series_daily_response('VEU',
-                                            previous_close=100,
-                                            last_close=105),
-            make_time_series_daily_response('INX',
-                                            previous_close=100,
-                                            last_close=50),
+            make_global_quote_response('DJI',
+                                       previous_close=100,
+                                       close=200),
+            make_global_quote_response('AGG',
+                                       previous_close=100,
+                                       close=150.50),
+            make_global_quote_response('VEU',
+                                       previous_close=100,
+                                       close=105),
+            make_global_quote_response('INX',
+                                       previous_close=100,
+                                       close=50),
         ]
 
         with mock_api(responses, fake_now=get_fake_now(market_is_open=True)):
@@ -330,8 +368,7 @@ class TestTickerPlugin(object):
         assert len(self.db['predictions']) == 1
         assert len(self.db['predictions'][symbol]) == 2
 
-        kwargs = {"last_close": actual}
-        response = make_time_series_daily_response(symbol, **kwargs)
+        response = make_global_quote_response(symbol, close=actual)
 
         with mock_api(response, fake_now=get_fake_now(market_is_open)):
             d = self.plugin.do_predictions()
@@ -425,8 +462,8 @@ class TestTickerPlugin(object):
 
         fake_now = get_fake_now(market_is_open=market_is_open)
 
-        kwargs = {'previous_close': 100} if market_is_open else {'last_close': 100}
-        response = make_time_series_daily_response(symbol, **kwargs)
+        kwargs = {'previous_close': 100} if market_is_open else {'close': 100}
+        response = make_global_quote_response(symbol, **kwargs)
 
         with mock_api(response, fake_now=fake_now):
             yield self.plugin.predict(self.mock_cardinal,
@@ -456,7 +493,7 @@ class TestTickerPlugin(object):
         channel = "#finance"
         symbol = 'INX'
 
-        response = make_time_series_daily_response(symbol, previous_close=100)
+        response = make_global_quote_response(symbol, previous_close=100)
 
         fake_now = get_fake_now()
         for input_msg, output_msg in message_pairs:
@@ -488,7 +525,7 @@ class TestTickerPlugin(object):
         symbol = 'INX'
         channel = "#finance"
 
-        response = make_time_series_daily_response(symbol, previous_close=100)
+        response = make_global_quote_response(symbol, previous_close=100)
         with mock_api(response):
             yield self.plugin.predict(self.mock_cardinal,
                                       user_info("relay.bot", "relay", "relay"),
@@ -560,7 +597,7 @@ class TestTickerPlugin(object):
     ):
         symbol = 'INX'
 
-        response = make_time_series_daily_response(symbol, previous_close=value)
+        response = make_global_quote_response(symbol, previous_close=value)
         with mock_api(response):
             result = yield self.plugin.parse_prediction(user, message)
 
@@ -608,8 +645,7 @@ class TestTickerPlugin(object):
     ):
         symbol = 'INX'
 
-        response = make_time_series_daily_response(symbol, last_close=value)
-
+        response = make_global_quote_response(symbol, close=value)
         with mock_api(response, fake_now=get_fake_now(market_is_open=False)):
             result = yield self.plugin.parse_prediction(user, message)
 
@@ -648,62 +684,55 @@ class TestTickerPlugin(object):
         }
 
     @defer.inlineCallbacks
+    def test_get_quote(self):
+        symbol = 'INX'
+        response = make_global_quote_response(symbol)
+        r = response["Global Quote"]
+
+        expected = {
+            'symbol': symbol,
+            'open': float(r['02. open']),
+            'high': float(r['03. high']),
+            'low': float(r['04. low']),
+            'price': float(r['05. price']),
+            'volume': int(r['06. volume']),
+            'latest trading day': datetime.datetime.today().replace(
+                hour=0, minute=0, second=0, microsecond=0),
+            'previous close': float(r['08. previous close']),
+            'change': float(r['09. change']),
+            'change percent': float(r['10. change percent'][:-1]),
+        }
+
+        with mock_api(response):
+            result = yield self.plugin.get_quote(symbol)
+
+        assert result == expected
+
+    @defer.inlineCallbacks
     def test_get_daily(self):
         symbol = 'INX'
         last_open = 100.0
         last_close = 101.0
         previous_close = 102.0
 
-        response = make_time_series_daily_response(symbol,
-                                                   last_open=last_open,
-                                                   last_close=last_close,
-                                                   previous_close=previous_close,
-                                                   )
+        response = make_global_quote_response(symbol,
+                                              open_=last_open,
+                                              close=last_close,
+                                              previous_close=previous_close,
+                                              )
 
         expected = {
             'symbol': symbol,
             'close': last_close,
             'open': last_open,
             'previous close': previous_close,
-            'change': get_delta(last_close, previous_close),
+            # this one is calculated by our make response function so it
+            # doesn't really test anything anymore
+            'change': float(
+                '{:.4f}'.format(get_delta(last_close, previous_close))),
         }
 
         with mock_api(response):
-            result = yield self.plugin.get_daily(symbol)
-        assert result == expected
-
-    @defer.inlineCallbacks
-    def test_get_daily_missing_days(self):
-        symbol = 'INX'
-        last_open = 100.0
-        last_close = 101.0
-        previous_close = 102.0
-
-        fake_now = datetime.datetime(
-            2020,
-            3,
-            22,  # a Sunday
-            12,
-            0,
-            0,
-        )
-
-        response = make_time_series_daily_response(symbol,
-                                                   last_open=last_open,
-                                                   last_close=last_close,
-                                                   previous_close=previous_close,
-                                                   start=fake_now,
-                                                   )
-
-        expected = {
-            'symbol': symbol,
-            'close': last_close,
-            'previous close': previous_close,
-            'open': last_open,
-            'change': get_delta(last_close, previous_close),
-        }
-
-        with mock_api(response, fake_now):
             result = yield self.plugin.get_daily(symbol)
         assert result == expected
 
