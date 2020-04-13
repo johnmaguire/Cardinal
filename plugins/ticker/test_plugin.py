@@ -1,6 +1,5 @@
 import copy
 import datetime
-import functools
 import random
 from collections import OrderedDict
 from contextlib import contextmanager
@@ -8,7 +7,7 @@ from contextlib import contextmanager
 import pytest
 import pytest_twisted
 import pytz
-from mock import ANY, MagicMock, Mock, PropertyMock, call, patch
+from mock import MagicMock, Mock, PropertyMock, call, patch
 from twisted.internet import defer
 from twisted.internet.task import Clock
 
@@ -19,7 +18,6 @@ from plugins.ticker import plugin
 from plugins.ticker.plugin import (
     TickerPlugin,
     colorize,
-    est_now,
     get_delta,
 )
 
@@ -54,6 +52,7 @@ def mock_api(response,
 
     # hack since nonlocal doesn't exist in py2
     context = {'raise_times': raise_times, 'throttle_times': throttle_times}
+
     def mock_deferToThread(*args, **kwargs):
         if context['raise_times'] > 0:
             context['raise_times'] -= 1
@@ -78,9 +77,9 @@ def mock_api(response,
 def make_throttle_response():
     return {
         "Note": "Thank you for using Alpha Vantage! Our standard API call "
-            "frequency is 5 calls per minute and 500 calls per day. "
-            "Please visit https://www.alphavantage.co/premium/ if you would "
-            "like to target a higher API call frequency."
+                "frequency is 5 calls per minute and 500 calls per day. "
+                "Please visit https://www.alphavantage.co/premium/ if you "
+                "would like to target a higher API call frequency."
     }
 
 
@@ -112,7 +111,7 @@ def make_time_series_daily_response(symbol,
     time_series_daily = {}
     market_day = last_market_day
     previous_market_day = last_market_day - datetime.timedelta(days=1)
-    for days in xrange(0, 60):
+    for days in range(0, 60):
         # don't add data for weekends
         if market_day.weekday() < 5:
             response = make_random_response()
@@ -331,8 +330,7 @@ class TestTickerPlugin(object):
         kwargs = {"last_close": actual}
         response = make_time_series_daily_response(symbol, **kwargs)
 
-        with mock_api(response, fake_now=get_fake_now(market_is_open)) \
-                as defer_mock:
+        with mock_api(response, fake_now=get_fake_now(market_is_open)):
             d = self.plugin.do_predictions()
             mock_reactor.advance(15)
 
@@ -367,14 +365,14 @@ class TestTickerPlugin(object):
             datetime.datetime(2020, 3, 20, 10, 50, 0, 0))
 
         prediction_ = {'when': '2020-03-20 10:50:00 EDT',
-                      'prediction': prediction,
-                      'base': base,
-                      }
+                       'prediction': prediction,
+                       'base': base,
+                       }
         self.plugin.send_prediction(nick, symbol, prediction_, actual)
 
-        message = "Prediction by nick for \x02INX\02: 105 (\x03095.00%\x03). " \
-                  "Actual value at open: 110 (\x030910.00%\x03). " \
-                  "Prediction set at 2020-03-20 10:50:00 EDT."
+        message = ("Prediction by nick for \x02INX\02: 105 (\x03095.00%\x03). "
+                   "Actual value at open: 110 (\x030910.00%\x03). "
+                   "Prediction set at 2020-03-20 10:50:00 EDT.")
         self.mock_cardinal.sendMsg.assert_called_once_with('#test', message)
 
     @pytest.mark.skip(reason="Not written yet")
@@ -416,10 +414,10 @@ class TestTickerPlugin(object):
     ])
     @pytest_twisted.inlineCallbacks
     def test_predict(self,
-                    symbol,
-                    input_msg,
-                    output_msg,
-                    market_is_open):
+                     symbol,
+                     input_msg,
+                     output_msg,
+                     market_is_open):
         channel = "#finance"
 
         fake_now = get_fake_now(market_is_open=market_is_open)
@@ -443,11 +441,11 @@ class TestTickerPlugin(object):
     @pytest.mark.parametrize("message_pairs", [
         (("!predict INX +5%",
           "Prediction by nick for \x02INX\x02 at market close: 105.00 (\x03095.00%\x03) ",
-         ),
+          ),
          ("!predict INX -5%",
           "Prediction by nick for \x02INX\x02 at market close: 95.00 (\x0304-5.00%\x03) "
           "(replaces old prediction of 105.00 (\x03095.00%\x03) set at {})"
-         ),
+          ),
          )
     ])
     @pytest_twisted.inlineCallbacks
@@ -709,10 +707,9 @@ class TestTickerPlugin(object):
     @defer.inlineCallbacks
     def test_get_time_series_daily(self):
         symbol = 'INX'
-        outputsize = 'compact'
 
         response = make_time_series_daily_response(symbol)
-        with mock_api(response) as defer_mock:
+        with mock_api(response):
             result = yield self.plugin.get_time_series_daily(symbol)
 
         for date in response['Time Series (Daily)']:
@@ -725,12 +722,11 @@ class TestTickerPlugin(object):
     @defer.inlineCallbacks
     def test_get_time_series_daily_bad_format(self):
         symbol = 'INX'
-        outputsize = 'compact'
 
         response = {}
-        with mock_api(response) as defer_mock:
+        with mock_api(response):
             with pytest.raises(KeyError):
-                result = yield self.plugin.get_time_series_daily(symbol)
+                yield self.plugin.get_time_series_daily(symbol)
 
     @defer.inlineCallbacks
     def test_make_av_request(self):
@@ -767,7 +763,6 @@ class TestTickerPlugin(object):
         # This one is mostly just for coverage
         function = 'TIME_SERIES_DAILY'
         symbol = 'INX'
-        outputsize = 'compact'
 
         response = make_time_series_daily_response(symbol)
         with mock_api(response) as defer_mock:
@@ -884,7 +879,7 @@ class TestTickerPlugin(object):
                 mock_reactor.advance(plugin.RETRY_WAIT)
 
             with pytest.raises(Exception):
-                result = yield d
+                yield d
 
         defer_mock.assert_has_calls([call(
             plugin.requests.get,
@@ -911,7 +906,7 @@ class TestTickerPlugin(object):
             55,
             0,
         ))
-        assert False == plugin.market_is_open()
+        assert plugin.market_is_open() is False
 
         # The market was open earlier though
         mock_now.return_value = tz.localize(datetime.datetime(
@@ -923,7 +918,7 @@ class TestTickerPlugin(object):
             55,
             0,
         ))
-        assert True == plugin.market_is_open()
+        assert plugin.market_is_open() is True
 
         # But not before 9:30am
         mock_now.return_value = tz.localize(datetime.datetime(
@@ -935,7 +930,7 @@ class TestTickerPlugin(object):
             59,
             0,
         ))
-        assert False == plugin.market_is_open()
+        assert plugin.market_is_open() is False
 
         # Or this weekend
         mock_now.return_value = tz.localize(datetime.datetime(
@@ -947,4 +942,4 @@ class TestTickerPlugin(object):
             55,
             0,
         ))
-        assert False == plugin.market_is_open()
+        assert plugin.market_is_open() is False

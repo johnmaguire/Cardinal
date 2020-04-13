@@ -1,7 +1,6 @@
 import datetime
 import logging
 import re
-from collections import OrderedDict, defaultdict
 
 import pytz
 import requests
@@ -24,7 +23,7 @@ RETRY_WAIT = 15
 CHECK_REGEX = r'^(?:<(.+?)>\s+)?!check (\^?[A-Za-z]+(?:[:\.][A-Za-z]+)?)$'
 
 # Supports relayed messages
-PREDICT_REGEX = r'^(?:<(.+?)>\s+)?!predict (\^?[A-Za-z]+(?:[:\.][A-Za-z]+)?) ([-+])?(\d+(?:\.\d+)?)%$'
+PREDICT_REGEX = r'^(?:<(.+?)>\s+)?!predict (\^?[A-Za-z]+(?:[:\.][A-Za-z]+)?) ([-+])?(\d+(?:\.\d+)?)%$'  # noqa: E501
 
 
 class ThrottledException(Exception):
@@ -45,9 +44,9 @@ def market_is_open():
 
     # Determine if the market is currently open
     is_market_closed = (now.weekday() >= 5) or \
-            (now.hour < 9 or now.hour >= 17) or \
-            (now.hour == 9 and now.minute < 30) or \
-            (now.hour == 16 and now.minute > 0)
+        (now.hour < 9 or now.hour >= 17) or \
+        (now.hour == 9 and now.minute < 30) or \
+        (now.hour == 16 and now.minute > 0)
 
     return not is_market_closed
 
@@ -144,10 +143,11 @@ class TickerPlugin(object):
         now = est_now()
 
         # Determine if the market is currently open
-        is_market_open = not ((now.weekday() >= 5) or \
-                (now.hour < 9 or now.hour >= 17) or \
-                (now.hour == 9 and now.minute < 30) or \
-                (now.hour == 16 and now.minute > 0))
+        is_market_open = not (
+            (now.weekday() >= 5) or
+            (now.hour < 9 or now.hour >= 17) or
+            (now.hour == 9 and now.minute < 30) or
+            (now.hour == 16 and now.minute > 0))
 
         # Determine if this is the market opening or market closing
         is_open = now.hour == 9 and now.minute == 30
@@ -174,12 +174,6 @@ class TickerPlugin(object):
 
     @defer.inlineCallbacks
     def send_ticker(self):
-        # Hopefully our stocks are in the originally specified order, so let's
-        # try to keep results in that order too (it's unclear to me whether
-        # this is working properly or not.)
-        results = OrderedDict({symbol: None
-                               for symbol in self.config["stocks"]})
-
         # Used a DeferredList so that we can make requests for all the symbols
         # we care about simultaneously
         deferreds = []
@@ -192,6 +186,7 @@ class TickerPlugin(object):
                 self.logger.error("Failed to get stock {}: {}".format(
                     symbol, f))
                 return f
+
             def callback(res):
                 self.logger.debug("Got result for stock {}: {}".format(
                     res['symbol'], res['change']))
@@ -234,14 +229,14 @@ class TickerPlugin(object):
                 data = yield self.get_daily(symbol)
 
                 actual = data['close']
-            except Exception as e:
+            except Exception:
                 self.logger.exception(
                     "Failed to fetch information for symbol {} -- skipping"
                     .format(symbol))
                 for channel in self.config["channels"]:
                     self.cardinal.sendMsg(
-                        channel, "Error with predictions for symbol {}.".format(
-                            symbol))
+                        channel, "Error with predictions for symbol {}."
+                                 .format(symbol))
                 continue
 
             # Loop each nick's prediction, and look for the closest prediction
@@ -360,7 +355,7 @@ class TickerPlugin(object):
                                 .format(exc))
             cardinal.sendMsg(
                 channel,
-                "{}: I couldn't look that symbol up".format(nick))
+                "{}: I couldn't look that symbol up".format(user.nick))
             return
         else:
             # This may happen if we matched the relay bot regex but a relay bot
@@ -470,11 +465,13 @@ class TickerPlugin(object):
 
         previous_day = today - datetime.timedelta(days=1)
         count = 0
-        while data.get(previous_day.strftime('%Y-%m-%d'), None) is None and count < 5:
+        while data.get(previous_day.strftime('%Y-%m-%d'), None) is None and \
+                count < 5:
             count += 1
             previous_day = previous_day - datetime.timedelta(days=1)
         if data.get(previous_day.strftime('%Y-%m-%d'), None) is None:
-            raise Exception("Can't find data as far back as {}".format(previous_day))
+            raise Exception("Can't find data as far back as {}".format(
+                previous_day))
 
         todays_data = data[today.strftime('%Y-%m-%d')]
         previous_days_data = data[previous_day.strftime('%Y-%m-%d')]
@@ -506,7 +503,6 @@ class TickerPlugin(object):
             data[date] = values
 
         defer.returnValue(data)
-
 
     @defer.inlineCallbacks
     def make_av_request(self, function, params=None):
