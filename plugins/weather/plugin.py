@@ -101,7 +101,7 @@ class WeatherPlugin(object):
 
         cardinal.sendMsg(channel, '{}: Your default weather location is now '
                                   'set to {}. Next time you want the weather '
-                                  'at this location, just use .weather or .w'
+                                  'at this location, just use .weather or .w!'
                                   .format(user.nick, location))
 
     @command(['weather', 'w'])
