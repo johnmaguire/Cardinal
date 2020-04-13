@@ -40,13 +40,16 @@ class SedPlugin(object):
         if match.group(3) and 'i' in match.group(3):
             flags = re.IGNORECASE
 
-        new_message = re.sub(
-            re.escape(pattern),  # don't allow complex regex
-            replacement,
-            self.history[channel][user],
-            count,
-            flags,
-        )
+        try:
+            new_message = re.sub(
+                re.escape(pattern),  # don't allow complex regex
+                replacement,
+                self.history[channel][user.nick],
+                count,
+                flags,
+            )
+        except KeyError:
+            return None
 
         return new_message
 
@@ -54,27 +57,42 @@ class SedPlugin(object):
     def on_msg(self, cardinal, user, channel, message):
         new_message = self.substitute(user, channel, message)
         if new_message is not None:
-            self.history[channel][user] = new_message
+            self.history[channel][user.nick] = new_message
             cardinal.sendMsg(channel, '{} meant: {}'.format(
                                 user.nick, new_message))
         else:
-            self.history[channel][user] = message
+            self.history[channel][user.nick] = message
 
     @event('irc.part')
     def on_part(self, cardinal, leaver, channel, message):
         if leaver.nick == cardinal.nickname:
             del self.history[channel]
         else:
-            del self.history[channel][leaver]
+            try:
+                del self.history[channel][leaver.nick]
+            except KeyError:
+                pass
+
+    @event('irc.kick')
+    def on_kick(self, cardinal, kicker, channel, nick, reason):
+        if nick == cardinal.nickname:
+            del self.history[channel]
+        else:
+            try:
+                del self.history[channel][nick]
+            except KeyError:
+                pass
 
     @event('irc.quit')
     def on_quit(self, cardinal, quitter, message):
-        if quitter == cardinal.nickname:
+        if quitter.nick == cardinal.nickname:
             self.history = defauldict(dict)
         else:
             for channel in self.history:
-                if quitter in self.history[channel]:
-                    del self.history[channel][quitter]
+                try:
+                    del self.history[channel][quitter.nick]
+                except KeyError:
+                    pass
 
 
 def setup():
