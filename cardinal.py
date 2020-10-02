@@ -69,7 +69,8 @@ https://github.com/JohnMaguire/Cardinal
         'remind',
         'weather',
         'youtube',
-        'urbandict'
+        'urbandict',
+        'seen'
     ])
     spec.add_option('blacklist', dict, {})
     spec.add_option('logging', dict, None)
