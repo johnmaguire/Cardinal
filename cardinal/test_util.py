@@ -3,7 +3,7 @@ import datetime
 import pytest
 from twisted.internet import defer
 
-import util
+from cardinal import util
 
 
 @pytest.mark.parametrize("input_,expected", (
