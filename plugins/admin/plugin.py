@@ -52,7 +52,7 @@ class AdminPlugin(object):
                 try:
                     output = str(eval(command))
                     cardinal.sendMsg(channel, output)
-                except Exception, e:
+                except Exception as e:
                     cardinal.sendMsg(channel, 'Exception %s: %s' %
                                               (e.__class__, e))
                     raise
@@ -68,7 +68,7 @@ class AdminPlugin(object):
                 try:
                     exec(command)
                     cardinal.sendMsg(channel, "Ran exec() on input.")
-                except Exception, e:
+                except Exception as e:
                     cardinal.sendMsg(channel, 'Exception %s: %s' %
                                               (e.__class__, e))
                     raise

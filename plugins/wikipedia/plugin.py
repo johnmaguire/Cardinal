@@ -43,7 +43,7 @@ class WikipediaPlugin(object):
         try:
             uh = urllib2.urlopen(url.encode('UTF-8'))
             soup = BeautifulSoup(uh)
-        except Exception, e:
+        except Exception as e:
             self.logger.warning(
                 "Couldn't query Wikipedia (404?) for: %s" % name, exc_info=True
             )
@@ -63,7 +63,7 @@ class WikipediaPlugin(object):
                     '...'
             else:
                 first_paragraph = first_paragraph
-        except Exception, e:
+        except Exception as e:
             self.logger.error(
                 "Error parsing Wikipedia result for: %s" % name,
                 exc_info=True

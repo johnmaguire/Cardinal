@@ -47,7 +47,7 @@ class YouTubePlugin(object):
 
         try:
             result = self._form_request("search", params)
-        except Exception, e:
+        except Exception as e:
             cardinal.sendMsg(channel, "Unable to connect to YouTube.")
             self.logger.exception("Failed to connect to YouTube")
             return
@@ -73,7 +73,7 @@ class YouTubePlugin(object):
 
         try:
             result = self._form_request("videos", params)
-        except Exception, e:
+        except Exception as e:
             cardinal.sendMsg(channel, "Unable to connect to YouTube.")
             self.logger.exception("Failed to connect to YouTube")
             return
@@ -83,7 +83,7 @@ class YouTubePlugin(object):
             cardinal.sendMsg(channel, message)
         except IndexError:
             cardinal.sendMsg(channel, "No videos found matching that search.")
-        except Exception, e:
+        except Exception as e:
             self.logger.exception("Failed to parse info for %s'" % video_id)
             raise EventRejectedMessage
 
@@ -100,14 +100,14 @@ class YouTubePlugin(object):
 
         try:
             result = self._form_request("videos", params)
-        except Exception, e:
+        except Exception as e:
             self.logger.exception("Failed to fetch info for %s'" % video_id)
             raise EventRejectedMessage
 
         try:
             message = self._parse_item(result['items'][0])
             cardinal.sendMsg(channel, message)
-        except Exception, e:
+        except Exception as e:
             self.logger.exception("Failed to parse info for %s'" % video_id)
             raise EventRejectedMessage
 
