@@ -172,7 +172,7 @@ class TestCardinalBot(object):
 
     @patch('cardinal.bot.irc.IRCClient.lineReceived')
     def test_lineReceived(self, mock_parent_linereceived):
-        line = ':irc.example.com TEST :foobar foobar'
+        line = b':irc.example.com TEST :foobar foobar'
         self.cardinal.lineReceived(line)
         self.event_manager.fire.assert_called_once_with(
             'irc.raw',

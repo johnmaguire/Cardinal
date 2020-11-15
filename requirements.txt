@@ -13,7 +13,7 @@ enum34==1.1.9
 PyYAML==5.1.1
 
 # Wikipedia plugin
-beautifulsoup4==4.3.2
+beautifulsoup4==4.9.3
 
 # Weather & YouTube plugins
 requests==2.22.0

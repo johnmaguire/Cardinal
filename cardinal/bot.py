@@ -166,15 +166,16 @@ class CardinalBot(irc.IRCClient, object):
 
     def lineReceived(self, line):
         """Called for every line received from the server."""
+        super(CardinalBot, self).lineReceived(line)
+
+        line = line.decode('utf-8')
+
         self.irc_logger.info(line)
 
         parts = line.split(' ')
         command = parts[1]
 
         self.event_manager.fire("irc.raw", command, line)
-
-        # Call Twisted handler
-        super(CardinalBot, self).lineReceived(line)
 
     def irc_PRIVMSG(self, prefix, params):
         """Called when we receive a message in a channel or PM."""

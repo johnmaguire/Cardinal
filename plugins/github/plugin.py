@@ -36,7 +36,7 @@ class GithubPlugin(object):
         self.logger = logging.getLogger(__name__)
 
         if 'default_repo' in config and config['default_repo']:
-            self.default_repo = config['default_repo'].encode('utf8')
+            self.default_repo = config['default_repo']
 
         if 'max_show_issues' in config and config['max_show_issues']:
             self.max_show_issues = config['max_show_issues']
@@ -130,7 +130,7 @@ class GithubPlugin(object):
                       for label in issue['labels']]
             message += ' ' + ' '.join(labels)
 
-        return message.encode('utf8')
+        return message
 
     def _show_issue(self, cardinal, channel, repo, number):
         issue = self._form_request('repos/%s/issues/%d' % (repo, number))
@@ -150,7 +150,7 @@ class GithubPlugin(object):
 
         message += "]"
 
-        cardinal.sendMsg(channel, message.encode('utf8'))
+        cardinal.sendMsg(channel, message)
 
     def _form_request(self, endpoint, params={}):
         # Make request to specified endpoint and return JSON decoded result

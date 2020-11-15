@@ -30,7 +30,7 @@ class UrbanDictPlugin(object):
 
             response = 'UD for %s: %s (%s)' % (word, word_def, link)
 
-            cardinal.sendMsg(channel, response.encode('utf-8'))
+            cardinal.sendMsg(channel, response)
         except Exception:
             cardinal.sendMsg(channel, "Could not retrieve definition for %s" % word)
 

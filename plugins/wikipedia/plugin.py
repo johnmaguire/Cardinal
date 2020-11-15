@@ -40,11 +40,11 @@ class WikipediaPlugin(object):
         name = name.replace(' ', '_')
         url = "https://%s.wikipedia.org/wiki/%s" % (
             self._language_code,
-            name.decode('UTF-8'),
+            name,
         )
 
         try:
-            uh = urllib.request.urlopen(url.encode('UTF-8'))
+            uh = urllib.request.urlopen(url)
             soup = BeautifulSoup(uh)
         except Exception as e:
             self.logger.warning(
@@ -74,7 +74,7 @@ class WikipediaPlugin(object):
 
             return "Error parsing Wikipedia result for: %s" % name
 
-        return ("[ Wikipedia: %s | %s | %s ]" % (title, first_paragraph, url)).encode('utf-8')
+        return "[ Wikipedia: %s | %s | %s ]" % (title, first_paragraph, url)
 
     @event('urls.detection')
     def url_callback(self, cardinal, channel, url):

@@ -64,7 +64,7 @@ class YouTubePlugin(object):
             return
 
         try:
-            video_id = str(result['items'][0]['id']['videoId'].encode('utf-8'))
+            video_id = str(result['items'][0]['id']['videoId'])
 
             params = {
                 'id': video_id,
@@ -127,15 +127,15 @@ class YouTubePlugin(object):
         return json.load(uh)
 
     def _parse_item(self, item):
-        title = str(item['snippet']['title'].encode('utf-8'))
-        views = int(item['statistics']['viewCount'].encode('utf-8'))
-        uploader = str(item['snippet']['channelTitle'].encode('utf-8'))
+        title = str(item['snippet']['title'])
+        views = int(item['statistics']['viewCount'])
+        uploader = str(item['snippet']['channelTitle'])
         if len(uploader) == 0:
             uploader = "(not available)"
 
         # TODO: Verify no videos return the ID as item['id']['videoId']
         # (Hint: If this breaks, that's probably why.)
-        video_id = str(item['id'].encode('utf-8'))
+        video_id = str(item['id'])
 
         return ("[ Title: %s | Uploaded by: %s | %s views | https://www.youtube.com/watch?v=%s ]" %
                 (title, uploader, "{:,}".format(views), video_id))

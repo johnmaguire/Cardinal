@@ -57,11 +57,11 @@ class WeatherPlugin(object):
         # Generate signature
         composite_key = \
             urllib.parse.quote(CONSUMER_SECRET, safe='') + SIGNATURE_CONCAT
-        oauth_signature = b64encode(hmac.new(composite_key,
-                                             signature_string,
+        oauth_signature = b64encode(hmac.new(composite_key.encode('utf-8'),
+                                             signature_string.encode('utf-8'),
                                              hashlib.sha1).digest())
 
-        oauth_params['oauth_signature'] = oauth_signature
+        oauth_params['oauth_signature'] = oauth_signature.decode('utf-8')
         auth_header = 'OAuth ' + ', '.join(
             ['{}="{}"'.format(k, v) for k, v in oauth_params.items()])
 

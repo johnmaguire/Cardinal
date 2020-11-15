@@ -8,7 +8,7 @@ from builtins import object
 import re
 import urllib.request, urllib.error, urllib.parse
 import socket
-import html.parser
+import html
 import logging
 from datetime import datetime
 
@@ -99,7 +99,7 @@ class URLsPlugin(object):
             if not ('text/html' in content_type or
                     'text/xhtml' in content_type):
                 defer.returnValue(None)
-            content = f.read(self.read_bytes)
+            content = f.read(self.read_bytes).decode('utf-8')
             f.close()
 
             title = re.search(TITLE_REGEX, content)
@@ -107,9 +107,7 @@ class URLsPlugin(object):
                 if len(title.group(2).strip()) > 0:
                     title = re.sub(r'\s+', ' ', title.group(2)).strip()
 
-                    h = html.parser.HTMLParser()
-
-                    title = str(h.unescape(title).encode('utf-8'))
+                    title = html.unescape(title)
 
                     # Truncate long titles to the first 200 characters.
                     title_to_send = title[:200] if len(title) >= 200 else title

@@ -21,7 +21,7 @@ class GoogleSearch(object):
 
         counter = MAX_RESULTS
         for url in search(search_string):
-            cardinal.sendMsg(channel, url.encode('ascii'))
+            cardinal.sendMsg(channel, url)
 
             counter -= 1
             if counter == 0:
