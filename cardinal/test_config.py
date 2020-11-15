@@ -19,7 +19,6 @@ class TestConfigSpec(object):
     @pytest.mark.parametrize("option", [
         ('name', basestring, 'default'),
         (u'name', basestring, None),
-        (b'name', basestring, None),
         ('name', int, 3),
     ])
     def test_add_option(self, option):

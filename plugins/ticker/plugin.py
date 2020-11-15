@@ -206,7 +206,7 @@ class TickerPlugin(object):
             symbol, change = result
             message_parts.append(self.format_symbol(symbol, change))
 
-        message = ' | '.join(message_parts)
+        message = ' | '.join(sorted(message_parts))
         for channel in self.config["channels"]:
             self.cardinal.sendMsg(channel, message)
 
@@ -449,7 +449,7 @@ class TickerPlugin(object):
     @defer.inlineCallbacks
     def get_daily(self, symbol):
         data = yield self.get_quote(symbol)
-        defer.returnValue({'symbol': symbol,
+        defer.returnValue({'symbol': data['symbol'],
                            'close': data['price'],
                            'previous close': data['previous close'],
                            'open': data['open'],

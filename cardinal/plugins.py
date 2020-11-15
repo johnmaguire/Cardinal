@@ -3,7 +3,6 @@ from __future__ import absolute_import, print_function, division
 from future import standard_library
 standard_library.install_aliases()
 from builtins import range
-from past.builtins import basestring
 from builtins import object
 import os
 import re
@@ -16,6 +15,7 @@ import random
 import json
 from collections import OrderedDict, defaultdict
 from copy import copy
+from imp import reload
 
 from cardinal.exceptions import (
     CommandNotFoundError,
@@ -158,7 +158,7 @@ class PluginManager(object):
 
         if inspect.ismodule(module):
             return reload(module)
-        elif isinstance(module, basestring):
+        elif isinstance(module, str):
             return importlib.import_module('%s.%s.%s' %
                                            (self._plugin_module_import_prefix,
                                             module,
@@ -428,10 +428,8 @@ class PluginManager(object):
           TypeError -- When the `plugins` argument is not a string or list.
 
         """
-        # If they passed in a string, convert it to a list (and encode the
-        # name as UTF-8.)
-        if isinstance(plugins, basestring):
-            plugins = [plugins.encode('utf-8')]
+        if isinstance(plugins, str):
+            plugins = [plugins]
         if not isinstance(plugins, list):
             raise TypeError(
                 "Plugins argument must be a string or list of plugins"
@@ -541,10 +539,9 @@ class PluginManager(object):
           TypeError -- When the `plugins` argument is not a string or list.
 
         """
-        # If they passed in a string, convert it to a list (and encode the
-        # name as UTF-8.)
-        if isinstance(plugins, basestring):
-            plugins = [plugins.encode('utf-8')]
+        # If they passed in a string, convert it to a list
+        if isinstance(plugins, str):
+            plugins = [plugins]
         if not isinstance(plugins, list):
             raise TypeError("Plugins must be a string or list of plugins")
 
@@ -602,10 +599,9 @@ class PluginManager(object):
         Returns:
           bool -- False if plugin doesn't exist.
         """
-        # If they passed in a string, convert it to a list (and encode the
-        # name as UTF-8.)
-        if isinstance(channels, basestring):
-            channels = [channels.encode('utf-8')]
+        # If they passed in a string, convert it to a list
+        if isinstance(channels, str):
+            channels = [channels]
         if not isinstance(channels, list):
             raise TypeError("Plugins must be a string or list of plugins")
 
@@ -627,10 +623,9 @@ class PluginManager(object):
           list/bool -- False if plugin doesn't exist, list of channels that
             weren't blacklisted in the first place if it does.
         """
-        # If they passed in a string, convert it to a list (and encode the
-        # name as UTF-8.)
-        if isinstance(channels, basestring):
-            channels = [channels.encode('utf-8')]
+        # If they passed in a string, convert it to a list
+        if isinstance(channels, str):
+            channels = [channels]
         if not isinstance(channels, list):
             raise TypeError("Plugins must be a string or list of plugins")
 

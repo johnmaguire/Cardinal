@@ -6,7 +6,6 @@ from past.utils import old_div
 import copy
 import datetime
 import random
-from collections import OrderedDict
 from contextlib import contextmanager
 
 import pytest
@@ -208,12 +207,12 @@ class TestTickerPlugin(object):
         self.api_key = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
         self.channel = '#test'
         self.channels = [self.channel]
-        self.stocks = OrderedDict({
+        self.stocks = {
             'INX': 'S&P 500',
             'DJI': 'Dow',
             'VEU': 'Foreign',
             'AGG': 'US Bond',
-        })
+        }
         self.relay_bots = [
             {"nick": "relay.bot", "user": "relay", "vhost": "relay"},
         ]
@@ -283,9 +282,9 @@ class TestTickerPlugin(object):
         self.mock_cardinal.sendMsg.assert_called_once_with(
             self.channel,
             'Dow (\x02DJI\x02): \x0309100.00%\x03 | '
-            'US Bond (\x02AGG\x02): \x030950.50%\x03 | '
             'Foreign (\x02VEU\x02): \x03095.00%\x03 | '
-            'S&P 500 (\x02INX\x02): \x0304-50.00%\x03'
+            'S&P 500 (\x02INX\x02): \x0304-50.00%\x03 | '
+            'US Bond (\x02AGG\x02): \x030950.50%\x03'
         )
 
     @pytest.mark.parametrize("dt,should_send_ticker,should_do_predictions", [

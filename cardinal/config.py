@@ -29,14 +29,11 @@ class ConfigSpec(object):
 
         """
         # Name must be a string
-        if not isinstance(name, basestring):
-            raise TypeError("Name must be a string")
+        if not isinstance(name, str):
+            raise TypeError("Name must be str")
 
         if not inspect.isclass(type):
             raise TypeError("Type must be a class")
-
-        # Ensure that the name is in UTF-8 encoding
-        name = name.encode('utf-8')
 
         self.options[name] = (type, default)
 
@@ -107,34 +104,6 @@ class ConfigParser(object):
         self.spec = spec
         self.config = {}
 
-    def _utf8_json(self, json_object):
-        """Converts json.load() or json.loads() return to UTF-8.
-
-        By default, json.load() will return an object with unicode strings.
-        Unfortunately, these cause problems with libraries like Twisted, so we
-        need to convert them into UTF-8 encoded strings.
-
-        Keyword arguments:
-          json_object -- Dict object returned by json.load() / json.loads().
-
-        Returns:
-          dict -- A UTF-8 encoded version of json_object.
-        """
-        if isinstance(json_object, dict):
-            return dict(
-                (self._utf8_json(key), self._utf8_json(value))
-                for key, value in json_object.items()
-            )
-        elif isinstance(json_object, list):
-            return [
-                self._utf8_json(element)
-                for element in json_object
-            ]
-        elif isinstance(json_object, str):
-            return json_object.encode('utf-8')
-        else:
-            return json_object
-
     def load_config(self, file_):
         """Attempts to load a JSON config file for Cardinal.
 
@@ -153,7 +122,7 @@ class ConfigParser(object):
         """
         # Attempt to load and parse the config file
         f = open(file_, 'r')
-        json_config = self._utf8_json(json.load(f))
+        json_config = json.load(f)
         f.close()
 
         # For every option,

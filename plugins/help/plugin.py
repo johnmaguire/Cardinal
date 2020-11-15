@@ -127,7 +127,7 @@ class HelpPlugin(object):
             channel,
             "My admins are: {}. Visit https://github.com/JohnMaguire/Cardinal "
             "for more info about me. (Use .help to see my commands.)"
-            .format(admins.encode('utf-8'))
+            .format(admins)
         )
 
 
