@@ -1,3 +1,8 @@
+from __future__ import division
+from builtins import str
+from builtins import range
+from builtins import object
+from past.utils import old_div
 import copy
 import datetime
 import random
@@ -103,7 +108,7 @@ def make_global_quote_response(symbol,
     volume = random.randrange(100000, 999999)
 
     change = close - previous_close
-    change_percent = 1.0 * close / previous_close * 100 - 100
+    change_percent = old_div(1.0 * close, previous_close) * 100 - 100
 
     return {
         "Global Quote": {

@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from past.builtins import basestring
 import os
 import sys
 import argparse

@@ -1,7 +1,11 @@
+from future import standard_library
+standard_library.install_aliases()
+from builtins import str
+from builtins import object
 import re
 import json
-import urllib
-import urllib2
+import urllib.request, urllib.parse, urllib.error
+import urllib.request, urllib.error, urllib.parse
 import logging
 
 from cardinal.decorators import command, event, help
@@ -116,9 +120,9 @@ class YouTubePlugin(object):
         params['key'] = self.api_key
 
         # Make request to specified endpoint and return JSON decoded result
-        uh = urllib2.urlopen("https://www.googleapis.com/youtube/v3/" +
+        uh = urllib.request.urlopen("https://www.googleapis.com/youtube/v3/" +
             endpoint + "?" +
-            urllib.urlencode(params))
+            urllib.parse.urlencode(params))
 
         return json.load(uh)
 

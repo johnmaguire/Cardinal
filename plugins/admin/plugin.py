@@ -1,3 +1,5 @@
+from builtins import str
+from builtins import object
 import logging
 
 from cardinal.bot import user_info

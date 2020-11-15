@@ -1,10 +1,14 @@
 # coding: iso-8859-15
 from __future__ import absolute_import, print_function, division
 
+from future import standard_library
+standard_library.install_aliases()
+from builtins import str
+from builtins import object
 import re
-import urllib2
+import urllib.request, urllib.error, urllib.parse
 import socket
-import HTMLParser
+import html.parser
 import logging
 from datetime import datetime
 
@@ -80,7 +84,7 @@ class URLsPlugin(object):
 
             # FIXME: Replace with Twisted call
             try:
-                o = urllib2.build_opener()
+                o = urllib.request.build_opener()
                 # User agent helps combat some bot checks
                 o.addheaders = [
                     ('User-agent', 'Mozilla/5.0 (Windows NT 6.2; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/32.0.1667.0 Safari/537.36')
@@ -103,7 +107,7 @@ class URLsPlugin(object):
                 if len(title.group(2).strip()) > 0:
                     title = re.sub(r'\s+', ' ', title.group(2)).strip()
 
-                    h = HTMLParser.HTMLParser()
+                    h = html.parser.HTMLParser()
 
                     title = str(h.unescape(title).encode('utf-8'))
 

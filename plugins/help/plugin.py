@@ -1,3 +1,7 @@
+from future import standard_library
+standard_library.install_aliases()
+from past.builtins import basestring
+from builtins import object
 from datetime import datetime, timedelta
 from cardinal.decorators import command, help
 

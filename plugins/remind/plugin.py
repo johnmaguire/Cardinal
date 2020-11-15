@@ -1,3 +1,4 @@
+from builtins import object
 from twisted.internet import error, reactor
 
 from cardinal.decorators import command, help

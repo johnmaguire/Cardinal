@@ -1,3 +1,4 @@
+from builtins import object
 from cardinal.bot import user_info
 from plugins.admin.plugin import AdminPlugin
 

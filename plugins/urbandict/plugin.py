@@ -1,4 +1,7 @@
-from urllib import urlopen
+from future import standard_library
+standard_library.install_aliases()
+from builtins import object
+from urllib.request import urlopen
 import json
 
 from cardinal.decorators import command, help

@@ -1,5 +1,10 @@
 from __future__ import absolute_import, print_function, division
 
+from future import standard_library
+standard_library.install_aliases()
+from builtins import range
+from past.builtins import basestring
+from builtins import object
 import os
 import re
 import string
@@ -111,7 +116,7 @@ class PluginManager(object):
 
         return self
 
-    def next(self):
+    def __next__(self):
         """Part of the iterator protocol, returns the next plugin.
 
         Returns:
@@ -216,7 +221,7 @@ class PluginManager(object):
         callback_ids = defaultdict(list)
 
         def rollback():
-            for event_name, ids in callback_ids.items():
+            for event_name, ids in list(callback_ids.items()):
                 for id_ in ids:
                     self.cardinal.event_manager.remove_callback(
                         event_name, id_)
@@ -251,7 +256,7 @@ class PluginManager(object):
         plugin = self.plugins[plugin]
 
         # Loop though each event name
-        for event_name in plugin['callback_ids'].keys():
+        for event_name in list(plugin['callback_ids'].keys()):
             # Loop tough callbacks
             for callback_id in plugin['callback_ids'][event_name]:
                 self.cardinal.event_manager.remove_callback(
@@ -396,7 +401,7 @@ class PluginManager(object):
           iterator -- Iterator for looping through commands
         """
         # Loop through each plugin we have loaded
-        for name, plugin in self.plugins.items():
+        for name, plugin in list(self.plugins.items()):
             if channel is not None and channel in plugin['blacklist']:
                 continue
 
@@ -444,7 +449,7 @@ class PluginManager(object):
             # Import each plugin's module with our own hacky function to reload
             # modules that have already been imported previously
             try:
-                if plugin in self.plugins.keys():
+                if plugin in list(self.plugins.keys()):
                     reload_flag = True
                     self.logger.info("Already loaded, unloading first: %s" %
                                      plugin)
@@ -585,7 +590,7 @@ class PluginManager(object):
 
         """
         self.logger.info("Unloading all plugins")
-        self.unload([plugin for plugin, data in self.plugins.items()])
+        self.unload([plugin for plugin, data in list(self.plugins.items())])
 
     def blacklist(self, plugin, channels):
         """Blacklists a plugin from given channels.
@@ -790,7 +795,7 @@ class EventManager(object):
             self.logger.debug("Event already exists: %s" % name)
             raise EventAlreadyExistsError("Event already exists: %s" % name)
 
-        if not isinstance(required_params, (int, long)):
+        if not isinstance(required_params, (int, int)):
             self.logger.debug("Invalid required params: %s" % name)
             raise TypeError("Required params must be an integer")
 
@@ -924,7 +929,7 @@ class EventManager(object):
         )
 
         cb_deferreds = []
-        for callback_id, callback in callbacks.iteritems():
+        for callback_id, callback in callbacks.items():
             d = defer.maybeDeferred(
                 callback, self.cardinal, *params)
 

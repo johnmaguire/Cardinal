@@ -1,7 +1,11 @@
+from future import standard_library
+standard_library.install_aliases()
+from builtins import str
+from builtins import object
 import os
 import sqlite3
 import json
-import urllib2
+import urllib.request, urllib.error, urllib.parse
 import logging
 
 from cardinal.decorators import command, help
@@ -154,7 +158,7 @@ class LastfmPlugin(object):
             username = result[0]
 
         try:
-            uh = urllib2.urlopen(
+            uh = urllib.request.urlopen(
                 "http://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks"
                 "&user=%s&api_key=%s&limit=1&format=json" %
                 (username, self.api_key)

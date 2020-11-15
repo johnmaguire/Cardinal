@@ -1,3 +1,4 @@
+from builtins import object
 import datetime
 import logging
 import re
@@ -177,7 +178,7 @@ class TickerPlugin(object):
         # Used a DeferredList so that we can make requests for all the symbols
         # we care about simultaneously
         deferreds = []
-        for symbol, name in self.config["stocks"].items():
+        for symbol, name in list(self.config["stocks"].items()):
             d = self.get_daily(symbol)
             deferreds.append(d)
 
@@ -220,7 +221,7 @@ class TickerPlugin(object):
     def do_predictions(self):
         # Loop each prediction, grouped by symbols to avoid rate limits
         with self.db() as db:
-            predicted_symbols = db['predictions'].keys()
+            predicted_symbols = list(db['predictions'].keys())
 
         for symbol in predicted_symbols:
             try:
@@ -247,7 +248,7 @@ class TickerPlugin(object):
                 predictions = db['predictions'][symbol]
                 del db['predictions'][symbol]
 
-            for nick, prediction in predictions.items():
+            for nick, prediction in list(predictions.items()):
                 # Check if this is the closest guess for the symbol so far
                 delta = abs(actual - prediction['prediction'])
                 if not closest_delta or delta < closest_delta:
@@ -466,7 +467,7 @@ class TickerPlugin(object):
             raise KeyError("Response missing expected 'Global Quote' key: {}"
                            .format(data))
 
-        data = {k[4:]: v for k, v in data.items()}
+        data = {k[4:]: v for k, v in list(data.items())}
 
         defer.returnValue({
             'symbol': data['symbol'],
@@ -496,10 +497,10 @@ class TickerPlugin(object):
             raise KeyError("Response missing expected 'Time Series (Daily)' "
                            "key: {}".format(data))
 
-        for date, values in data.items():
+        for date, values in list(data.items()):
             # Strip prefixes like "4. " from "4. close" and convert values from
             # the API to float instead of string
-            values = {k[3:]: float(v) for k, v in values.items()}
+            values = {k[3:]: float(v) for k, v in list(values.items())}
             data[date] = values
 
         defer.returnValue(data)

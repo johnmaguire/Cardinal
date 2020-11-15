@@ -1,5 +1,8 @@
+from future import standard_library
+standard_library.install_aliases()
+from builtins import object
 import re
-import urllib2
+import urllib.request, urllib.error, urllib.parse
 import logging
 
 from bs4 import BeautifulSoup
@@ -41,7 +44,7 @@ class WikipediaPlugin(object):
         )
 
         try:
-            uh = urllib2.urlopen(url.encode('UTF-8'))
+            uh = urllib.request.urlopen(url.encode('UTF-8'))
             soup = BeautifulSoup(uh)
         except Exception as e:
             self.logger.warning(

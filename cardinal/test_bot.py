@@ -1,3 +1,4 @@
+from builtins import object
 import logging
 import os
 import shutil
@@ -549,7 +550,7 @@ class TestCardinalBot(object):
             db = self.cardinal.get_db('test')
 
         assert len(self.cardinal.db_locks) == 1
-        db_path = self.cardinal.db_locks.keys()[0]
+        db_path = list(self.cardinal.db_locks.keys())[0]
         lock = self.cardinal.db_locks[db_path]
         assert lock == UNLOCKED
         assert db_path.endswith(os.path.join(
@@ -567,7 +568,7 @@ class TestCardinalBot(object):
             db = self.cardinal.get_db('test', network_specific=False)
 
         assert len(self.cardinal.db_locks) == 1
-        db_path = self.cardinal.db_locks.keys()[0]
+        db_path = list(self.cardinal.db_locks.keys())[0]
         # note lack of network formatted in below
         assert db_path.endswith(os.path.join(
             'database', 'test.json'))

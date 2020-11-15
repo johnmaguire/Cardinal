@@ -1,3 +1,4 @@
+from builtins import object
 from cardinal.decorators import command, help, regex
 
 

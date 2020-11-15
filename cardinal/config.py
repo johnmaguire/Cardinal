@@ -1,5 +1,7 @@
 from __future__ import absolute_import, print_function, division
 
+from past.builtins import basestring
+from builtins import object
 import logging
 import json
 import inspect
@@ -121,14 +123,14 @@ class ConfigParser(object):
         if isinstance(json_object, dict):
             return dict(
                 (self._utf8_json(key), self._utf8_json(value))
-                for key, value in json_object.iteritems()
+                for key, value in json_object.items()
             )
         elif isinstance(json_object, list):
             return [
                 self._utf8_json(element)
                 for element in json_object
             ]
-        elif isinstance(json_object, unicode):
+        elif isinstance(json_object, str):
             return json_object.encode('utf-8')
         else:
             return json_object

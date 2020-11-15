@@ -1,5 +1,9 @@
 from __future__ import absolute_import, print_function, division
 
+from future import standard_library
+standard_library.install_aliases()
+from past.builtins import basestring
+from builtins import object
 import inspect
 import logging
 import os
@@ -49,7 +53,7 @@ class TestPluginManager(object):
             plugins = [plugins]
 
         assert failed_plugins == []
-        assert len(self.plugin_manager.plugins.keys()) == len(plugins)
+        assert len(list(self.plugin_manager.plugins.keys())) == len(plugins)
 
         for name in plugins:
             # class name for plugins must be Test(CamelCaseName)Plugin
@@ -61,7 +65,7 @@ class TestPluginManager(object):
             class_ += 'Plugin'
 
             # check that everything was set correctly
-            assert name in self.plugin_manager.plugins.keys()
+            assert name in list(self.plugin_manager.plugins.keys())
             assert self.plugin_manager.plugins[name]['name'] == name
             assert inspect.ismodule(
                 self.plugin_manager.plugins[name]['module'])
@@ -297,7 +301,7 @@ class TestPluginManager(object):
         failed_plugins = self.plugin_manager.unload(plugins)
 
         assert failed_plugins == []
-        assert self.plugin_manager.plugins.keys() == []
+        assert list(self.plugin_manager.plugins.keys()) == []
 
     def test_unload_passes_cardinal(self):
         plugin = 'close_one_argument'
@@ -308,7 +312,7 @@ class TestPluginManager(object):
         failed_plugins = self.plugin_manager.unload(plugin)
 
         assert failed_plugins == []
-        assert self.plugin_manager.plugins.keys() == []
+        assert list(self.plugin_manager.plugins.keys()) == []
 
         # Our close() method will set module.cardinal for us to inspect
         assert module.cardinal is self.cardinal
@@ -322,7 +326,7 @@ class TestPluginManager(object):
         failed_plugins = self.plugin_manager.unload(plugin)
 
         assert failed_plugins == [plugin]
-        assert self.plugin_manager.plugins.keys() == []
+        assert list(self.plugin_manager.plugins.keys()) == []
 
         # Our close() method will set module.called to True if called
         assert module.called is False

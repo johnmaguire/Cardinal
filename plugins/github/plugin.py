@@ -1,7 +1,10 @@
+from future import standard_library
+standard_library.install_aliases()
+from builtins import object
 import re
 import json
-import urllib
-import urllib2
+import urllib.request, urllib.parse, urllib.error
+import urllib.request, urllib.error, urllib.parse
 import logging
 
 from cardinal.decorators import command, event, help
@@ -82,7 +85,7 @@ class GithubPlugin(object):
             elif res['total_count'] == 0:
                 cardinal.sendMsg(channel,
                                  "No matching issues found in %s" % repo)
-        except urllib2.HTTPError:
+        except urllib.error.HTTPError:
             cardinal.sendMsg(channel,
                              "Couldn't find %s#%d" % (repo, int(query)))
 
@@ -105,7 +108,7 @@ class GithubPlugin(object):
                 self._show_repo(cardinal,
                                 channel,
                                 '%s/%s' % (groups[0], groups[1]))
-        except urllib2.HTTPError:
+        except urllib.error.HTTPError:
             raise EventRejectedMessage
 
     def _format_issue(self, issue):
@@ -151,9 +154,9 @@ class GithubPlugin(object):
 
     def _form_request(self, endpoint, params={}):
         # Make request to specified endpoint and return JSON decoded result
-        uh = urllib2.urlopen("https://api.github.com/" +
+        uh = urllib.request.urlopen("https://api.github.com/" +
                              endpoint + "?" +
-                             urllib.urlencode(params))
+                             urllib.parse.urlencode(params))
 
         return json.load(uh)
 

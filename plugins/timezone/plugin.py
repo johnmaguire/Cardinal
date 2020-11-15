@@ -1,3 +1,4 @@
+from builtins import object
 import logging
 from datetime import datetime
 
