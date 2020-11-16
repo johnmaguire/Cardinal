@@ -164,7 +164,14 @@ class LastfmPlugin(object):
                 (username, self.api_key)
             )
             content = json.load(uh)
-        except Exception:
+        except Exception as e:
+            # Handle 404 (i.e. user not exists) separately
+            if isinstance(e, urllib.error.HTTPError) and e.code == 404:
+                cardinal.sendMsg(
+                        channel,
+                        "Last.fm user '{}' does not exist".format(username))
+                return
+
             cardinal.sendMsg(channel, "Unable to connect to Last.fm.")
             self.logger.exception("Failed to connect to Last.fm")
             return
@@ -198,9 +205,8 @@ class LastfmPlugin(object):
         except IndexError:
             cardinal.sendMsg(
                 channel,
-                "Unable to find any tracks played. "
-                "(Is your Last.fm username correct?)"
-            )
+                "Last.fm user '{}' hasn't listened to anything yet".format(
+                    username))
 
     def close(self):
         if self.conn:
