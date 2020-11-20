@@ -181,6 +181,21 @@ class TestCardinalBot(object):
         )
         mock_parent_linereceived.assert_called_once_with(line)
 
+    @patch('cardinal.bot.irc.IRCClient.lineReceived')
+    def test_lineReceived_non_utf8(self, mock_parent_linereceived):
+        line = b":irc-us-east-2.darkscience.net 332 Cardinal #pirates :\x031 \x0311,10[\x031]\x031,1\x1f\xc3\x82\xc2\xaf\x1f\x0313,6[\x031]\x031,1\x1f\xc3\x82\xc2\xaf\x1f\x0311,10[\x031]\x031,1\x1f\xc3\x82\xc2\xaf\x1f\x0313,6[\x031]\x031,1\x1f\xc3\x82\xc2\xaf\x1f\x0311,10[\x031]\x031,1\x1f\xc3\x82\xc2\xaf\x1f\x0313,6[\x031]\x031,1\x1f\xc3\x82\xc2\xaf\x1f\x0311,10[\x031]\x03\x0311,6\x030 Pirates Game! - Welcome aboard Dark Sails, Season 4, Mod: Pauper Privateers! - \x1dJoin wit\' !Pirates\x1d - \x0311\x1fwww.piratesirc.com\x1f \x0311,6\x0311,10[\x031]\x031,1\x1f\xc3\x82\xc2\xaf\x1f\x0313,6[\x031]\x031,1\x1f\xc3\x82\xc2"
+        expected_line = line.decode('utf-8', 'replace')
+
+        self.cardinal.lineReceived(line)
+
+        self.event_manager.fire.assert_called_once_with(
+            'irc.raw',
+            '332',
+            expected_line,
+        )
+        mock_parent_linereceived.assert_called_once_with(
+                expected_line.encode('utf-8', 'replace'))
+
     def test_irc_PRIVMSG(self):
         mock_factory = self.cardinal.factory = Mock(spec=CardinalBotFactory)
         mock_factory.nickname = 'Cardinal'

@@ -166,9 +166,20 @@ class CardinalBot(irc.IRCClient, object):
 
     def lineReceived(self, line):
         """Called for every line received from the server."""
-        super(CardinalBot, self).lineReceived(line)
-
-        line = line.decode('utf-8')
+        # The IRC spec does not specify a message encoding, meaning that some
+        # messages may fail to decode into a UTF-8 string. While we must be
+        # aware of the issue and choose to replace "invalid" characters (which
+        # are technically valid per the IRC RFC, hence us warning about this
+        # behavior), we must also ensure that the Twisted IRCClient's
+        # implementation of lineReceived does not receive these characters, as
+        # it will not replace them.
+        try:
+            line = line.decode('utf-8')
+        except UnicodeDecodeError:
+            self.logger.warning(
+                    "Stripping non-UTF-8 data from received line: {}"
+                    .format(line))
+            line = line.decode('utf-8', 'replace')
 
         self.irc_logger.info(line)
 
@@ -176,6 +187,12 @@ class CardinalBot(irc.IRCClient, object):
         command = parts[1]
 
         self.event_manager.fire("irc.raw", command, line)
+
+        # Send IRCClient the version of the line that has had non-UTF-8
+        # characters replaced.
+        #
+        # Bug: https://twistedmatrix.com/trac/ticket/9443
+        super(CardinalBot, self).lineReceived(line.encode('utf-8'))
 
     def irc_PRIVMSG(self, prefix, params):
         """Called when we receive a message in a channel or PM."""
