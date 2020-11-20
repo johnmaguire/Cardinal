@@ -190,7 +190,7 @@ class PluginManager(object):
         # it does, they are expecting our instance of CardinalBot to be passed
         # in. If not, just call setup. If there is more than one argument
         # accepted, the method is invalid.
-        argspec = inspect.getargspec(module.setup)
+        argspec = inspect.getfullargspec(module.setup)
         if len(argspec.args) == 0:
             instance = module.setup()
         elif len(argspec.args) == 1:
@@ -290,7 +290,7 @@ class PluginManager(object):
             # argument must be 'self' and therefore they aren't expecting
             # us to pass in an instance of CardinalBot. If there are two
             # arguments, they expect CardinalBot. Anything else is invalid.
-            argspec = inspect.getargspec(
+            argspec = inspect.getfullargspec(
                 instance.close
             )
 
@@ -835,7 +835,7 @@ class EventManager(object):
                 "Can't register callback that isn't callable"
             )
 
-        argspec = inspect.getargspec(callback)
+        argspec = inspect.getfullargspec(callback)
         num_func_args = len(argspec.args)
 
         # If no event is registered, we will still register the callback but

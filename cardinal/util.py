@@ -12,7 +12,7 @@ def sleep(secs):
 
 def strip_formatting(line):
     """Removes mIRC control code formatting"""
-    return re.sub("(?:\x03\d\d?,\d\d?|\x03\d\d?|[\x01-\x1f])", "", line)
+    return re.sub(r"(?:\x03\d\d?,\d\d?|\x03\d\d?|[\x01-\x1f])", "", line)
 
 
 class formatting(object):

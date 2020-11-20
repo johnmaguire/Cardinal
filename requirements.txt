@@ -21,5 +21,5 @@ requests==2.22.0
 # Google plugin
 google==2.0.3
 
-# Time plugin
-pytz==2015.4
+# Timezone plugin
+pytz==2020.4
