@@ -99,6 +99,20 @@ def test_on_part_no_history():
     plugin.on_part(cardinal, user, channel, 'message')
 
 
+def test_on_part_self_no_history():
+    cardinal = Mock()
+    cardinal.nickname = 'Cardinal'
+
+    channel = '#channel'
+    user = user_info(cardinal.nickname, None, None)
+    msg = 'msg'
+
+    plugin = SedPlugin()
+
+    # make sure this doesn't raise
+    plugin.on_part(cardinal, user, channel, 'message')
+
+
 def test_on_kick():
     channel1 = '#channel1'
     channel2 = '#channel2'
@@ -134,6 +148,20 @@ def test_on_kick_no_history():
 
     plugin = SedPlugin()
     cardinal = Mock()
+
+    # make sure this doesn't raise
+    plugin.on_kick(cardinal, user, channel, user.nick, 'message')
+
+
+def test_on_kick_self_no_history():
+    cardinal = Mock()
+    cardinal.nickname = 'Cardinal'
+
+    channel = '#channel'
+    user = user_info(cardinal.nickname, None, None)
+    msg = 'msg'
+
+    plugin = SedPlugin()
 
     # make sure this doesn't raise
     plugin.on_kick(cardinal, user, channel, user.nick, 'message')

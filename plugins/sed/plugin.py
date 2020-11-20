@@ -67,7 +67,10 @@ class SedPlugin(object):
     @event('irc.part')
     def on_part(self, cardinal, leaver, channel, message):
         if leaver.nick == cardinal.nickname:
-            del self.history[channel]
+            try:
+                del self.history[channel]
+            except KeyError:
+                pass
         else:
             try:
                 del self.history[channel][leaver.nick]
@@ -77,7 +80,10 @@ class SedPlugin(object):
     @event('irc.kick')
     def on_kick(self, cardinal, kicker, channel, nick, reason):
         if nick == cardinal.nickname:
-            del self.history[channel]
+            try:
+                del self.history[channel]
+            except KeyError:
+                pass
         else:
             try:
                 del self.history[channel][nick]
