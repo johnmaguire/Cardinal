@@ -3,13 +3,12 @@ from __future__ import absolute_import, print_function, division
 
 from future import standard_library
 standard_library.install_aliases()
-from builtins import str
 from builtins import object
 import re
 import urllib.request, urllib.error, urllib.parse
-import socket
 import html
 import logging
+import unicodedata
 from datetime import datetime
 
 from twisted.internet import defer
@@ -17,13 +16,33 @@ from twisted.internet.threads import deferToThread
 
 from cardinal.decorators import regex
 
-URL_REGEX = re.compile(r"(?:^|\s)((?:https?://)?(?:[a-z0-9.\-]+[.][a-z]{2,4}/?"
-                       r")(?:[^\s()<>]*|\((?:[^\s()<>]+|(?:\([^\s()<>]+\)))*\)"
-                       r")+(?:\((?:[^\s()<>]+|(?:\([^\s()<>]+\)))*\)|[^\s`!()"
-                       r"\[\]{};:\'\".,<>?]))",
+# Some notes about this regex - it will attempt to capture URLs prefixed by a
+# space, a control character (e.g. for formatting), or the beginning of the
+# string.
+URL_REGEX = re.compile(r"(?:^|\s|[\x00-\x1f\x7f-\x9f])((?:https?://)?(?:[a-z0-9.\-]+[.][a-z]{2,4}/?)(?:[^\s()<>]*|\((?:[^\s()<>]+|(?:\([^\s()<>]+\)))*\))+(?:\((?:[^\s()<>]+|(?:\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:\'\".,<>?]))",  # noqa: E501
                        flags=re.IGNORECASE | re.DOTALL)
 TITLE_REGEX = re.compile(r'<title(\s+.*?)?>(.*?)</title>',
                          flags=re.IGNORECASE | re.DOTALL)
+
+
+def get_urls(message):
+    urls = re.findall(URL_REGEX, message)
+    # strip any control characters that remain on the right side of the string
+    # we don't need to worry about the left side, since the regex won't capture
+    # any strings that don't begin "http"
+    for i in range(len(urls)):
+        url = urls[i]
+
+        idx_r = len(url)
+        for j in range(len(url)):
+            if unicodedata.category(url[len(url) - 1 - j])[0] == "C":
+                idx_r -= 1
+            else:
+                break
+
+        urls[i] = url[0:idx_r]
+
+    return urls
 
 
 class URLsPlugin(object):
@@ -59,7 +78,7 @@ class URLsPlugin(object):
     @defer.inlineCallbacks
     def get_title(self, cardinal, user, channel, msg):
         # Find every URL within the message
-        urls = re.findall(URL_REGEX, msg)
+        urls = get_urls(msg)
 
         # Loop through the URLs, and make them valid
         for url in urls:
@@ -87,10 +106,10 @@ class URLsPlugin(object):
                 o = urllib.request.build_opener()
                 # User agent helps combat some bot checks
                 o.addheaders = [
-                    ('User-agent', 'Mozilla/5.0 (Windows NT 6.2; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/32.0.1667.0 Safari/537.36')
+                    ('User-agent', 'Mozilla/5.0 (Windows NT 6.2; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/32.0.1667.0 Safari/537.36')  # noqa: E501
                 ]
                 f = yield deferToThread(o.open, url, timeout=self.timeout)
-            except Exception as e:
+            except Exception:
                 self.logger.exception("Unable to load URL: %s" % url)
                 defer.returnValue(None)
 
@@ -117,6 +136,7 @@ class URLsPlugin(object):
 
     def close(self, cardinal):
         cardinal.event_manager.remove('urls.detection')
+
 
 def setup(cardinal, config):
     return URLsPlugin(cardinal, config)
