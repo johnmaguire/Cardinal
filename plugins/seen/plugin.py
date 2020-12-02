@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 from cardinal.decorators import command, help, event
+from cardinal.util import formatting as F
 
 PRIVMSG = 'PRIVMSG'  # [channel, message]
 NOTICE = 'NOTICE'  # [channel, message]
@@ -15,7 +16,9 @@ EPOCH = datetime.utcfromtimestamp(0)
 
 
 class SeenPlugin(object):
-    def __init__(self, cardinal):
+    def __init__(self, cardinal, config):
+        self.ignored_channels = config.get('ignored_channels', [])
+
         self.db = cardinal.get_db('seen')
         with self.db() as db:
             if 'users' not in db:
@@ -34,42 +37,60 @@ class SeenPlugin(object):
 
     @event('irc.privmsg')
     def irc_privmsg(self, cardinal, user, channel, message):
-        if channel != cardinal.nickname:  # we want to ignore private messages
+        if channel != cardinal.nickname and \
+                channel not in self.ignored_channels:
             self.update_user(user.nick, PRIVMSG, [channel, message])
 
     @event('irc.notice')
     def irc_notice(self, cardinal, user, channel, message):
-        if channel != cardinal.nickname:  # we want to ignore private notices
+        if channel != cardinal.nickname and \
+                channel not in self.ignored_channels:
             self.update_user(user.nick, NOTICE, [channel, message])
+
+    @event('irc.mode')
+    def irc_mode(self, cardinal, user, channel, mode):
+        if channel not in self.ignored_channels:
+            self.update_user(user.nick, MODE, [channel, mode])
+
+    @event('irc.topic')
+    def irc_topic(self, cardinal, user, channel, topic):
+        if channel not in self.ignored_channels:
+            self.update_user(user.nick, TOPIC, [channel, topic])
+
+    @event('irc.join')
+    def irc_join(self, cardinal, user, channel):
+        if channel not in self.ignored_channels:
+            self.update_user(user.nick, JOIN, [channel])
+
+    @event('irc.part')
+    def irc_part(self, cardinal, user, channel, reason):
+        if channel not in self.ignored_channels:
+            self.update_user(user.nick, PART, [channel, reason])
 
     @event('irc.nick')
     def irc_nick(self, cardinal, user, new_nick):
         self.update_user(user.nick, NICK, [new_nick])
 
-    @event('irc.mode')
-    def irc_mode(self, cardinal, user, channel, mode):
-        self.update_user(user.nick, MODE, [channel, mode])
-
-    @event('irc.topic')
-    def irc_topic(self, cardinal, user, channel, topic):
-        self.update_user(user.nick, TOPIC, [channel, topic])
-
-    @event('irc.join')
-    def irc_join(self, cardinal, user, channel):
-        self.update_user(user.nick, JOIN, [channel])
-
-    @event('irc.part')
-    def irc_part(self, cardinal, user, channel, reason):
-        self.update_user(user.nick, PART, [channel, reason])
-
     @event('irc.quit')
     def irc_quit(self, cardinal, user, reason):
         self.update_user(user.nick, QUIT, [reason])
 
+    @staticmethod
+    def _pretty_seconds(seconds):
+        """Borrowed from the help plugin (_pretty_uptime)"""
+        days, seconds = divmod(seconds, 60 * 60 * 24)
+        hours, seconds = divmod(seconds, 60 * 60)
+        minutes, seconds = divmod(seconds, 60)
+        retval = "%d days " % days if days else ""
+        retval += "%02d:%02d:%02d" % (hours, minutes, seconds)
+        return retval
+
     def format_seen(self, nick):
+        # TODO disable formatting after user input messages (avoid formatting
+        # after the quote)
         with self.db() as db:
             if nick not in db['users']:
-                return "I've never seen {} before.".format(nick)
+                return "Sorry, I haven't seen {}.".format(nick)
 
             entry = db['users'][nick]
 
@@ -77,24 +98,25 @@ class SeenPlugin(object):
             entry['timestamp'],
             tz=timezone.utc,
         )
-        t_seen = str(dt_timestamp)
-        t_ago = str(datetime
-                    .now(tz=timezone.utc)
-                    .replace(microsecond=0) - dt_timestamp)
+        t_seen = dt_timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        t_ago = self._pretty_seconds((datetime
+                                     .now(tz=timezone.utc)
+                                     .replace(microsecond=0)
+                                     - dt_timestamp).total_seconds())
 
-        message = "I last saw {} at {} ({} ago). ".format(nick, t_seen, t_ago)
+        message = "I last saw {} {} ago ({}). ".format(nick, t_ago, t_seen)
 
         action, params = entry['action'], entry['params']
         if action == PRIVMSG:
             message += "{} sent \"{}\" to {}.".format(
                 nick,
-                params[1],
+                params[1] + F.reset,  # reset formatting on user inputs...
                 params[0],
             )
         elif action == NOTICE:
             message += "{} sent notice \"{}\" to {}.".format(
                 nick,
-                params[1],
+                params[1] + F.reset,
                 params[0],
             )
         elif action == JOIN:
@@ -103,7 +125,7 @@ class SeenPlugin(object):
             message += "{} left {}{}.".format(
                 nick,
                 params[0],
-                " ({})".format(params[1]) if params[1] else "",
+                " ({})".format(params[1] + F.reset) if params[1] else "",
             )
         elif action == NICK:
             message += "{} renamed themselves {}.".format(nick, params[0])
@@ -117,12 +139,12 @@ class SeenPlugin(object):
             message += "{} set {}'s topic to \"{}\".".format(
                 nick,
                 params[0],
-                params[1],
+                params[1] + F.reset,
             )
         elif action == QUIT:
             message += "{} quit{}.".format(
                 nick,
-                " ({})".format(params[0]) if params[0] else "",
+                " ({})".format(params[0] + F.reset) if params[0] else "",
             )
 
         return message
@@ -143,5 +165,5 @@ class SeenPlugin(object):
         cardinal.sendMsg(channel, self.format_seen(nick))
 
 
-def setup(cardinal):
-    return SeenPlugin(cardinal)
+def setup(cardinal, config):
+    return SeenPlugin(cardinal, config)

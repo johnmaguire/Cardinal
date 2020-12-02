@@ -86,5 +86,7 @@ class formatting(object):
     # alias as this will be used commonly
     C = color
 
+    reset = "\x03"
+
 # alias as this will be used commonly
 F = formatting
