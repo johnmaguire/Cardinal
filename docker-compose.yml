@@ -1,8 +1,9 @@
 version: "2.1"
 services:
     cardinal:
-        image: jmaguire/cardinal
+        container_name: cardinal
         build: .
+        image: jmaguire/cardinal
         command: config/config.json
         volumes:
             - ./storage/:/usr/src/app/storage/
