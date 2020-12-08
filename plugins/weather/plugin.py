@@ -93,9 +93,9 @@ class WeatherPlugin(object):
 
         try:
             res = self.get_forecast(location).json()
-            location = "{}, {}, {}".format(res['location']['city'],
-                                           res['location']['region'],
-                                           res['location']['country'])
+            location = "{}, {}, {}".format(res['location']['city'].strip(),
+                                           res['location']['region'].strip(),
+                                           res['location']['country'].strip())
         except Exception:
             cardinal.sendMsg(channel, "Sorry, I can't find that location.")
             self.logger.exception(
@@ -133,9 +133,9 @@ class WeatherPlugin(object):
             return
 
         try:
-            location = "{}, {}, {}".format(res['location']['city'],
-                                           res['location']['region'],
-                                           res['location']['country'])
+            location = "{}, {}, {}".format(res['location']['city'].strip(),
+                                           res['location']['region'].strip(),
+                                           res['location']['country'].strip())
         except KeyError:
             cardinal.sendMsg(channel,
                              "Couldn't find weather data for your location.")
