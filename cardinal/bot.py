@@ -138,6 +138,11 @@ class CardinalBot(irc.IRCClient, object):
                                             self.factory.plugins,
                                             self.factory.blacklist)
 
+        if self.factory.server_commands:
+            self.logger.info("Sending server commands")
+            for command in self.factory.server_commands:
+                self.send(command)
+
         # Attempt to identify with NickServ, if a password was given
         if self.factory.password:
             self.logger.info("Attempting to identify with NickServ")
@@ -559,6 +564,7 @@ class CardinalBotFactory(protocol.ClientFactory):
     def __init__(self,
                  network,
                  server_password=None,
+                 server_commands=None,
                  channels=None,
                  nickname='Cardinal',
                  password=None,
@@ -580,6 +586,9 @@ class CardinalBotFactory(protocol.ClientFactory):
           storage -- A string containing path to storage directory.
         """
 
+        if server_commands is None:
+            server_commands = []
+
         if plugins is None:
             plugins = []
 
@@ -592,6 +601,7 @@ class CardinalBotFactory(protocol.ClientFactory):
         self.logger = logging.getLogger(__name__)
         self.network = network.lower()
         self.server_password = server_password
+        self.server_commands = server_commands
         self.channels = channels
         self.nickname = nickname
         self.password = password

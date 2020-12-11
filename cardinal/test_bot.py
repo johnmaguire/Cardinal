@@ -14,8 +14,6 @@ from twisted.internet.task import Clock
 
 from cardinal import exceptions, plugins
 from cardinal.bot import (
-    LOCKED,
-    UNLOCKED,
     CardinalBot,
     CardinalBotFactory,
     user_info,
@@ -122,6 +120,7 @@ class TestCardinalBot(object):
         channels = ['#channel1', '#channel2']
 
         mock_factory = self.cardinal.factory = Mock()
+        mock_factory.server_commands = []
         mock_factory.channels = channels
         mock_factory.password = None
 
@@ -152,6 +151,7 @@ class TestCardinalBot(object):
             mock_join,
     ):
         mock_factory = self.cardinal.factory = Mock()
+        mock_factory.server_commands = []
         mock_factory.channels = []
         mock_factory.password = 'password'
 
@@ -162,6 +162,38 @@ class TestCardinalBot(object):
             'NickServ',
             'IDENTIFY password'
         )
+
+        assert isinstance(self.cardinal.uptime, datetime)
+        assert self.cardinal.booted == mock_factory.booted
+
+    @patch.object(CardinalBot, 'msg')
+    @patch.object(CardinalBot, 'send')
+    @patch('cardinal.bot.PluginManager', autospec=True)
+    def test_signedOn_sends_server_commands(
+            self,
+            mock_plugin_manager,
+            mock_send,
+            _mock_msg,
+    ):
+        command1 = 'AUTH foobar'
+        command2 = 'PING'
+
+        mock_factory = self.cardinal.factory = Mock()
+        mock_factory.nickname = 'Cardinal'
+        mock_factory.server_commands = [
+            command1,
+            command2,
+        ]
+        mock_factory.channels = []
+        mock_factory.password = None
+
+        self.cardinal.signedOn()
+
+        mock_send.assert_has_calls([
+            call(command1),
+            call(command2),
+            call('MODE {} +B'.format(mock_factory.nickname))
+        ])
 
         assert isinstance(self.cardinal.uptime, datetime)
         assert self.cardinal.booted == mock_factory.booted
@@ -183,7 +215,7 @@ class TestCardinalBot(object):
 
     @patch('cardinal.bot.irc.IRCClient.lineReceived')
     def test_lineReceived_non_utf8(self, mock_parent_linereceived):
-        line = b":irc-us-east-2.darkscience.net 332 Cardinal #pirates :\x031 \x0311,10[\x031]\x031,1\x1f\xc3\x82\xc2\xaf\x1f\x0313,6[\x031]\x031,1\x1f\xc3\x82\xc2\xaf\x1f\x0311,10[\x031]\x031,1\x1f\xc3\x82\xc2\xaf\x1f\x0313,6[\x031]\x031,1\x1f\xc3\x82\xc2\xaf\x1f\x0311,10[\x031]\x031,1\x1f\xc3\x82\xc2\xaf\x1f\x0313,6[\x031]\x031,1\x1f\xc3\x82\xc2\xaf\x1f\x0311,10[\x031]\x03\x0311,6\x030 Pirates Game! - Welcome aboard Dark Sails, Season 4, Mod: Pauper Privateers! - \x1dJoin wit\' !Pirates\x1d - \x0311\x1fwww.piratesirc.com\x1f \x0311,6\x0311,10[\x031]\x031,1\x1f\xc3\x82\xc2\xaf\x1f\x0313,6[\x031]\x031,1\x1f\xc3\x82\xc2"
+        line = b":irc-us-east-2.darkscience.net 332 Cardinal #pirates :\x031 \x0311,10[\x031]\x031,1\x1f\xc3\x82\xc2\xaf\x1f\x0313,6[\x031]\x031,1\x1f\xc3\x82\xc2\xaf\x1f\x0311,10[\x031]\x031,1\x1f\xc3\x82\xc2\xaf\x1f\x0313,6[\x031]\x031,1\x1f\xc3\x82\xc2\xaf\x1f\x0311,10[\x031]\x031,1\x1f\xc3\x82\xc2\xaf\x1f\x0313,6[\x031]\x031,1\x1f\xc3\x82\xc2\xaf\x1f\x0311,10[\x031]\x03\x0311,6\x030 Pirates Game! - Welcome aboard Dark Sails, Season 4, Mod: Pauper Privateers! - \x1dJoin wit\' !Pirates\x1d - \x0311\x1fwww.piratesirc.com\x1f \x0311,6\x0311,10[\x031]\x031,1\x1f\xc3\x82\xc2\xaf\x1f\x0313,6[\x031]\x031,1\x1f\xc3\x82\xc2"  # noqa: E501
         expected_line = line.decode('utf-8', 'replace')
 
         self.cardinal.lineReceived(line)
@@ -566,8 +598,6 @@ class TestCardinalBot(object):
 
         assert len(self.cardinal.db_locks) == 1
         db_path = list(self.cardinal.db_locks.keys())[0]
-        lock = self.cardinal.db_locks[db_path]
-        assert lock == UNLOCKED
         assert db_path.endswith(os.path.join(
             'database', 'test-{}.json'.format(network)))
 
@@ -580,7 +610,7 @@ class TestCardinalBot(object):
         with tempdir('database') as database_path:
             mock_factory.storage_path = os.path.dirname(database_path)
 
-            db = self.cardinal.get_db('test', network_specific=False)
+            self.cardinal.get_db('test', network_specific=False)
 
         assert len(self.cardinal.db_locks) == 1
         db_path = list(self.cardinal.db_locks.keys())[0]
@@ -635,7 +665,7 @@ class TestCardinalBot(object):
             db = self.cardinal.get_db('test', network_specific=False)
 
             try:
-                with db() as db_ob:
+                with db() as db_obj:
                     assert db_obj == {}
                     db_obj['x'] = True
                     raise Exception()
@@ -680,6 +710,7 @@ class TestCardinalBotFactory(object):
 
         assert self.factory.network == 'irc.testnet.test'
         assert self.factory.server_password is None
+        assert self.factory.server_commands == []
         assert self.factory.password is None
         assert self.factory.channels == []
         assert self.factory.nickname == 'Cardinal'
@@ -699,7 +730,9 @@ class TestCardinalBotFactory(object):
         assert self.factory.last_reconnection_wait is None
 
     def test_constructor_args_non_default(self):
+        network = 'IrC.TeStNeT.TeSt'
         server_password = 's3rv3r_p4ssw0rd'
+        server_commands = ['AUTH password', 'MODE +b foobar']
         channels = ['#channel1', '#channel2']
         nickname = 'Cardinal|unit-test'
         password = 'p4ssw0rd'
@@ -712,8 +745,9 @@ class TestCardinalBotFactory(object):
         storage = '/path/to/storage'
 
         factory = CardinalBotFactory(
-            'IrC.TeStNeT.TeSt',
+            network,
             server_password,
+            server_commands,
             channels,
             nickname,
             password,
@@ -725,6 +759,7 @@ class TestCardinalBotFactory(object):
         )
 
         assert factory.network == 'irc.testnet.test'
+        assert factory.server_commands == server_commands
         assert factory.server_password == server_password
         assert factory.password == password
         assert factory.channels == channels

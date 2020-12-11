@@ -51,6 +51,7 @@ https://github.com/JohnMaguire/Cardinal
     spec.add_option('network', basestring, 'irc.freenode.net')
     spec.add_option('port', int, 6667)
     spec.add_option('server_password', basestring, None)
+    spec.add_option('server_commands', list, [])
     spec.add_option('ssl', bool, False)
     spec.add_option('storage', basestring, os.path.join(
         os.path.dirname(os.path.realpath(sys.argv[0])),
