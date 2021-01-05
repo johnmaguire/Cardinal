@@ -119,15 +119,13 @@ class HelpPlugin(object):
 
         cardinal.sendMsg(
             channel,
-            "I have been connected without downtime for {}, and was initially "
-            "launched {} ago. Plugins have been reloaded {} times since then."
-            .format(uptime, booted, meta['reloads'])
+            "I am a Python 3 IRC bot, online since {}. I initially connected "
+            "{} ago. My admins are: {}. Use .help to list commands."
+            .format(uptime, booted, admins)
         )
         cardinal.sendMsg(
             channel,
-            "My admins are: {}. Visit https://github.com/JohnMaguire/Cardinal "
-            "for more info about me. (Use .help to see my commands.)"
-            .format(admins)
+            "Visit https://github.com/JohnMaguire/Cardinal to learn more."
         )
 
 
