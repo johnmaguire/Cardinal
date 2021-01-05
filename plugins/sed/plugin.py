@@ -54,13 +54,22 @@ class SedPlugin(object):
 
         return new_message
 
+    @staticmethod
+    def should_send_correction(old_message, new_message):
+        if old_message == new_message:
+            return False
+
+        return True
+
     @event('irc.privmsg')
     def on_msg(self, cardinal, user, channel, message):
         new_message = self.substitute(user, channel, message)
         if new_message is not None:
-            self.history[channel][user.nick] = new_message
-            cardinal.sendMsg(channel, '{} meant: {}'.format(
-                                user.nick, new_message))
+            old_message = self.history[channel][user.nick]
+            if self.should_send_correction(old_message, new_message):
+                self.history[channel][user.nick] = new_message
+                cardinal.sendMsg(channel, '{} meant: {}'.format(
+                                    user.nick, new_message))
         else:
             self.history[channel][user.nick] = message
 

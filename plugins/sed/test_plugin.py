@@ -23,7 +23,23 @@ def test_substitute_modifiers(message, new_message):
 
     assert plugin.substitute(user, channel, message) == new_message
 
-def test_subsitution_no_history():
+def test_on_msg_failed_correction():
+    user = user_info('user', None, None)
+    channel = '#channel'
+
+    plugin = SedPlugin()
+    cardinal = Mock()
+
+    plugin.history[channel][user.nick] = 'yo, foo matters'
+
+    # make sure this doesn't raise
+    plugin.on_msg(cardinal, user, channel, 's/foo/bar/')
+    cardinal.sendMsg.assert_called_with(
+        channel,
+        "{} meant: yo bar matters".format(nick),
+    )
+
+def test_on_msg_no_history():
     user = user_info('user', None, None)
     channel = '#channel'
 
@@ -31,6 +47,20 @@ def test_subsitution_no_history():
 
     # make sure this doesn't raise
     plugin.on_msg(Mock(), user, channel, 's/foo/bar/')
+
+
+def test_on_msg_failed_correction():
+    user = user_info('user', None, None)
+    channel = '#channel'
+
+    plugin = SedPlugin()
+    cardinal = Mock()
+
+    plugin.history[channel][user.nick] = 'doesnt matter'
+
+    # make sure this doesn't raise
+    plugin.on_msg(cardinal, user, channel, 's/foo/bar/')
+    cardinal.sendMsg.assert_not_called()
 
 
 @pytest.mark.parametrize("message,new_message", [
@@ -57,6 +87,21 @@ def test_not_a_substitute():
     plugin.history[channel][user.nick] = 'doesnt matter'
 
     assert plugin.substitute(user, channel, 'foobar') == None
+
+
+def test_substitution_doesnt_match():
+    user = user_info('user', None, None)
+    channel = '#channel'
+
+    plugin = SedPlugin()
+    plugin.history[channel][user.nick] = 'doesnt matter'
+
+    assert plugin.substitute(user, channel, 's/foo/bar/') == 'doesnt matter'
+
+
+def test_should_send_correction():
+    assert SedPlugin.should_send_correction('a', 'b')
+    assert not SedPlugin.should_send_correction('a', 'a')
 
 
 def test_on_part():
