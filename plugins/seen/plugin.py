@@ -24,12 +24,19 @@ class SeenPlugin(object):
             if 'users' not in db:
                 db['users'] = {}
 
+            # Fix case for old databases
+            users = dict()
+            for k, v in db['users'].items():
+                users[k.lower()] = v
+            db['users'] = users
+
+
     def update_user(self, nick, action, params):
         if not isinstance(params, list):
             raise TypeError("params must be a list")
 
         with self.db() as db:
-            db['users'][nick] = {
+            db['users'][nick.lower()] = {
                 'timestamp': datetime.now(tz=timezone.utc).timestamp(),
                 'action': action,
                 'params': params,
@@ -86,13 +93,11 @@ class SeenPlugin(object):
         return retval
 
     def format_seen(self, nick):
-        # TODO disable formatting after user input messages (avoid formatting
-        # after the quote)
         with self.db() as db:
-            if nick not in db['users']:
+            if nick.lower() not in db['users']:
                 return "Sorry, I haven't seen {}.".format(nick)
 
-            entry = db['users'][nick]
+            entry = db['users'][nick.lower()]
 
         dt_timestamp = datetime.fromtimestamp(
             entry['timestamp'],
@@ -154,7 +159,7 @@ class SeenPlugin(object):
     @help("Syntax: .seen <user>")
     def seen(self, cardinal, user, channel, msg):
         try:
-            nick = msg.split(' ', 1)[1]
+            nick = msg.split(' ')[1]
         except IndexError:
             return cardinal.sendMsg(channel, 'Syntax: .seen <user>')
 
