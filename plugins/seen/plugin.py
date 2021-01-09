@@ -15,6 +15,24 @@ QUIT = 'QUIT'  # [message]
 EPOCH = datetime.utcfromtimestamp(0)
 
 
+def is_action(message):
+    return message.startswith("\x01ACTION")
+
+
+def parse_action(nick, message):
+    if not is_action(message):
+        raise ValueError("This message is not an ACTION message")
+
+    message = message[len("\x01ACTION"):]
+    if message[-1] == "\x01":
+        message = message[:-1]
+
+    return "* {} {}".format(
+        nick,
+        message,
+    )
+
+
 class SeenPlugin(object):
     def __init__(self, cardinal, config):
         self.ignored_channels = config.get('ignored_channels', [])
@@ -113,9 +131,13 @@ class SeenPlugin(object):
 
         action, params = entry['action'], entry['params']
         if action == PRIVMSG:
+            last_msg = params[1]
+            if is_action(last_msg):
+                last_msg = parse_action(nick, last_msg)
+
             message += "{} sent \"{}\" to {}.".format(
                 nick,
-                params[1] + F.reset,  # reset formatting on user inputs...
+                last_msg + F.reset,  # reset formatting on user inputs...
                 params[0],
             )
         elif action == NOTICE:
