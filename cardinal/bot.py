@@ -610,7 +610,7 @@ class CardinalBotFactory(protocol.ClientFactory):
             channels = []
 
         if blacklist is None:
-            blacklist = []
+            blacklist = {}
 
         self.logger = logging.getLogger(__name__)
         self.network = network.lower()
