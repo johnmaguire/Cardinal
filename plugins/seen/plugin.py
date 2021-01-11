@@ -1,7 +1,11 @@
 from datetime import datetime, timezone
 
 from cardinal.decorators import command, help, event
-from cardinal.util import strip_formatting
+from cardinal.util import (
+    is_action,
+    parse_action,
+    strip_formatting,
+)
 
 PRIVMSG = 'PRIVMSG'  # [channel, message]
 NOTICE = 'NOTICE'  # [channel, message]
@@ -13,24 +17,6 @@ PART = 'PART'  # [channel, message]
 QUIT = 'QUIT'  # [message]
 
 EPOCH = datetime.utcfromtimestamp(0)
-
-
-def is_action(message):
-    return message.startswith("\x01ACTION")
-
-
-def parse_action(nick, message):
-    if not is_action(message):
-        raise ValueError("This message is not an ACTION message")
-
-    message = message[len("\x01ACTION"):]
-    if message[-1] == "\x01":
-        message = message[:-1]
-
-    return "* {} {}".format(
-        nick,
-        message,
-    )
 
 
 class SeenPlugin(object):

@@ -3,6 +3,10 @@ import re
 from collections import defaultdict
 
 from cardinal.decorators import event
+from cardinal.util import (
+    is_action,
+    parse_action,
+)
 
 ESCAPE_PLACEHOLDER = '!EsCaPeD SlASh!'
 
@@ -68,6 +72,11 @@ class SedPlugin(object):
             old_message = self.history[channel][user.nick]
             if self.should_send_correction(old_message, new_message):
                 self.history[channel][user.nick] = new_message
+
+                # In the 11th hour, make sure that we correctly handle /me
+                if is_action(new_message):
+                    new_message = parse_action(new_message)
+
                 cardinal.sendMsg(channel, '{} meant: {}'.format(
                                     user.nick, new_message))
         else:

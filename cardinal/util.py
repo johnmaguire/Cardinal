@@ -5,6 +5,29 @@ from twisted.internet import reactor
 from twisted.internet.task import deferLater
 
 
+def is_action(message):
+    """Checks if a message is a /me message."""
+    return message.startswith("\x01ACTION")
+
+
+def parse_action(nick, message):
+    """Parses a /me message like an IRC client might.
+
+    e.g. "/me dances." -> "* Cardinal dances."
+    """
+    if not is_action(message):
+        raise ValueError("This message is not an ACTION message")
+
+    message = message[len("\x01ACTION "):]
+    if message[-1] == "\x01":
+        message = message[:-1]
+
+    return "* {} {}".format(
+        nick,
+        message,
+    )
+
+
 def sleep(secs):
     """Async sleep function"""
     return deferLater(reactor, secs, lambda: None)
