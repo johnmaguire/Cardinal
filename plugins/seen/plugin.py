@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
 from cardinal.decorators import command, help, event
-from cardinal.util import formatting as F
+from cardinal.util import strip_formatting
 
 PRIVMSG = 'PRIVMSG'  # [channel, message]
 NOTICE = 'NOTICE'  # [channel, message]
@@ -137,13 +137,13 @@ class SeenPlugin(object):
 
             message += "{} sent \"{}\" to {}.".format(
                 nick,
-                last_msg + F.reset,  # reset formatting on user inputs...
+                strip_formatting(last_msg),
                 params[0],
             )
         elif action == NOTICE:
             message += "{} sent notice \"{}\" to {}.".format(
                 nick,
-                params[1] + F.reset,
+                strip_formatting(params[1]),
                 params[0],
             )
         elif action == JOIN:
@@ -152,7 +152,9 @@ class SeenPlugin(object):
             message += "{} left {}{}.".format(
                 nick,
                 params[0],
-                " ({})".format(params[1] + F.reset) if params[1] else "",
+                (" ({})".format(strip_formatting(params[1]))
+                 if params[1] else
+                 ""),
             )
         elif action == NICK:
             message += "{} renamed themselves {}.".format(nick, params[0])
@@ -166,12 +168,14 @@ class SeenPlugin(object):
             message += "{} set {}'s topic to \"{}\".".format(
                 nick,
                 params[0],
-                params[1] + F.reset,
+                strip_formatting(params[1]),
             )
         elif action == QUIT:
             message += "{} quit{}.".format(
                 nick,
-                " ({})".format(params[0] + F.reset) if params[0] else "",
+                (" ({})".format(strip_formatting(params[0]))
+                 if params[0] else
+                 ""),
             )
 
         return message
