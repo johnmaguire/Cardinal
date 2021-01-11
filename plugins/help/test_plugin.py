@@ -18,10 +18,8 @@ class TestHelpPlugin(object):
         msg = '.info'
 
         now = datetime.now()
-        reloads = 123
         mock_datetime.now = Mock(return_value=now)
 
-        type(self.mock_cardinal).reloads = PropertyMock(return_value=123)
         self.mock_cardinal.booted = now - timedelta(seconds=30)
         self.mock_cardinal.uptime = now - timedelta(seconds=15)
         self.mock_cardinal.config.return_value = {

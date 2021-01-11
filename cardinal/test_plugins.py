@@ -211,37 +211,28 @@ class TestPluginManager(object):
         name = 'valid'
         plugins = [name]
 
-        self.cardinal.reloads = 0
-
-        # first load is not considered a reload
+        # first load is not a reload
         self.assert_load_success(plugins)
-        assert self.cardinal.reloads == 0
 
         # second load is
         self.assert_load_success(plugins)
-        assert self.cardinal.reloads == 1
 
         # and so on...
         self.assert_load_success(plugins)
-        assert self.cardinal.reloads == 2
 
     def test_reload_exception_in_close_succeeds(self):
         name = 'close_raises_exception'
         plugins = [name]
 
-        self.cardinal.reloads = 0
-
         self.assert_load_success(plugins)
 
         # should reload successfully despite bad close()
         self.assert_load_success(plugins)
-        assert self.cardinal.reloads == 1
 
     def test_reload_reregisters_event(self):
         name = 'registers_event'
         plugins = [name]
 
-        self.cardinal.reloads = 0
         assert 'test.event' not in self.event_manager.registered_events
 
         self.assert_load_success(plugins)
@@ -249,8 +240,6 @@ class TestPluginManager(object):
 
         self.assert_load_success(plugins)
         assert 'test.event' in self.event_manager.registered_events
-
-        assert self.cardinal.reloads == 1
 
     @pytest.mark.parametrize("plugins", [
         12345,

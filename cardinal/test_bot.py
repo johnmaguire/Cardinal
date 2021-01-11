@@ -49,7 +49,6 @@ class TestCardinalBot(object):
         self.factory.plugins = []
         self.factory.blacklist = {}
         self.factory.booted = datetime.now()
-        self.factory.reloads = 0
         self.factory.storage_path = '.'
 
         self.event_manager = mock_event_manager.return_value
@@ -110,10 +109,6 @@ class TestCardinalBot(object):
         assert self.cardinal.realname == self.factory.realname
         self.cardinal.realname = 'realname'
         assert self.factory.realname == 'realname'
-
-        assert self.cardinal.reloads == self.factory.reloads
-        self.cardinal.reloads = 321
-        assert self.factory.reloads == 321
 
         assert self.cardinal.storage_path == self.factory.storage_path
         with pytest.raises(AttributeError):
@@ -677,7 +672,6 @@ class TestCardinalBotFactory(object):
         assert self.factory.cardinal is None
         assert self.factory.disconnect is False
         assert isinstance(self.factory.booted, datetime)
-        assert self.factory.reloads == 0
         assert self.factory.last_reconnection_wait is None
 
     def test_constructor_args_non_default(self):

@@ -75,14 +75,6 @@ class CardinalBot(irc.IRCClient, object):
         self.factory.realname = value
 
     @property
-    def reloads(self):
-        return self.factory.reloads
-
-    @reloads.setter
-    def reloads(self, value):
-        self.factory.reloads = value
-
-    @property
     def storage_path(self):
         return self.factory.storage_path
 
@@ -637,9 +629,6 @@ class CardinalBotFactory(protocol.ClientFactory):
 
         # The time we first connected to the network with Cardinal
         self.booted = datetime.now()
-
-        # Track reload state across reconnections
-        self.reloads = 0
 
         # Used for backing off when reconnecting
         self.last_reconnection_wait = None

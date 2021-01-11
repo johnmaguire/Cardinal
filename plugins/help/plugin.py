@@ -71,7 +71,6 @@ class HelpPlugin(object):
         return {
             'uptime':  cardinal.uptime,
             'booted':  cardinal.booted,
-            'reloads': cardinal.reloads
         }
 
     # Given a number of seconds, converts it to a readable uptime string

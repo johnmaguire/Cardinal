@@ -440,15 +440,12 @@ class PluginManager(object):
 
         for plugin in plugins:
             # Reload flag so we can update the reload counter if necessary
-            reload_flag = False
-
             self.logger.info("Attempting to load plugin: %s" % plugin)
 
             # Import each plugin's module with our own hacky function to reload
             # modules that have already been imported previously
             try:
                 if plugin in list(self.plugins.keys()):
-                    reload_flag = True
                     self.logger.info("Already loaded, unloading first: %s" %
                                      plugin)
 
@@ -515,9 +512,6 @@ class PluginManager(object):
                     if plugin in self._blacklist else \
                     [],
             }
-
-            if reload_flag:
-                self.cardinal.reloads += 1
 
             self.logger.info("Plugin %s successfully loaded" % plugin)
 
