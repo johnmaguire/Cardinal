@@ -569,26 +569,29 @@ class CardinalBotFactory(protocol.ClientFactory):
 
     def __init__(self,
                  network,
-                 server_password=None,
-                 server_commands=None,
-                 channels=None,
-                 nickname='Cardinal',
-                 password=None,
-                 username=None,
-                 realname=None,
-                 plugins=None,
-                 blacklist=None,
-                 storage=None):
+                 server_password,
+                 server_commands,
+                 channels,
+                 nickname,
+                 password,
+                 username,
+                 realname,
+                 plugins,
+                 blacklist,
+                 storage):
         """Boots the bot, triggers connection, and initializes logging.
 
         Keyword arguments:
           network -- A string containing the server to connect to.
           channels -- A list of channels to connect to.
+          server_password - A string containing a password for the server.
+          server_commands - A list of raw commands to send to the server.
           nickname -- A string with the nick to connect as.
           password -- A string with NickServ password, if any.
           username -- A string with the ident to be used.
           realname -- A string containing the real name field.
           plugins -- A list of plugins to load on boot.
+          blacklist -- A dict mapping plugins to lists of blacklisted channels.
           storage -- A string containing path to storage directory.
         """
 

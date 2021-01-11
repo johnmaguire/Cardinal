@@ -638,7 +638,19 @@ class TestCardinalBot(object):
 class TestCardinalBotFactory(object):
     def setup_method(self):
         self.factory = CardinalBotFactory(
-            network='irc.TestNet.test'
+            network='irc.testnet.test',
+            server_password='s3rv3r_p4ssw0rd',
+            server_commands=['AUTH password', 'MODE +b foobar'],
+            channels=['#channel1', '#channel2'],
+            nickname='Cardinal|unit-test',
+            password='p4ssw0rd',
+            username='cardinal',
+            realname='Mr. Cardinal',
+            plugins=['plugin1', 'plugin2'],
+            blacklist=[
+                {'urls': '#finance'},
+            ],
+            storage='/path/to/storage',
         )
 
     def teardown_method(self, method):
@@ -651,30 +663,7 @@ class TestCardinalBotFactory(object):
         assert CardinalBotFactory.MINIMUM_RECONNECTION_WAIT == 10
         assert CardinalBotFactory.MAXIMUM_RECONNECTION_WAIT == 300
 
-    def test_constructor_args_defaults(self):
-        assert isinstance(self.factory.logger, logging.Logger)
-
-        assert self.factory.network == 'irc.testnet.test'
-        assert self.factory.server_password is None
-        assert self.factory.server_commands == []
-        assert self.factory.password is None
-        assert self.factory.channels == []
-        assert self.factory.nickname == 'Cardinal'
-        assert self.factory.username is None
-        assert self.factory.realname is None
-        assert self.factory.plugins == []
-        assert self.factory.storage_path is None
-
-        # Check that signal handler got registered
-        assert signal.getsignal(signal.SIGINT) == self.factory._sigint
-
-        # Defaults that aren't passed in
-        assert self.factory.cardinal is None
-        assert self.factory.disconnect is False
-        assert isinstance(self.factory.booted, datetime)
-        assert self.factory.last_reconnection_wait is None
-
-    def test_constructor_args_non_default(self):
+    def test_constructor(self):
         network = 'IrC.TeStNeT.TeSt'
         server_password = 's3rv3r_p4ssw0rd'
         server_commands = ['AUTH password', 'MODE +b foobar']
@@ -703,7 +692,18 @@ class TestCardinalBotFactory(object):
             storage,
         )
 
-        assert factory.network == 'irc.testnet.test'
+        assert isinstance(factory.logger, logging.Logger)
+
+        # Check that signal handler got registered
+        assert signal.getsignal(signal.SIGINT) == factory._sigint
+
+        # Defaults that aren't passed in
+        assert self.factory.cardinal is None
+        assert self.factory.disconnect is False
+        assert isinstance(self.factory.booted, datetime)
+        assert self.factory.last_reconnection_wait is None
+
+        assert factory.network == network.lower()
         assert factory.server_commands == server_commands
         assert factory.server_password == server_password
         assert factory.password == password

@@ -123,6 +123,7 @@ https://github.com/JohnMaguire/Cardinal
     logger.debug("Instantiating CardinalBotFactory")
     factory = CardinalBotFactory(config['network'],
                                  config['server_password'],
+                                 config['server_commands'],
                                  config['channels'],
                                  config['nickname'],
                                  config['password'],
