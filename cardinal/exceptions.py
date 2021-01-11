@@ -9,10 +9,6 @@ class LockInUseError(CardinalException):
     """Raised when a lock is unavailable."""
 
 
-class InternalError(CardinalException):
-    """Non-recoverable error in the internals of Cardinal."""
-
-
 class PluginError(CardinalException):
     """Raised when a plugin is invalid in some way."""
 

@@ -17,7 +17,6 @@ from cardinal.plugins import PluginManager, EventManager
 from cardinal.exceptions import (
     CommandNotFoundError,
     ConfigNotFoundError,
-    InternalError,
     LockInUseError,
     PluginError,
 )
@@ -26,6 +25,7 @@ USER_REGEX = re.compile(r'^(.*?)!(.*?)@(.*?)$')
 
 user_info = namedtuple('user_info', ('nick', 'user', 'vhost'))
 
+# Database locking constants
 UNLOCKED = 'unlocked'
 LOCKED = 'locked'
 
@@ -103,7 +103,6 @@ class CardinalBot(irc.IRCClient, object):
         # Register events
         self.event_manager.register("irc.raw", 2)
         self.event_manager.register("irc.invite", 2)
-        self.event_manager.register("irc.joined", 1)
         self.event_manager.register("irc.privmsg", 3)
         self.event_manager.register("irc.notice", 3)
         self.event_manager.register("irc.nick", 2)
@@ -123,9 +122,7 @@ class CardinalBot(irc.IRCClient, object):
 
     def signedOn(self):
         """Called once we've connected to a network"""
-        # Give the factory access to the bot
-        if self.factory is None:
-            raise InternalError("Factory must be set on CardinalBot instance")
+        super().signedOn()
 
         self.logger.info("Signed on as %s" % self.nickname)
 
@@ -149,9 +146,6 @@ class CardinalBot(irc.IRCClient, object):
             self.msg("NickServ", "IDENTIFY %s" % (self.factory.password,))
 
         # For servers that support it, set the bot mode
-        #
-        # FIXME: is it possible that the server renames us before this? if so,
-        # the mode registration would fail erroneously
         self.send("MODE {} +B".format(self.nickname))
 
         # Attempt to join channels
@@ -197,10 +191,12 @@ class CardinalBot(irc.IRCClient, object):
         # characters replaced.
         #
         # Bug: https://twistedmatrix.com/trac/ticket/9443
-        super(CardinalBot, self).lineReceived(line.encode('utf-8'))
+        super().lineReceived(line.encode('utf-8'))
 
     def irc_PRIVMSG(self, prefix, params):
         """Called when we receive a message in a channel or PM."""
+        super().irc_PRIVMSG(prefix, params)
+
         # Break down the user into usable groups
         user = self.get_user_tuple(prefix)
         nick = user[0]
@@ -234,6 +230,8 @@ class CardinalBot(irc.IRCClient, object):
 
     def irc_NOTICE(self, prefix, params):
         """Called when a notice is sent to a channel or privately"""
+        super().irc_NOTICE(prefix, params)
+
         user = self.get_user_tuple(prefix)
         channel = params[0]
         message = params[1]
@@ -254,6 +252,8 @@ class CardinalBot(irc.IRCClient, object):
 
     def irc_NICK(self, prefix, params):
         """Called when a user changes their nick"""
+        super().irc_NICK(prefix, params)
+
         user = self.get_user_tuple(prefix)
         new_nick = params[0]
 
@@ -266,6 +266,8 @@ class CardinalBot(irc.IRCClient, object):
 
     def irc_TOPIC(self, prefix, params):
         """Called when a new topic is set"""
+        super().irc_TOPIC(prefix, params)
+
         user = self.get_user_tuple(prefix)
         channel = params[0]
         topic = params[1]
@@ -279,6 +281,8 @@ class CardinalBot(irc.IRCClient, object):
 
     def irc_MODE(self, prefix, params):
         """Called when a mode is set on a channel"""
+        super().irc_MODE(prefix, params)
+
         user = self.get_user_tuple(prefix)
         channel = params[0]
         mode = ' '.join(params[1:])
@@ -299,6 +303,8 @@ class CardinalBot(irc.IRCClient, object):
 
     def irc_JOIN(self, prefix, params):
         """Called when a user joins a channel"""
+        super().irc_JOIN(prefix, params)
+
         user = self.get_user_tuple(prefix)
         channel = params[0]
 
@@ -311,6 +317,8 @@ class CardinalBot(irc.IRCClient, object):
 
     def irc_PART(self, prefix, params):
         """Called when a user parts a channel"""
+        super().irc_PART(prefix, params)
+
         user = self.get_user_tuple(prefix)
         channel = params[0]
         if len(params) == 1:
@@ -327,6 +335,8 @@ class CardinalBot(irc.IRCClient, object):
 
     def irc_KICK(self, prefix, params):
         """Called when a user is kicked from a channel"""
+        super().irc_KICK(prefix, params)
+
         user = self.get_user_tuple(prefix)
         nick = params[1]
         channel = params[0]
@@ -344,6 +354,8 @@ class CardinalBot(irc.IRCClient, object):
 
     def irc_QUIT(self, prefix, params):
         """Called when a user quits the network"""
+        super().irc_QUIT(prefix, params)
+
         user = self.get_user_tuple(prefix)
         if len(params) == 0:
             reason = None
@@ -399,6 +411,8 @@ class CardinalBot(irc.IRCClient, object):
           command -- Command that wasn't recognized. Provided by Twisted.
           params -- Params for command. Provided by Twisted.
         """
+        super().irc_unknown(prefix, command, params)
+
         # A user has invited us to a channel
         if command == "INVITE":
             # Break down the user into usable groups
