@@ -1,5 +1,3 @@
-
-
 import signal
 import json
 import logging
@@ -168,8 +166,8 @@ class CardinalBot(irc.IRCClient, object):
             line = line.decode('utf-8')
         except UnicodeDecodeError:
             self.logger.warning(
-                    "Stripping non-UTF-8 data from received line: {}"
-                    .format(line))
+                "Stripping non-UTF-8 data from received line: {}"
+                .format(line))
             line = line.decode('utf-8', 'replace')
 
         self.irc_logger.info(line)
@@ -417,8 +415,6 @@ class CardinalBot(irc.IRCClient, object):
             # Fire invite event, so plugins can hook into it
             self.event_manager.fire("irc.invite", user, channel)
 
-            # TODO: Call matching plugin events
-
     def who(self, channel):
         """Lists the users in a channel.
 
@@ -594,19 +590,6 @@ class CardinalBotFactory(protocol.ClientFactory):
           blacklist -- A dict mapping plugins to lists of blacklisted channels.
           storage -- A string containing path to storage directory.
         """
-
-        if server_commands is None:
-            server_commands = []
-
-        if plugins is None:
-            plugins = []
-
-        if channels is None:
-            channels = []
-
-        if blacklist is None:
-            blacklist = {}
-
         self.logger = logging.getLogger(__name__)
         self.network = network.lower()
         self.server_password = server_password

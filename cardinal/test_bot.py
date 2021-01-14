@@ -193,6 +193,10 @@ class TestCardinalBot(object):
             call('MODE {} +B'.format(self.factory.nickname))
         ])
 
+    def test_joined(self):
+        self.cardinal.joined("#bots")
+        # This just logs, nothing to assert
+
     @patch('cardinal.bot.irc.IRCClient.lineReceived')
     def test_lineReceived(self, mock_parent_linereceived):
         line = b':irc.example.com TEST :foobar foobar'
@@ -200,7 +204,7 @@ class TestCardinalBot(object):
         self.event_manager.fire.assert_called_once_with(
             'irc.raw',
             'TEST',
-            ':irc.example.com TEST :foobar foobar'
+            line.decode('utf-8'),
         )
         mock_parent_linereceived.assert_called_once_with(line)
 
