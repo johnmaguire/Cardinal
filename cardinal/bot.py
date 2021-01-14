@@ -352,7 +352,7 @@ class CardinalBot(irc.IRCClient, object):
         super().irc_QUIT(prefix, params)
 
         user = self.get_user_tuple(prefix)
-        if len(params) == 0:
+        if len(params[0]) == 0:
             reason = None
         else:
             reason = params[0]

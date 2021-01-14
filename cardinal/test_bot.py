@@ -434,6 +434,17 @@ class TestCardinalBot(object):
             message,
         )
 
+    def test_irc_QUIT_no_message(self):
+        prefix, source = self.get_user()
+
+        self.cardinal.irc_QUIT(prefix, [""])
+
+        self.event_manager.fire.assert_called_once_with(
+            'irc.quit',
+            source,
+            None,
+        )
+
     def test_irc_unknown_no_op(self):
         prefix, _ = self.get_user()
         self.cardinal.irc_unknown(prefix, 'UNKNOWN', [])
