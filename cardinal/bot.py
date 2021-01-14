@@ -170,10 +170,15 @@ class CardinalBot(irc.IRCClient, object):
                 .format(line))
             line = line.decode('utf-8', 'replace')
 
+        # Log raw output
         self.irc_logger.info(line)
 
-        parts = line.split(' ')
-        command = parts[1]
+        # Log if the command received is in the error range
+        _, command, _ = irc.parsemsg(line)
+        if command.isnumeric() and 400 <= int(command) <= 599:
+            self.logger.warning(
+                "Received an error from the server: {}"
+                .format(line))
 
         self.event_manager.fire("irc.raw", command, line)
 

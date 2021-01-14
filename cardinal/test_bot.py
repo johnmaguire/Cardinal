@@ -223,6 +223,18 @@ class TestCardinalBot(object):
         mock_parent_linereceived.assert_called_once_with(
                 expected_line.encode('utf-8', 'replace'))
 
+    @patch('cardinal.bot.irc.IRCClient.lineReceived')
+    def test_lineReceived_error(self, mock_parent_linereceived):
+        line = b':irc.example.com 401 Cardinal :No nick/channel'
+        self.cardinal.lineReceived(line)
+        self.event_manager.fire.assert_called_once_with(
+            'irc.raw',
+            '401',
+            line.decode('utf-8'),
+        )
+        mock_parent_linereceived.assert_called_once_with(line)
+        # Errors are logged, but we don't test for log messages
+
     def test_irc_PRIVMSG(self):
         self.plugin_manager.call_command.side_effect = \
             exceptions.CommandNotFoundError  # should be caught
