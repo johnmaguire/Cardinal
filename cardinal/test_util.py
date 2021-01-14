@@ -7,6 +7,33 @@ from twisted.internet import defer
 from cardinal import util
 
 
+@pytest.mark.parametrize('message,expected', (
+    ('\x01ACTION tests\x01', True),
+    ('\x01ACTION tests', True),
+    ('\x01ACTION', True),
+    ('ACTION tests', False),
+))
+def test_is_action(message, expected):
+    assert util.is_action(message) == expected
+
+
+@pytest.mark.parametrize('nick,message,expected', (
+    ('Cardinal', '\x01ACTION tests\x01', '* Cardinal tests'),
+    ('Cardinal', '\x01ACTION tests', '* Cardinal tests'),
+    ('Cardinal', '\x01ACTION \x01', '* Cardinal'),
+    ('Cardinal', '\x01ACTION ', '* Cardinal'),
+    ('Cardinal', '\x01ACTION\x01', '* Cardinal'),
+    ('Cardinal', '\x01ACTION', '* Cardinal'),
+))
+def test_parse_action(nick, message, expected):
+    assert util.parse_action(nick, message) == expected
+
+
+def test_parse_action_raises():
+    with pytest.raises(ValueError):
+        util.parse_action('Cardinal', 'this is not an action!')
+
+
 @pytest.mark.parametrize("input_,expected", (
     ('\x02bold\x02', 'bold'),
     ('\x0309colored\x03', 'colored'),

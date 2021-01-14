@@ -19,12 +19,12 @@ def parse_action(nick, message):
         raise ValueError("This message is not an ACTION message")
 
     message = message[len("\x01ACTION "):]
-    if message[-1] == "\x01":
+    if message and message[-1] == "\x01":
         message = message[:-1]
 
-    return "* {} {}".format(
+    return "* {}{}".format(
         nick,
-        message,
+        " " + message if message else "",
     )
 
 
@@ -110,6 +110,7 @@ class formatting(object):
     C = color
 
     reset = "\x03"
+
 
 # alias as this will be used commonly
 F = formatting
