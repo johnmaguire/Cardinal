@@ -1,3 +1,5 @@
+[![Cardinal](./_assets/cardinal.svg)](https://github.com/JohnMaguire/Cardinal)
+
 # Meet Cardinal.
 
 [![Build Status](https://github.com/JohnMaguire/Cardinal/workflows/Cardinal/badge.svg)](https://github.com/JohnMaguire/Cardinal/actions?query=workflow%3ACardinal) [![Coverage Status](https://codecov.io/github/JohnMaguire/Cardinal/coverage.svg?branch=master)](https://codecov.io/github/JohnMaguire/Cardinal?branch=master)
