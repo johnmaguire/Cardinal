@@ -1,10 +1,10 @@
 {
 	"channels": ["#finance"],
 	"api_key": "",
-	"stocks": {
-		"INX": "S&P 500",
-		"DJI": "Dow",
-		"VEU": "Foreign",
-		"AGG": "US Bond"
-	}
+	"stocks": [
+		["SPY", "SPDR S&P 500 ETF"],
+		["DIA", "SPDR Dow ETF"],
+		["AGG", "US Bond"],
+		["VEU", "Foreign"]
+	]
 }

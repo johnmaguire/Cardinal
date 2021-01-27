@@ -13,7 +13,7 @@ import inspect
 import linecache
 import random
 import json
-from collections import OrderedDict, defaultdict
+from collections import defaultdict
 from copy import copy
 from imp import reload
 
@@ -322,7 +322,7 @@ class PluginManager(object):
         )
         try:
             f = open(file_, 'r')
-            config = json.load(f, object_pairs_hook=OrderedDict)
+            config = json.load(f)
             f.close()
         # File did not exist or we can't open it for another reason
         except IOError:

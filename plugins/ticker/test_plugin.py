@@ -26,6 +26,73 @@ from plugins.ticker.plugin import (
 )
 
 
+def make_iex_response(symbol, price=None, previous_close=None):
+    # NOTE - Not all values here will make sense. We are just mocking out the
+    # values that will be used.
+
+    price = price or \
+        random.randrange(95, 105) + random.random()
+    previous_close = previous_close or \
+        random.randrange(95, 105) + random.random()
+
+    return {
+        "symbol": symbol,
+        "companyName": "Gamestop Corporation - Class A",
+        "primaryExchange": "NEW YORK STOCK EXCHANGE, INC.",
+        "calculationPrice": "iexlasttrade",
+        "open": None,
+        "openTime": None,
+        "openSource": "official",
+        "close": None,
+        "closeTime": None,
+        "closeSource": "official",
+        "high": None,
+        "highTime": 1611781163724,
+        "highSource": "15 minute delayed price",
+        "low": None,
+        "lowTime": 1611760730732,
+        "lowSource": "15 minute delayed price",
+        "latestPrice": price,
+        "latestSource": "IEX Last Trade",
+        "latestTime": "January 27, 2021",
+        "latestUpdate": 1611781197811,
+        "latestVolume": None,
+        "iexRealtimePrice": 368.495,
+        "iexRealtimeSize": 16,
+        "iexLastUpdated": 1611781357372,
+        "delayedPrice": None,
+        "delayedPriceTime": None,
+        "oddLotDelayedPrice": None,
+        "oddLotDelayedPriceTime": None,
+        "extendedPrice": None,
+        "extendedChange": None,
+        "extendedChangePercent": None,
+        "extendedPriceTime": None,
+        "previousClose": previous_close,
+        "previousVolume": 178587974,
+        "change": 199.52,
+        "changePercent": (price - previous_close) / previous_close,
+        "volume": None,
+        "iexMarketPercent": 0.017150159906855904,
+        "iexVolume": 1570454,
+        "avgTotalVolume": 56932477,
+        "iexBidPrice": 0,
+        "iexBidSize": 0,
+        "iexAskPrice": 0,
+        "iexAskSize": 0,
+        "iexOpen": 368.495,
+        "iexOpenTime": 1611781357372,
+        "iexClose": 347.5,
+        "iexCloseTime": 1611781197811,
+        "marketCap": 24237068600,
+        "peRatio": -82.15,
+        "week52High": 380,
+        "week52Low": 2.8,
+        "ytdChange": 8.20285475583864,
+        "lastTradeTime": 1611781197811,
+        "isUSMarketOpen": False
+    }
+
 def get_fake_now(market_is_open=True):
     tz = pytz.timezone('America/New_York')
     fake_now = datetime.datetime.now(tz)
@@ -43,9 +110,7 @@ def get_fake_now(market_is_open=True):
 
 @contextmanager
 def mock_api(response,
-             fake_now=None,
-             raise_times=0,
-             throttle_times=0):
+             fake_now=None):
     fake_now = fake_now or get_fake_now()
     responses = copy.deepcopy(response) \
         if isinstance(response, list) else \
@@ -54,20 +119,8 @@ def mock_api(response,
     response_mock = MagicMock()
     type(response_mock).status_code = PropertyMock(return_value=200)
 
-    # hack since nonlocal doesn't exist in py2
-    context = {'raise_times': raise_times, 'throttle_times': throttle_times}
-
     def mock_deferToThread(*args, **kwargs):
-        if context['raise_times'] > 0:
-            context['raise_times'] -= 1
-            raise Exception('mock exception')
-
-        elif context['throttle_times'] > 0:
-            context['throttle_times'] -= 1
-            response_mock.json.return_value = make_throttle_response()
-
-        else:
-            response_mock.json.return_value = responses.pop(0)
+        response_mock.json.return_value = responses.pop(0)
 
         return response_mock
 
@@ -76,115 +129,6 @@ def mock_api(response,
         mock_defer.side_effect = mock_deferToThread
 
         yield mock_defer
-
-
-def make_throttle_response():
-    return {
-        "Note": "Thank you for using Alpha Vantage! Our standard API call "
-                "frequency is 5 calls per minute and 500 calls per day. "
-                "Please visit https://www.alphavantage.co/premium/ if you "
-                "would like to target a higher API call frequency."
-    }
-
-
-def make_global_quote_response(symbol,
-                               open_=None,
-                               close=None,
-                               previous_close=None,
-                               latest_trading_day=None,
-                               ):
-    if latest_trading_day is None:
-        latest_trading_day = datetime.datetime.today()
-
-    open_ = open_ or \
-        random.randrange(95, 105) + random.random()
-    high = random.randrange(106, 110) + random.random()
-    low = random.randrange(90, 94) + random.random()
-    close = close or \
-        random.randrange(95, 105) + random.random()
-    previous_close = previous_close or \
-        random.randrange(95, 105) + random.random()
-    volume = random.randrange(100000, 999999)
-
-    change = close - previous_close
-    change_percent = old_div(1.0 * close, previous_close) * 100 - 100
-
-    return {
-        "Global Quote": {
-            "01. symbol": symbol.upper(),
-            "02. open": "{:.4f}".format(open_),
-            "03. high": "{:.4f}".format(high),
-            "04. low": "{:.4f}".format(low),
-            "05. price": "{:.4f}".format(close),
-            "06. volume": "{}".format(volume),
-            "07. latest trading day": latest_trading_day.strftime('%Y-%m-%d'),
-            "08. previous close": "{:.4f}".format(previous_close),
-            "09. change": "{:.4f}".format(change),
-            "10. change percent": "{:.4f}%".format(change_percent),
-        },
-    }
-
-
-def make_time_series_daily_response(symbol,
-                                    last_open=None,
-                                    last_close=None,
-                                    previous_close=None,
-                                    start=None):
-    """Mock response for TIME_SERIES_DAILY API"""
-
-    last_market_day = start or datetime.datetime.today()
-    while last_market_day.weekday() >= 5:
-        last_market_day = last_market_day - datetime.timedelta(days=1)
-
-    previous_market_day = last_market_day - datetime.timedelta(days=1)
-    while previous_market_day.weekday() >= 5:
-        previous_market_day = previous_market_day - datetime.timedelta(days=1)
-
-    def make_random_response():
-        open_ = random.randrange(95, 105) + random.random()
-        high = random.randrange(106, 110) + random.random()
-        low = random.randrange(90, 94) + random.random()
-        close = random.randrange(95, 105) + random.random()
-        volume = random.randrange(100000, 999999)
-        return {
-            "1. open": "{:.4f}".format(open_),
-            "2. high": "{:.4f}".format(high),
-            "3. low": "{:.4f}".format(low),
-            "4. close": "{:.4f}".format(close),
-            "5. volume": "{}".format(volume)
-        }
-
-    time_series_daily = {}
-    market_day = last_market_day  # this changes each iteration
-    for days in range(0, 60):
-        # don't add data for weekends
-        if market_day.weekday() < 5:
-            response = make_random_response()
-
-            # Override last open / last close for testing
-            if market_day == last_market_day:
-                if last_open:
-                    response["1. open"] = "{:.4f}".format(last_open)
-                if last_close:
-                    response["4. close"] = "{:.4f}".format(last_close)
-            if market_day == previous_market_day and previous_close:
-                response["4. close"] = "{:.4f}".format(previous_close)
-
-            time_series_daily[market_day.strftime("%Y-%m-%d")] = response
-        market_day = market_day - datetime.timedelta(days=1)
-
-    compact = True
-    return {
-        "Meta Data": {
-            "1. Information": "Daily Prices (open, high, low, close) and "
-                              "Volumes",
-            "2. Symbol": symbol,
-            "3. Last Refreshed": datetime.datetime.now().strftime("%Y-%m-%d"),
-            "4. Output Size": "Compact" if compact else "Full size",
-            "5. Time Zone": "US/Eastern"
-        },
-        "Time Series (Daily)": time_series_daily,
-    }
 
 
 def test_get_delta():
@@ -207,12 +151,12 @@ class TestTickerPlugin(object):
         self.api_key = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
         self.channel = '#test'
         self.channels = [self.channel]
-        self.stocks = {
-            'INX': 'S&P 500',
-            'DJI': 'Dow',
-            'VEU': 'Foreign',
-            'AGG': 'US Bond',
-        }
+        self.stocks = [
+            ['SPY', 'S&P 500'],
+            ['DIA', 'Dow'],
+            ['VEU', 'Foreign'],
+            ['AGG', 'US Bond'],
+        ]
         self.relay_bots = [
             {"nick": "relay.bot", "user": "relay", "vhost": "relay"},
         ]
@@ -238,7 +182,7 @@ class TestTickerPlugin(object):
         })
         assert plugin.config['api_key'] == self.api_key
         assert plugin.config['channels'] == []
-        assert plugin.config['stocks'] == {}
+        assert plugin.config['stocks'] == []
         assert plugin.config['relay_bots'] == []
 
     def test_missing_api_key(self):
@@ -249,41 +193,42 @@ class TestTickerPlugin(object):
         with pytest.raises(ValueError):
             TickerPlugin(self.mock_cardinal, {
                 'api_key': self.api_key,
-                'stocks': {
-                    'a': 'a',
-                    'b': 'b',
-                    'c': 'c',
-                    'd': 'd',
-                    'e': 'e',
-                    'f': 'f',
-                },
+                'stocks': [
+                    ['a', 'a'],
+                    ['b', 'b'],
+                    ['c', 'c'],
+                    ['d', 'd'],
+                    ['e', 'e'],
+                    ['f', 'f'],
+                ],
             })
 
     @defer.inlineCallbacks
     def test_send_ticker(self):
         responses = [
-            make_global_quote_response('DJI',
-                                       previous_close=100,
-                                       close=200),
-            make_global_quote_response('AGG',
-                                       previous_close=100,
-                                       close=150.50),
-            make_global_quote_response('VEU',
-                                       previous_close=100,
-                                       close=105),
-            make_global_quote_response('INX',
-                                       previous_close=100,
-                                       close=50),
+            make_iex_response('DIA',
+                              previous_close=100,
+                              price=200),
+            make_iex_response('AGG',
+                              previous_close=100,
+                              price=150.50),
+            make_iex_response('VEU',
+                              previous_close=100,
+                              price=105),
+            make_iex_response('SPY',
+                              previous_close=100,
+                              price=50),
         ]
 
         with mock_api(responses, fake_now=get_fake_now(market_is_open=True)):
             yield self.plugin.send_ticker()
 
+        # These should be ordered per the config
         self.mock_cardinal.sendMsg.assert_called_once_with(
             self.channel,
-            'Dow (\x02DJI\x02): \x0309100.00%\x03 | '
+            'S&P 500 (\x02SPY\x02): \x0304-50.00%\x03 | '
+            'Dow (\x02DIA\x02): \x0309100.00%\x03 | '
             'Foreign (\x02VEU\x02): \x03095.00%\x03 | '
-            'S&P 500 (\x02INX\x02): \x0304-50.00%\x03 | '
             'US Bond (\x02AGG\x02): \x030950.50%\x03'
         )
 
@@ -346,7 +291,7 @@ class TestTickerPlugin(object):
     @patch.object(util, 'reactor', new_callable=Clock)
     @pytest_twisted.inlineCallbacks
     def test_do_predictions(self, mock_reactor, market_is_open):
-        symbol = 'INX'
+        symbol = 'SPY'
         base = 100.0
 
         user1 = 'user1'
@@ -372,7 +317,7 @@ class TestTickerPlugin(object):
         assert len(self.db['predictions']) == 1
         assert len(self.db['predictions'][symbol]) == 2
 
-        response = make_global_quote_response(symbol, close=actual)
+        response = make_iex_response(symbol, price=actual)
 
         with mock_api(response, fake_now=get_fake_now(market_is_open)):
             d = self.plugin.do_predictions()
@@ -401,7 +346,7 @@ class TestTickerPlugin(object):
         actual = 110
         base = 100
         nick = "nick"
-        symbol = "INX"
+        symbol = "SPY"
 
         # Set the datetime to a known value so the message can be tested
         tz = pytz.timezone('America/New_York')
@@ -414,7 +359,7 @@ class TestTickerPlugin(object):
                        }
         self.plugin.send_prediction(nick, symbol, prediction_, actual)
 
-        message = ("Prediction by nick for \x02INX\02: 105 (\x03095.00%\x03). "
+        message = ("Prediction by nick for \x02SPY\02: 105 (\x03095.00%\x03). "
                    "Actual value at open: 110 (\x030910.00%\x03). "
                    "Prediction set at 2020-03-20 10:50:00 EDT.")
         self.mock_cardinal.sendMsg.assert_called_once_with('#test', message)
@@ -424,19 +369,19 @@ class TestTickerPlugin(object):
         pass
 
     @pytest.mark.parametrize("symbol,input_msg,output_msg,market_is_open", [
-        ("INX",
-         "!predict INX +5%",
-         "Prediction by nick for \x02INX\x02 at market close: 105.00 (\x03095.00%\x03) ",
+        ("SPY",
+         "!predict SPY +5%",
+         "Prediction by nick for \x02SPY\x02 at market close: 105.00 (\x03095.00%\x03) ",
          True,
          ),
-        ("INX",
-         "!predict INX -5%",
-         "Prediction by nick for \x02INX\x02 at market close: 95.00 (\x0304-5.00%\x03) ",
+        ("SPY",
+         "!predict SPY -5%",
+         "Prediction by nick for \x02SPY\x02 at market close: 95.00 (\x0304-5.00%\x03) ",
          True,
          ),
-        ("INX",
-         "!predict INX -5%",
-         "Prediction by nick for \x02INX\x02 at market open: 95.00 (\x0304-5.00%\x03) ",
+        ("SPY",
+         "!predict SPY -5%",
+         "Prediction by nick for \x02SPY\x02 at market open: 95.00 (\x0304-5.00%\x03) ",
          False,
          ),
         # testing a few more formats of stock symbols
@@ -466,8 +411,8 @@ class TestTickerPlugin(object):
 
         fake_now = get_fake_now(market_is_open=market_is_open)
 
-        kwargs = {'previous_close': 100} if market_is_open else {'close': 100}
-        response = make_global_quote_response(symbol, **kwargs)
+        kwargs = {'previous_close': 100} if market_is_open else {'price': 100}
+        response = make_iex_response(symbol, **kwargs)
 
         with mock_api(response, fake_now=fake_now):
             yield self.plugin.predict(self.mock_cardinal,
@@ -483,11 +428,11 @@ class TestTickerPlugin(object):
             output_msg)
 
     @pytest.mark.parametrize("message_pairs", [
-        (("!predict INX +5%",
-          "Prediction by nick for \x02INX\x02 at market close: 105.00 (\x03095.00%\x03) ",
+        (("!predict SPY +5%",
+          "Prediction by nick for \x02SPY\x02 at market close: 105.00 (\x03095.00%\x03) ",
           ),
-         ("!predict INX -5%",
-          "Prediction by nick for \x02INX\x02 at market close: 95.00 (\x0304-5.00%\x03) "
+         ("!predict SPY -5%",
+          "Prediction by nick for \x02SPY\x02 at market close: 95.00 (\x0304-5.00%\x03) "
           "(replaces old prediction of 105.00 (\x03095.00%\x03) set at {})"
           ),
          )
@@ -495,9 +440,9 @@ class TestTickerPlugin(object):
     @pytest_twisted.inlineCallbacks
     def test_predict_replace(self, message_pairs):
         channel = "#finance"
-        symbol = 'INX'
+        symbol = 'SPY'
 
-        response = make_global_quote_response(symbol, previous_close=100)
+        response = make_iex_response(symbol, previous_close=100)
 
         fake_now = get_fake_now()
         for input_msg, output_msg in message_pairs:
@@ -517,19 +462,19 @@ class TestTickerPlugin(object):
                     output_msg)
 
     @pytest.mark.parametrize("input_msg,output_msg", [
-        ("<nick> !predict INX +5%",
-         "Prediction by nick for \x02INX\x02 at market close: 105.00 (\x03095.00%\x03) ",
+        ("<nick> !predict SPY +5%",
+         "Prediction by nick for \x02SPY\x02 at market close: 105.00 (\x03095.00%\x03) ",
          ),
-        ("<nick> !predict INX -5%",
-         "Prediction by nick for \x02INX\x02 at market close: 95.00 (\x0304-5.00%\x03) ",
+        ("<nick> !predict SPY -5%",
+         "Prediction by nick for \x02SPY\x02 at market close: 95.00 (\x0304-5.00%\x03) ",
          ),
     ])
     @pytest_twisted.inlineCallbacks
     def test_predict_relay_bot(self, input_msg, output_msg):
-        symbol = 'INX'
+        symbol = 'SPY'
         channel = "#finance"
 
-        response = make_global_quote_response(symbol, previous_close=100)
+        response = make_iex_response(symbol, previous_close=100)
         with mock_api(response):
             yield self.plugin.predict(self.mock_cardinal,
                                       user_info("relay.bot", "relay", "relay"),
@@ -544,8 +489,8 @@ class TestTickerPlugin(object):
             output_msg)
 
     @pytest.mark.parametrize("input_msg", [
-        "<whoami> !predict INX +5%",
-        "<whoami> !predict INX -5%",
+        "<whoami> !predict SPY +5%",
+        "<whoami> !predict SPY -5%",
     ])
     @pytest_twisted.inlineCallbacks
     def test_predict_not_relay_bot(self, input_msg):
@@ -562,33 +507,33 @@ class TestTickerPlugin(object):
     @pytest.mark.parametrize("user,message,value,expected", [
         (
             user_info("whoami", None, None),
-            "!predict INX 5%",
+            "!predict SPY 5%",
             100,
-            ("whoami", "INX", 105, 100),
+            ("whoami", "SPY", 105, 100),
         ),
         (
             user_info("whoami", None, None),
-            "!predict INX +5%",
+            "!predict SPY +5%",
             100,
-            ("whoami", "INX", 105, 100),
+            ("whoami", "SPY", 105, 100),
         ),
         (
             user_info("whoami", None, None),
-            "!predict INX -5%",
+            "!predict SPY -5%",
             100,
-            ("whoami", "INX", 95, 100),
+            ("whoami", "SPY", 95, 100),
         ),
         (
             user_info("not.a.relay.bot", None, None),
-            "<whoami> !predict INX -5%",
+            "<whoami> !predict SPY -5%",
             100,
             None,
         ),
         (
             user_info("relay.bot", "relay", "relay"),
-            "<whoami> !predict INX -5%",
+            "<whoami> !predict SPY -5%",
             100,
-            ("whoami", "INX", 95, 100),
+            ("whoami", "SPY", 95, 100),
         ),
     ])
     @pytest_twisted.inlineCallbacks
@@ -599,9 +544,9 @@ class TestTickerPlugin(object):
             value,
             expected,
     ):
-        symbol = 'INX'
+        symbol = 'SPY'
 
-        response = make_global_quote_response(symbol, previous_close=value)
+        response = make_iex_response(symbol, previous_close=value)
         with mock_api(response):
             result = yield self.plugin.parse_prediction(user, message)
 
@@ -610,33 +555,33 @@ class TestTickerPlugin(object):
     @pytest.mark.parametrize("user,message,value,expected", [
         (
             user_info("whoami", None, None),
-            "!predict INX 5%",
+            "!predict SPY 5%",
             100,
-            ("whoami", "INX", 105, 100),
+            ("whoami", "SPY", 105, 100),
         ),
         (
             user_info("whoami", None, None),
-            "!predict INX +5%",
+            "!predict SPY +5%",
             100,
-            ("whoami", "INX", 105, 100),
+            ("whoami", "SPY", 105, 100),
         ),
         (
             user_info("whoami", None, None),
-            "!predict INX -5%",
+            "!predict SPY -5%",
             100,
-            ("whoami", "INX", 95, 100),
+            ("whoami", "SPY", 95, 100),
         ),
         (
             user_info("not.a.relay.bot", None, None),
-            "<whoami> !predict INX -5%",
+            "<whoami> !predict SPY -5%",
             100,
             None,
         ),
         (
             user_info("relay.bot", "relay", "relay"),
-            "<whoami> !predict INX -5%",
+            "<whoami> !predict SPY -5%",
             100,
-            ("whoami", "INX", 95, 100),
+            ("whoami", "SPY", 95, 100),
         ),
     ])
     @pytest_twisted.inlineCallbacks
@@ -647,9 +592,9 @@ class TestTickerPlugin(object):
             value,
             expected,
     ):
-        symbol = 'INX'
+        symbol = 'SPY'
 
-        response = make_global_quote_response(symbol, close=value)
+        response = make_iex_response(symbol, price=value)
         with mock_api(response, fake_now=get_fake_now(market_is_open=False)):
             result = yield self.plugin.parse_prediction(user, message)
 
@@ -657,7 +602,7 @@ class TestTickerPlugin(object):
 
     @patch.object(plugin, 'est_now')
     def test_save_prediction(self, mock_now):
-        symbol = 'INX'
+        symbol = 'SPY'
         nick = 'whoami'
         base = 100
         prediction = 105
@@ -688,245 +633,28 @@ class TestTickerPlugin(object):
         }
 
     @defer.inlineCallbacks
-    def test_get_quote(self):
-        symbol = 'INX'
-        response = make_global_quote_response(symbol)
-        r = response["Global Quote"]
-
-        expected = {
-            'symbol': symbol,
-            'open': float(r['02. open']),
-            'high': float(r['03. high']),
-            'low': float(r['04. low']),
-            'price': float(r['05. price']),
-            'volume': int(r['06. volume']),
-            'latest trading day': datetime.datetime.today().replace(
-                hour=0, minute=0, second=0, microsecond=0),
-            'previous close': float(r['08. previous close']),
-            'change': float(r['09. change']),
-            'change percent': float(r['10. change percent'][:-1]),
-        }
-
-        with mock_api(response):
-            result = yield self.plugin.get_quote(symbol)
-
-        assert result == expected
-
-    @defer.inlineCallbacks
     def test_get_daily(self):
-        symbol = 'INX'
-        last_open = 100.0
-        last_close = 101.0
+        symbol = 'SPY'
+        price = 101.0
         previous_close = 102.0
 
-        response = make_global_quote_response(symbol,
-                                              open_=last_open,
-                                              close=last_close,
-                                              previous_close=previous_close,
-                                              )
+        response = make_iex_response(symbol,
+                                     price=price,
+                                     previous_close=previous_close,
+                                     )
 
         expected = {
             'symbol': symbol,
-            'close': last_close,
-            'open': last_open,
+            'price': price,
             'previous close': previous_close,
-            # this one is calculated by our make response function so it
+            # this one is calculated by our mock response function so it
             # doesn't really test anything anymore
-            'change': float(
-                '{:.4f}'.format(get_delta(last_close, previous_close))),
+            'change': ((price - previous_close) / previous_close) * 100,
         }
 
         with mock_api(response):
             result = yield self.plugin.get_daily(symbol)
         assert result == expected
-
-    @defer.inlineCallbacks
-    def test_get_time_series_daily(self):
-        symbol = 'INX'
-
-        response = make_time_series_daily_response(symbol)
-        with mock_api(response):
-            result = yield self.plugin.get_time_series_daily(symbol)
-
-        for date in response['Time Series (Daily)']:
-            assert date in result
-            # verify prefix is stripped and values are floats
-            for key in ('open', 'high', 'low', 'close', 'volume'):
-                assert key in result[date]
-                assert isinstance(result[date][key], float)
-
-    @defer.inlineCallbacks
-    def test_get_time_series_daily_bad_format(self):
-        symbol = 'INX'
-
-        response = {}
-        with mock_api(response):
-            with pytest.raises(KeyError):
-                yield self.plugin.get_time_series_daily(symbol)
-
-    @defer.inlineCallbacks
-    def test_make_av_request(self):
-        # Verify that this returns the response unmodified, and that it
-        # properly calculates params
-        function = 'TIME_SERIES_DAILY'
-        symbol = 'INX'
-        outputsize = 'compact'
-
-        response = make_time_series_daily_response(symbol)
-        with mock_api(response) as defer_mock:
-            result = yield self.plugin.make_av_request(
-                function,
-                params={
-                    'symbol': symbol,
-                    'outputsize': outputsize,
-                })
-
-        assert result == response
-
-        defer_mock.assert_called_once_with(
-            plugin.requests.get,
-            plugin.AV_API_URL,
-            params={
-                'apikey': self.api_key,
-                'function': function,
-                'symbol': symbol,
-                'outputsize': outputsize,
-                'datatype': 'json',
-            })
-
-    @defer.inlineCallbacks
-    def test_make_av_request_no_params(self):
-        # This one is mostly just for coverage
-        function = 'TIME_SERIES_DAILY'
-        symbol = 'INX'
-
-        response = make_time_series_daily_response(symbol)
-        with mock_api(response) as defer_mock:
-            result = yield self.plugin.make_av_request(function)
-
-        assert result == response
-
-        defer_mock.assert_called_once_with(
-            plugin.requests.get,
-            plugin.AV_API_URL,
-            params={
-                'apikey': self.api_key,
-                'function': function,
-                'datatype': 'json',
-            })
-
-    @patch.object(util, 'reactor', new_callable=Clock)
-    @defer.inlineCallbacks
-    def test_make_av_request_retry_when_throttled(self, mock_reactor):
-        # Verify that this returns the response unmodified, and that it
-        # properly calculates params
-        function = 'TIME_SERIES_DAILY'
-        symbol = 'INX'
-        outputsize = 'compact'
-
-        response = make_time_series_daily_response(symbol)
-        throttle_times = plugin.MAX_RETRIES - 1
-        with mock_api(response, throttle_times=throttle_times) as defer_mock:
-            d = self.plugin.make_av_request(
-                function,
-                params={
-                    'symbol': symbol,
-                    'outputsize': outputsize,
-                })
-
-            # loop through retries
-            for _ in range(throttle_times):
-                mock_reactor.advance(plugin.RETRY_WAIT)
-
-            result = yield d
-
-        assert result == response
-
-        defer_mock.assert_has_calls([call(
-            plugin.requests.get,
-            plugin.AV_API_URL,
-            params={
-                'apikey': self.api_key,
-                'function': function,
-                'symbol': symbol,
-                'outputsize': outputsize,
-                'datatype': 'json',
-            })] * (throttle_times + 1))
-
-    @patch.object(util, 'reactor', new_callable=Clock)
-    @defer.inlineCallbacks
-    def test_make_av_request_retry_on_exception(self, mock_reactor):
-        # Verify that this returns the response unmodified, and that it
-        # properly calculates params
-        function = 'TIME_SERIES_DAILY'
-        symbol = 'INX'
-        outputsize = 'compact'
-
-        response = make_time_series_daily_response(symbol)
-        raise_times = plugin.MAX_RETRIES - 1
-        with mock_api(response, raise_times=raise_times) as defer_mock:
-            d = self.plugin.make_av_request(
-                function,
-                params={
-                    'symbol': symbol,
-                    'outputsize': outputsize,
-                })
-
-            # loop through retries
-            for _ in range(raise_times):
-                mock_reactor.advance(plugin.RETRY_WAIT)
-
-            result = yield d
-
-        assert result == response
-
-        defer_mock.assert_has_calls([call(
-            plugin.requests.get,
-            plugin.AV_API_URL,
-            params={
-                'apikey': self.api_key,
-                'function': function,
-                'symbol': symbol,
-                'outputsize': outputsize,
-                'datatype': 'json',
-            })] * (raise_times + 1))
-
-    @patch.object(util, 'reactor', new_callable=Clock)
-    @defer.inlineCallbacks
-    def test_make_av_request_give_up_after_max_retries(self, mock_reactor):
-        # Verify that this returns the response unmodified, and that it
-        # properly calculates params
-        function = 'TIME_SERIES_DAILY'
-        symbol = 'INX'
-        outputsize = 'compact'
-
-        response = make_time_series_daily_response(symbol)
-        raise_times = plugin.MAX_RETRIES
-        with mock_api(response, raise_times=raise_times) as defer_mock:
-            d = self.plugin.make_av_request(
-                function,
-                params={
-                    'symbol': symbol,
-                    'outputsize': outputsize,
-                })
-
-            # loop through retries
-            for _ in range(raise_times):
-                mock_reactor.advance(plugin.RETRY_WAIT)
-
-            with pytest.raises(Exception):
-                yield d
-
-        defer_mock.assert_has_calls([call(
-            plugin.requests.get,
-            plugin.AV_API_URL,
-            params={
-                'apikey': self.api_key,
-                'function': function,
-                'symbol': symbol,
-                'outputsize': outputsize,
-                'datatype': 'json',
-            })] * (raise_times))
 
     @patch.object(plugin, 'est_now')
     def test_market_is_open(self, mock_now):

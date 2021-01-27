@@ -1,4 +1,4 @@
-from builtins import object
+from collections import OrderedDict
 import datetime
 import logging
 import re
@@ -10,13 +10,13 @@ from twisted.internet.threads import deferToThread
 
 from cardinal import util
 from cardinal.bot import user_info
-from cardinal.decorators import regex
+from cardinal.decorators import command, regex
 from cardinal.util import F
 
-# Alpha Vantage API key
-AV_API_URL = "https://www.alphavantage.co/query"
+# IEX API Endpoint
+IEX_QUOTE_API_URL = "https://cloud.iexapis.com/stable/stock/{symbol}/quote?token={token}"
 
-# This is actually max tries, not max retries (for API requests)
+# This is actually max tries, not max retries (for AV API requests)
 MAX_RETRIES = 3
 RETRY_WAIT = 15
 
@@ -64,7 +64,7 @@ def colorize(percentage):
         return F.C.light_red(message)
 
 
-class TickerPlugin(object):
+class TickerPlugin:
     def __init__(self, cardinal, config):
         self.logger = logging.getLogger(__name__)
         self.cardinal = cardinal
@@ -72,7 +72,7 @@ class TickerPlugin(object):
         self.config = config or {}
         self.config.setdefault('api_key', None)
         self.config.setdefault('channels', [])
-        self.config.setdefault('stocks', {})
+        self.config.setdefault('stocks', [])
         self.config.setdefault('relay_bots', [])
 
         if not self.config["channels"]:
@@ -102,6 +102,10 @@ class TickerPlugin(object):
 
         self.call_id = None
         self.wait()
+
+    @property
+    def stocks(self):
+        return OrderedDict(self.config["stocks"])
 
     def is_relay_bot(self, user):
         """Compares a user against the registered relay bots."""
@@ -178,7 +182,7 @@ class TickerPlugin(object):
         # Used a DeferredList so that we can make requests for all the symbols
         # we care about simultaneously
         deferreds = []
-        for symbol, name in list(self.config["stocks"].items()):
+        for symbol, name in self.stocks.items():
             d = self.get_daily(symbol)
             deferreds.append(d)
 
@@ -198,22 +202,35 @@ class TickerPlugin(object):
 
         # Loop the results, ignoring errored requests
         dl_results = yield dl
-        message_parts = []
+        results = {}
         for success, result in dl_results:
             if not success:
                 continue
 
             symbol, change = result
-            message_parts.append(self.format_symbol(symbol, change))
+            results.update({symbol: change})
 
-        message = ' | '.join(sorted(message_parts))
+        message = self.format_ticker(results)
         for channel in self.config["channels"]:
             self.cardinal.sendMsg(channel, message)
 
+    def format_ticker(self, results):
+        message_parts = []
+        for symbol, name in self.stocks.items():
+            if symbol in results:
+                message_parts.append(
+                    self.format_symbol(symbol, results[symbol])
+                )
+
+        message = " | ".join(message_parts)
+        return message
+
     def format_symbol(self, symbol, change):
+        name = self.stocks[symbol]
+
         return "{name} (\x02{symbol}\x02): {change}".format(
                 symbol=symbol,
-                name=self.config["stocks"][symbol],
+                name=name,
                 change=colorize(change),
             )
 
@@ -227,7 +244,8 @@ class TickerPlugin(object):
             try:
                 data = yield self.get_daily(symbol)
 
-                actual = data['close']
+                # this is not be 100% accurate as to the value at open
+                actual = data['price']
             except Exception:
                 self.logger.exception(
                     "Failed to fetch information for symbol {} -- skipping"
@@ -341,7 +359,7 @@ class TickerPlugin(object):
             channel,
             "Symbol: \x02{}\x02 | Current: {} | Daily Change: {}".format(
                 symbol,
-                data['close'],
+                data['price'],
                 colorize(data['change'])))
 
     @regex(PREDICT_REGEX)
@@ -412,8 +430,8 @@ class TickerPlugin(object):
             # get value at previous close
             base = data['previous close']
         else:
-            # get value at close
-            base = data['close']
+            # get latest price
+            base = data['price']
 
         prediction = float(match.group(4))
         negative = match.group(3) == '-'
@@ -432,7 +450,6 @@ class TickerPlugin(object):
         ))
 
     def save_prediction(self, symbol, nick, base, prediction):
-        # @TODO base may not be necessary after switching to quote
         with self.db() as db:
             predictions = db['predictions'].get(symbol, {})
             predictions[nick] = {
@@ -446,102 +463,23 @@ class TickerPlugin(object):
         with self.db() as db:
             return db['predictions'][symbol][nick]
 
-    @defer.inlineCallbacks
     def get_daily(self, symbol):
-        data = yield self.get_quote(symbol)
-        defer.returnValue({'symbol': data['symbol'],
-                           'close': data['price'],
-                           'previous close': data['previous close'],
-                           'open': data['open'],
-                           'change': data['change percent'],
-                           })
+        return self.make_iex_request(symbol)
 
     @defer.inlineCallbacks
-    def get_quote(self, symbol):
-        data = yield self.make_av_request('GLOBAL_QUOTE',
-                                          {'symbol': symbol})
+    def make_iex_request(self, symbol):
+        url = IEX_QUOTE_API_URL.format(symbol=symbol, token=self.config["api_key"])
+        r = yield deferToThread(requests.get, url)
+        data = r.json()
 
         try:
-            data = data['Global Quote']
-        except:
-            raise KeyError("Response missing expected 'Global Quote' key: {}"
-                           .format(data))
-
-        data = {k[4:]: v for k, v in list(data.items())}
-
-        defer.returnValue({
-            'symbol': data['symbol'],
-            'open': float(data['open']),
-            'high': float(data['high']),
-            'low': float(data['low']),
-            'price': float(data['price']),
-            'volume': int(data['volume']),
-            'latest trading day': datetime.datetime.strptime(
-                data['latest trading day'],
-                '%Y-%m-%d',
-            ),
-            'previous close': float(data['previous close']),
-            'change': float(data['change']),
-            'change percent': float(data['change percent'][:-1]),
-        })
-
-    @defer.inlineCallbacks
-    def get_time_series_daily(self, symbol, outputsize='compact'):
-        data = yield self.make_av_request('TIME_SERIES_DAILY',
-                                          {'symbol': symbol,
-                                           'outputsize': outputsize,
-                                           })
-        try:
-            data = data['Time Series (Daily)']
-        except KeyError:
-            raise KeyError("Response missing expected 'Time Series (Daily)' "
-                           "key: {}".format(data))
-
-        for date, values in list(data.items()):
-            # Strip prefixes like "4. " from "4. close" and convert values from
-            # the API to float instead of string
-            values = {k[3:]: float(v) for k, v in list(values.items())}
-            data[date] = values
-
-        defer.returnValue(data)
-
-    @defer.inlineCallbacks
-    def make_av_request(self, function, params=None):
-        if params is None:
-            params = {}
-        params['function'] = function
-        params['apikey'] = self.config["api_key"]
-        params['datatype'] = 'json'
-
-        retries_remaining = MAX_RETRIES
-        while retries_remaining > 0:
-            retries_remaining -= 1
-            try:
-                r = yield deferToThread(requests.get,
-                                        AV_API_URL,
-                                        params=params)
-                result = r.json()
-
-                # Detect rate limiting
-                if 'Note' in result and 'call frequency' in result['Note']:
-                    raise ThrottledException(result['Note'])
-            except Exception:
-                self.logger.exception("Failed to make request to AV API - "
-                                      "retries remaining: {}".format(
-                                          retries_remaining))
-
-                # Raise the exception if we're out of retries
-                if retries_remaining == 0:
-                    raise
-            # If we succeeded, don't retry
-            else:
-                break
-
-            # Otherwise, sleep 15 seconds to avoid rate limits before retrying
-            yield util.sleep(RETRY_WAIT)
-            continue
-
-        defer.returnValue(result)
+            defer.returnValue({'symbol': data['symbol'],
+                               'price': float(data['latestPrice']),
+                               'previous close': float(data['previousClose']),
+                               'change': float(data['changePercent']) * 100,
+                               })
+        except KeyError as e:
+            self.logger.error("{}, with data: {}".format(e, data))
 
 
 def setup(cardinal, config):
