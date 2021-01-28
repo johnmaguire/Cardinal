@@ -286,8 +286,8 @@ class TickerPlugin:
                 self.cardinal.sendMsg(
                     channel,
                     "{} had the closest guess for \x02{}\x02 out of {} "
-                    "predictions with a prediction of {} ({}) "
-                    "compared to the actual {} of {} ({}).".format(
+                    "predictions with a prediction of {:.2f} ({}) "
+                    "compared to the actual {} of {:.2f} ({}).".format(
                         closest_nick,
                         symbol,
                         len(predictions),
@@ -315,8 +315,8 @@ class TickerPlugin:
         for channel in self.config["channels"]:
             self.cardinal.sendMsg(
                 channel,
-                "Prediction by {} for \x02{}\x02: {} ({}). "
-                "Actual value at {}: {} ({}). "
+                "Prediction by {} for \x02{}\x02: {:.2f} ({}). "
+                "Actual value at {}: {:.2f} ({}). "
                 "Prediction set at {}.".format(
                     nick,
                     symbol,
@@ -357,7 +357,7 @@ class TickerPlugin:
 
         cardinal.sendMsg(
             channel,
-            "Symbol: \x02{}\x02 | Current: {} | Daily Change: {}".format(
+            "Symbol: \x02{}\x02 | Current: {:.2f} | Daily Change: {}".format(
                 symbol,
                 data['price'],
                 colorize(data['change'])))
