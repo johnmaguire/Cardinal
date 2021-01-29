@@ -4,7 +4,7 @@
 
 [![Build Status](https://github.com/JohnMaguire/Cardinal/workflows/Cardinal/badge.svg)](https://github.com/JohnMaguire/Cardinal/actions?query=workflow%3ACardinal) [![Coverage Status](https://codecov.io/github/JohnMaguire/Cardinal/coverage.svg?branch=master)](https://codecov.io/github/JohnMaguire/Cardinal?branch=master)
 
-Python Twisted IRC bot with a focus on ease of development.
+Python Twisted IRC bot with a focus on ease of development. It features asynchronous plugins, with [decorators for adding commands](https://github.com/JohnMaguire/Cardinal/wiki/Writing-Plugins#adding-commands-to-a-plugin), [hooks for IRC events](https://github.com/JohnMaguire/Cardinal/wiki/Cardinal-Events), [a simple JSON database API](https://github.com/JohnMaguire/Cardinal/wiki/Database-Access), and [a well-documented API](https://github.com/JohnMaguire/Cardinal/wiki/Cardinal-Methods).
 
 You can find us at [#cardinal](https://www.mibbit.com/#cardinal@irc.darkscience.net:+6697) on the [DarkScience](http://www.darkscience.net/) IRC network. (irc.darkscience.net/+6697 &mdash; SSL required)
 
@@ -67,7 +67,7 @@ def setup():
     return HelloWorldPlugin()
 ```
 
-[Visit the wiki](https://github.com/JohnMaguire/Cardinal/wiki/Writing-Plugins) for detailed instructions.
+Cardinal also offers a [lightweight database API](https://github.com/JohnMaguire/Cardinal/wiki/Database-Access). [Visit the wiki](https://github.com/JohnMaguire/Cardinal/wiki/Writing-Plugins) for detailed information.
 
 ## Contributing
 
