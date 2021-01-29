@@ -329,8 +329,8 @@ class TestTickerPlugin(object):
         self.mock_cardinal.sendMsg.assert_called_with(
             self.channel,
             '{} had the closest guess for \x02{}\x02 out of {} predictions '
-            'with a prediction of {} (\x0304{:.2f}%\x03) '
-            'compared to the actual {} of {} (\x0304{:.2f}%\x03).'.format(
+            'with a prediction of {:.2f} (\x0304{:.2f}%\x03) '
+            'compared to the actual {} of {:.2f} (\x0304{:.2f}%\x03).'.format(
                 user2,
                 symbol,
                 2,
@@ -359,8 +359,8 @@ class TestTickerPlugin(object):
                        }
         self.plugin.send_prediction(nick, symbol, prediction_, actual)
 
-        message = ("Prediction by nick for \x02SPY\02: 105 (\x03095.00%\x03). "
-                   "Actual value at open: 110 (\x030910.00%\x03). "
+        message = ("Prediction by nick for \x02SPY\02: 105.00 (\x03095.00%\x03). "
+                   "Actual value at open: 110.00 (\x030910.00%\x03). "
                    "Prediction set at 2020-03-20 10:50:00 EDT.")
         self.mock_cardinal.sendMsg.assert_called_once_with('#test', message)
 
