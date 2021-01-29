@@ -555,6 +555,42 @@ class TestTickerPlugin(object):
     @pytest.mark.parametrize("user,message,value,expected", [
         (
             user_info("whoami", None, None),
+            "!predict SPY 500",
+            100,
+            ("whoami", "SPY", 500, 100),
+        ),
+        (
+            user_info("whoami", None, None),
+            "!predict SPY $100",
+            100,
+            ("whoami", "SPY", 100, 100),
+        ),
+        (
+            user_info("relay.bot", "relay", "relay"),
+            "<whoami> !predict SPY 500",
+            100,
+            ("whoami", "SPY", 500, 100),
+        ),
+    ])
+    @pytest_twisted.inlineCallbacks
+    def test_parse_prediction_open_dollar_amount(
+            self,
+            user,
+            message,
+            value,
+            expected,
+    ):
+        symbol = 'SPY'
+
+        response = make_iex_response(symbol, previous_close=value)
+        with mock_api(response):
+            result = yield self.plugin.parse_prediction(user, message)
+
+        assert result == expected
+
+    @pytest.mark.parametrize("user,message,value,expected", [
+        (
+            user_info("whoami", None, None),
             "!predict SPY 5%",
             100,
             ("whoami", "SPY", 105, 100),

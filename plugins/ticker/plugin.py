@@ -24,7 +24,7 @@ RETRY_WAIT = 15
 CHECK_REGEX = r'^(?:<(.+?)>\s+)?!check (\^?[A-Za-z]+(?:[:\.][A-Za-z]+)?)$'
 
 # Supports relayed messages
-PREDICT_REGEX = r'^(?:<(.+?)>\s+)?!predict (\^?[A-Za-z]+(?:[:\.][A-Za-z]+)?) ([-+])?(\d+(?:\.\d+)?)%$'  # noqa: E501
+PREDICT_REGEX = r'^(?:<(.+?)>\s+)?!predict (\^?[A-Za-z]+(?:[:\.][A-Za-z]+)?) (?:([-+])?(\d+(?:\.\d+)?)%|\$?(\d+(?:\.\d+)?))$'  # noqa: E501
 
 
 class ThrottledException(Exception):
@@ -238,13 +238,17 @@ class TickerPlugin:
     def do_predictions(self):
         # Loop each prediction, grouped by symbols to avoid rate limits
         with self.db() as db:
+            # TODO will this generator still work if it's iterated outside the
+            # context manager?
             predicted_symbols = list(db['predictions'].keys())
 
         for symbol in predicted_symbols:
             try:
                 data = yield self.get_daily(symbol)
 
-                # this is not be 100% accurate as to the value at open
+                # this is not 100% accurate as to the value at open... it's
+                # just a value close to the open, iex cloud doesn't let us get
+                # at the true open without paying
                 actual = data['price']
             except Exception:
                 self.logger.exception(
@@ -433,14 +437,22 @@ class TickerPlugin:
             # get latest price
             base = data['price']
 
-        prediction = float(match.group(4))
-        negative = match.group(3) == '-'
+        negative_percentage = match.group(3) == '-'
+        percentage = float(match.group(4)) if match.group(4) else None
+        price = float(match.group(5)) if match.group(5) else None
 
-        prediction = prediction * .01 * base
-        if negative:
-            prediction = base - prediction
+        if percentage:
+            prediction = percentage * .01 * base
+            if negative_percentage:
+                prediction = base - prediction
+            else:
+                prediction = base + prediction
+        elif price:
+            prediction = price
         else:
-            prediction = base + prediction
+            # this shouldn't happen
+            self.logger.warning("No price or percentage: {}".format(message))
+            defer.returnValue(None)
 
         defer.returnValue((
             nick,
