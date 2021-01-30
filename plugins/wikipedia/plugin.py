@@ -16,6 +16,11 @@ DEFAULT_LANGUAGE_CODE = 'en'
 DEFAULT_MAX_DESCRIPTION_LENGTH = 150
 
 
+# This is used to filter out blank paragraphs
+def class_is_not_mw_empty_elt(css_class):
+    return css_class != 'mw-empty-elt'
+
+
 class WikipediaPlugin(object):
     def __init__(self, cardinal, config):
         """Registers a callback for URL detection."""
@@ -37,15 +42,15 @@ class WikipediaPlugin(object):
             self._language_code = DEFAULT_LANGUAGE_CODE
 
     def _get_article_info(self, name):
-        name = name.replace(' ', '_')
         url = "https://%s.wikipedia.org/wiki/%s" % (
             self._language_code,
-            name,
+            name.replace(' ', '_'),
         )
 
         try:
             uh = urllib.request.urlopen(url)
-            soup = BeautifulSoup(uh)
+            url = uh.url
+            soup = BeautifulSoup(uh, features="html.parser")
         except Exception as e:
             self.logger.warning(
                 "Couldn't query Wikipedia (404?) for: %s" % name, exc_info=True
@@ -58,14 +63,19 @@ class WikipediaPlugin(object):
             title = soup.find("h1").get_text()
 
             # Manipulation to get first paragraph without HTML markup
-            content = soup.find_all("div", id="mw-content-text")[0]
-            first_paragraph = content.p.get_text()
-
-            if len(first_paragraph) > self._max_description_length:
-                first_paragraph = first_paragraph[:self._max_description_length] + \
-                    '...'
+            is_disambiguation = soup.find("table", id="disambigbox") is not None
+            if is_disambiguation:
+                summary = "Disambiguation"
             else:
-                first_paragraph = first_paragraph
+                content = soup.find_all("div", id="mw-content-text")[0]
+                first_paragraph = content.find(
+                    "p", class_=class_is_not_mw_empty_elt).get_text().strip()
+
+                if len(first_paragraph) > self._max_description_length:
+                    summary = first_paragraph[:self._max_description_length] + \
+                        '...'
+                else:
+                    summary = first_paragraph
         except Exception as e:
             self.logger.error(
                 "Error parsing Wikipedia result for: %s" % name,
@@ -74,7 +84,7 @@ class WikipediaPlugin(object):
 
             return "Error parsing Wikipedia result for: %s" % name
 
-        return "[ Wikipedia: %s | %s | %s ]" % (title, first_paragraph, url)
+        return "[ Wikipedia: %s | %s | %s ]" % (title, summary, url)
 
     @event('urls.detection')
     def url_callback(self, cardinal, channel, url):
