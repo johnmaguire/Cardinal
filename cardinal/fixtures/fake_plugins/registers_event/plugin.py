@@ -1,5 +1,4 @@
-from builtins import object
-class TestRegistersEventPlugin(object):
+class TestRegistersEventPlugin:
     def __init__(self, cardinal):
         cardinal.event_manager.register('test.event', 1)
 

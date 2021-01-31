@@ -1,5 +1,4 @@
-from builtins import object
-class TestConfigValidJsonPlugin(object):
+class TestConfigValidJsonPlugin:
     pass
 
 

@@ -1,8 +1,7 @@
-from builtins import object
 called = False
 
 
-class TestCloseTooManyArgumentsPlugin(object):
+class TestCloseTooManyArgumentsPlugin:
     def close(self, cardinal, _):
         """This should never be hit due to wrong number of args."""
         global called

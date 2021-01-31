@@ -1,4 +1,3 @@
-from builtins import object
 import logging
 import os
 import shutil
@@ -31,7 +30,7 @@ def tempdir(name):
         shutil.rmtree(tempdir_path)
 
 
-class TestCardinalBot(object):
+class TestCardinalBot:
     @patch('cardinal.bot.EventManager', autospec=True)
     def setup_method(self, method, mock_event_manager):
         self.cardinal = CardinalBot()
@@ -662,7 +661,7 @@ class TestCardinalBot(object):
         assert CardinalBot.get_user_tuple('foobar') is None
 
 
-class TestCardinalBotFactory(object):
+class TestCardinalBotFactory:
     def setup_method(self):
         self.factory = CardinalBotFactory(
             network='irc.testnet.test',

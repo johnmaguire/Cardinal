@@ -1,5 +1,4 @@
-from builtins import object
-class TestConfigAmbiguousPlugin(object):
+class TestConfigAmbiguousPlugin:
     pass
 
 

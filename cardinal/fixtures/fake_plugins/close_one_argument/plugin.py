@@ -1,8 +1,7 @@
-from builtins import object
 cardinal = None
 
 
-class TestCloseOneArgumentPlugin(object):
+class TestCloseOneArgumentPlugin:
     def close(self, cardinal_):
         global cardinal
         cardinal = cardinal_

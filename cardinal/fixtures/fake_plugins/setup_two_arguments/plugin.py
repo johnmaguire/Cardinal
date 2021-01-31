@@ -1,5 +1,4 @@
-from builtins import object
-class TestSetupTwoArgumentsPlugin(object):
+class TestSetupTwoArgumentsPlugin:
     pass
 
 

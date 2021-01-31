@@ -1,8 +1,7 @@
-from builtins import object
 from cardinal.decorators import event
 
 
-class MultipleEventCallbacksOneFailsPlugin(object):
+class MultipleEventCallbacksOneFailsPlugin:
     @event('foo')
     def A(self, cardinal):
         pass

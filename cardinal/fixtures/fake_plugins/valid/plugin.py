@@ -1,5 +1,4 @@
-from builtins import object
-class TestValidPlugin(object):
+class TestValidPlugin:
     pass
 
 

@@ -1,8 +1,7 @@
-from builtins import object
 from cardinal.decorators import event
 
 
-class TestEventCallbackPlugin(object):
+class TestEventCallbackPlugin:
     def __init__(self):
         self.cardinal = None
         self.messages = []

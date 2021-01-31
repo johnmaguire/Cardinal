@@ -1,4 +1,3 @@
-from builtins import object
 import re
 
 from twisted.internet import reactor
@@ -38,8 +37,8 @@ def strip_formatting(line):
     return re.sub(r"(?:\x03\d\d?,\d\d?|\x03\d\d?|[\x01-\x1f])", "", line)
 
 
-class formatting(object):
-    class color(object):
+class formatting:
+    class color:
         @staticmethod
         def white(text):
             return "\x0300{}\x03".format(text)

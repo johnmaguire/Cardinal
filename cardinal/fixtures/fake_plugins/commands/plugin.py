@@ -1,8 +1,7 @@
-from builtins import object
 from cardinal.decorators import command, regex
 
 
-class TestCommandsPlugin(object):
+class TestCommandsPlugin:
     def __init__(self):
         self.command1_calls = []
         self.command2_calls = []

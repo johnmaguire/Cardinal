@@ -1,5 +1,4 @@
-from builtins import object
-class TestCloseRaisesExceptionPlugin(object):
+class TestCloseRaisesExceptionPlugin:
     def close(self):
         raise Exception()
 

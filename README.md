@@ -55,7 +55,7 @@ Cardinal was designed with ease of development in mind.
 ```python
 from cardinal.decorators import command, help
 
-class HelloWorldPlugin(object):
+class HelloWorldPlugin:
     @command(['hello', 'hi'])
     @help("Responds to the user with a greeting.")
     @help("Syntax: .hello")

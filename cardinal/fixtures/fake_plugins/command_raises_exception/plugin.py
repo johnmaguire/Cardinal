@@ -1,8 +1,7 @@
-from builtins import object
 from cardinal.decorators import command
 
 
-class TestCommandRaisesExceptionPlugin(object):
+class TestCommandRaisesExceptionPlugin:
     def __init__(self):
         self.command_calls = []
 

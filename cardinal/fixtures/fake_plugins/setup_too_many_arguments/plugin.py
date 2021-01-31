@@ -1,5 +1,4 @@
-from builtins import object
-class TestSetupTooManyArgumentsPlugin(object):
+class TestSetupTooManyArgumentsPlugin:
     pass
 
 

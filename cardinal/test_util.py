@@ -1,4 +1,3 @@
-from builtins import object
 import datetime
 
 import pytest
@@ -52,7 +51,7 @@ def test_sleep():
     assert delta.seconds == 1
 
 
-class TestColors(object):
+class TestColors:
     @pytest.mark.parametrize('color,color_value', (
         ('white', 0),
         ('black', 1),

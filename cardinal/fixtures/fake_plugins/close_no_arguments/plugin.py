@@ -1,5 +1,4 @@
-from builtins import object
-class TestCloseNoArgumentsPlugin(object):
+class TestCloseNoArgumentsPlugin:
     def close(self):
         pass
 

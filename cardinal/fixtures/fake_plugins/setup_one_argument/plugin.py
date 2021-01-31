@@ -1,5 +1,4 @@
-from builtins import object
-class TestSetupOneArgumentPlugin(object):
+class TestSetupOneArgumentPlugin:
     pass
 
 

@@ -1,5 +1,4 @@
-from builtins import object
-class TestConfigValidYamlPlugin(object):
+class TestConfigValidYamlPlugin:
     pass
 
 
