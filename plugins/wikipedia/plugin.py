@@ -1,9 +1,6 @@
-from future import standard_library
-standard_library.install_aliases()
-from builtins import object
 import re
-import urllib.request, urllib.error, urllib.parse
 import logging
+from urllib import request
 
 from bs4 import BeautifulSoup
 
@@ -21,7 +18,7 @@ def class_is_not_mw_empty_elt(css_class):
     return css_class != 'mw-empty-elt'
 
 
-class WikipediaPlugin(object):
+class WikipediaPlugin:
     def __init__(self, cardinal, config):
         """Registers a callback for URL detection."""
         # Initialize logger
@@ -48,7 +45,7 @@ class WikipediaPlugin(object):
         )
 
         try:
-            uh = urllib.request.urlopen(url)
+            uh = request.urlopen(url)
             url = uh.url
             soup = BeautifulSoup(uh, features="html.parser")
         except Exception as e:

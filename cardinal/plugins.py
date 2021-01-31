@@ -1,9 +1,3 @@
-from __future__ import absolute_import, print_function, division
-
-from future import standard_library
-standard_library.install_aliases()
-from builtins import range
-from builtins import object
 import os
 import re
 import string
@@ -30,7 +24,7 @@ from cardinal.exceptions import (
 from twisted.internet import defer
 
 
-class PluginManager(object):
+class PluginManager:
     """Keeps track of, loads, and unloads plugins."""
 
     COMMAND_REGEX = re.compile(r'\.([A-Za-z0-9_-]+)\s?.*$')
@@ -757,7 +751,7 @@ class PluginManager(object):
         return d
 
 
-class EventManager(object):
+class EventManager:
     def __init__(self, cardinal):
         """Initializes the logger"""
         self.cardinal = cardinal

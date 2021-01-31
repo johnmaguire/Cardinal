@@ -1,12 +1,8 @@
-from future import standard_library
-standard_library.install_aliases()
-from builtins import str
-from builtins import object
 import re
 import json
-import urllib.request, urllib.parse, urllib.error
-import urllib.request, urllib.error, urllib.parse
 import logging
+from urllib import request
+from urllib import parse as urllib_parse
 
 from cardinal.decorators import command, event, help
 from cardinal.exceptions import EventRejectedMessage
@@ -15,7 +11,7 @@ VIDEO_URL_REGEX = re.compile(r'https?:\/\/(?:www\.)?youtube\..{2,4}\/watch\?.*(?
 VIDEO_URL_SHORT_REGEX = re.compile(r'https?:\/\/(?:www\.)?youtu\.be\/(.+?)(?:(?:\?.*)|$)', flags=re.IGNORECASE)
 
 
-class YouTubePlugin(object):
+class YouTubePlugin:
     logger = None
     """Logging object for YouTubePlugin"""
 
@@ -120,9 +116,9 @@ class YouTubePlugin(object):
         params['key'] = self.api_key
 
         # Make request to specified endpoint and return JSON decoded result
-        uh = urllib.request.urlopen("https://www.googleapis.com/youtube/v3/" +
-            endpoint + "?" +
-            urllib.parse.urlencode(params))
+        uh = request.urlopen("https://www.googleapis.com/youtube/v3/" +
+             endpoint + "?" +
+             urllib_parse.urlencode(params))
 
         return json.load(uh)
 

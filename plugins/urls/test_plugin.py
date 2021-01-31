@@ -5,7 +5,7 @@ import pytest
 from . import plugin
 
 
-class TestURLRegex(object):
+class TestURLRegex:
     @staticmethod
     def assertFindUrl(message, url):
         m = plugin.get_urls(message)

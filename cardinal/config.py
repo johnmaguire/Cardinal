@@ -1,13 +1,9 @@
-from __future__ import absolute_import, print_function, division
-
-from past.builtins import basestring
-from builtins import object
 import logging
 import json
 import inspect
 
 
-class ConfigSpec(object):
+class ConfigSpec:
     """A class used to create a config spec for ConfigParser"""
 
     def __init__(self):
@@ -78,7 +74,7 @@ class ConfigSpec(object):
             return value
 
 
-class ConfigParser(object):
+class ConfigParser:
     """A class to make parsing of JSON configs easier.
 
     This class adds support for both the internal Cardinal config as well as

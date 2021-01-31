@@ -1,11 +1,8 @@
-from future import standard_library
-standard_library.install_aliases()
-from builtins import object
 import re
 import json
-import urllib.request, urllib.parse, urllib.error
-import urllib.request, urllib.error, urllib.parse
 import logging
+from urllib import request
+from urllib import error as urllib_error
 
 from cardinal.decorators import command, event, help
 from cardinal.exceptions import EventRejectedMessage
@@ -21,7 +18,7 @@ REPO_NAME_REGEX = re.compile(
     flags=re.IGNORECASE)
 
 
-class GithubPlugin(object):
+class GithubPlugin:
     logger = None
     """Logging object for GithubPlugin"""
 
@@ -85,7 +82,7 @@ class GithubPlugin(object):
             elif res['total_count'] == 0:
                 cardinal.sendMsg(channel,
                                  "No matching issues found in %s" % repo)
-        except urllib.error.HTTPError:
+        except urllib_error.HTTPError:
             cardinal.sendMsg(channel,
                              "Couldn't find %s#%d" % (repo, int(query)))
 
@@ -108,7 +105,7 @@ class GithubPlugin(object):
                 self._show_repo(cardinal,
                                 channel,
                                 '%s/%s' % (groups[0], groups[1]))
-        except urllib.error.HTTPError:
+        except urllib_error.HTTPError:
             raise EventRejectedMessage
 
     def _format_issue(self, issue):

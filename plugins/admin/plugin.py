@@ -1,12 +1,10 @@
-from builtins import str
-from builtins import object
 import logging
 
 from cardinal.bot import user_info
 from cardinal.decorators import command, help
 
 
-class AdminPlugin(object):
+class AdminPlugin:
     def __init__(self, cardinal, config):
         self.logger = logging.getLogger(__name__)
 

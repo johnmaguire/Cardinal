@@ -19,7 +19,7 @@ QUIT = 'QUIT'  # [message]
 EPOCH = datetime.utcfromtimestamp(0)
 
 
-class SeenPlugin(object):
+class SeenPlugin:
     def __init__(self, cardinal, config):
         self.ignored_channels = config.get('ignored_channels', [])
 

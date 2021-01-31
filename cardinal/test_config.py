@@ -1,5 +1,3 @@
-from past.builtins import basestring
-from builtins import object
 import os
 
 import pytest
@@ -12,13 +10,13 @@ FIXTURE_DIRECTORY = os.path.join(
 )
 
 
-class TestConfigSpec(object):
+class TestConfigSpec:
     def setup_method(self):
         self.config_spec = ConfigSpec()
 
     @pytest.mark.parametrize("option", [
-        ('name', basestring, 'default'),
-        (u'name', basestring, None),
+        ('name', str, 'default'),
+        (u'name', str, None),
         ('name', int, 3),
     ])
     def test_add_option(self, option):
@@ -39,31 +37,31 @@ class TestConfigSpec(object):
     def test_return_value_or_default_wrong_type(self):
         name = 'name'
         default = 'default'
-        self.config_spec.add_option(name, basestring, default)
+        self.config_spec.add_option(name, str, default)
         assert self.config_spec.return_value_or_default(name, 3) == default
 
     def test_return_value_or_default_none(self):
         name = 'name'
         default = 'default'
-        self.config_spec.add_option(name, basestring, default)
+        self.config_spec.add_option(name, str, default)
         assert self.config_spec.return_value_or_default(name, None) == default
 
     def test_return_value_or_default_value(self):
         name = 'name'
         default = 'default'
-        self.config_spec.add_option(name, basestring, default)
+        self.config_spec.add_option(name, str, default)
 
         value = 'value'
         assert self.config_spec.return_value_or_default(name, value) == value
 
 
-class TestConfigParser(object):
+class TestConfigParser:
     DEFAULT = '_default_'
 
     def setup_method(self):
         config_spec = self.config_spec = ConfigSpec()
-        config_spec.add_option("not_in_json", basestring, default=self.DEFAULT)
-        config_spec.add_option("string", basestring)
+        config_spec.add_option("not_in_json", str, default=self.DEFAULT)
+        config_spec.add_option("string", str)
         config_spec.add_option("int", int)
         config_spec.add_option("bool", bool)
         config_spec.add_option("dict", dict)

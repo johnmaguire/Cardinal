@@ -1,10 +1,9 @@
-from builtins import object
 from twisted.internet import error, reactor
 
 from cardinal.decorators import command, help
 
 
-class RemindPlugin(object):
+class RemindPlugin:
     def __init__(self):
         self.call_ids = []
 

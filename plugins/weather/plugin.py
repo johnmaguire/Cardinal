@@ -1,16 +1,10 @@
-from __future__ import division
-from future import standard_library
-standard_library.install_aliases()
-from builtins import str
-from builtins import object
-from past.utils import old_div
 import hashlib
 import hmac
 import logging
 import time
-import urllib.request, urllib.parse, urllib.error
 import uuid
 from base64 import b64encode
+from urllib import parse as urllib_parse
 
 import requests
 
@@ -27,7 +21,7 @@ CONSUMER_KEY = "dj0yJmk9YVpma1VWcno1U01wJmQ9WVdrOWFuQm1hM2RVTjJrbWNHbzlNQS0t" \
 CONSUMER_SECRET = "b816de899743153300c2c123521bb247cfb0c92a"
 
 
-class WeatherPlugin(object):
+class WeatherPlugin:
     def __init__(self, cardinal):
         self.logger = logging.getLogger(__name__)
         self.db = cardinal.get_db('weather')
@@ -47,16 +41,16 @@ class WeatherPlugin(object):
         merged_params.update(oauth_params)
 
         # Sort and canonicalize the params
-        sorted_params = [k + '=' + urllib.parse.quote(merged_params[k], safe='')
+        sorted_params = [k + '=' + urllib_parse.quote(merged_params[k], safe='')
                          for k in sorted(merged_params.keys())]
 
         signature_string = method + SIGNATURE_CONCAT + \
-            urllib.parse.quote(url, safe='') + SIGNATURE_CONCAT + \
-            urllib.parse.quote(SIGNATURE_CONCAT.join(sorted_params), safe='')
+            urllib_parse.quote(url, safe='') + SIGNATURE_CONCAT + \
+            urllib_parse.quote(SIGNATURE_CONCAT.join(sorted_params), safe='')
 
         # Generate signature
         composite_key = \
-            urllib.parse.quote(CONSUMER_SECRET, safe='') + SIGNATURE_CONCAT
+            urllib_parse.quote(CONSUMER_SECRET, safe='') + SIGNATURE_CONCAT
         oauth_signature = b64encode(hmac.new(composite_key.encode('utf-8'),
                                              signature_string.encode('utf-8'),
                                              hashlib.sha1).digest())
@@ -144,13 +138,13 @@ class WeatherPlugin(object):
         condition = res['current_observation']['condition']['text']
         temperature = \
             int(res['current_observation']['condition']['temperature'])
-        temperature_c = old_div((temperature - 32) * 5,9)
+        temperature_c = (temperature - 32) * 5 // 9
         humidity = int(res['current_observation']['atmosphere']['humidity'])
         winds = float(res['current_observation']['wind']['speed'])
         winds_k = round(winds * 1.609344, 2)
         cardinal.sendMsg(
             channel,
-            "[ {} | {} | Temp: {} F ({} C) | Humidity: {}% |"
+            "[ {} | {} | Temp: {} °F ({} °C) | Humidity: {}% |"
             " Winds: {} mph ({} kph) ]".format(location,
                                                condition,
                                                temperature,

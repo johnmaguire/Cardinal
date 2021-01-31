@@ -1,17 +1,14 @@
-from future import standard_library
-standard_library.install_aliases()
-from builtins import str
-from builtins import object
 import os
 import sqlite3
 import json
-import urllib.request, urllib.error, urllib.parse
+from urllib import request
+from urllib import error as urllib_error
 import logging
 
 from cardinal.decorators import command, help
 
 
-class LastfmPlugin(object):
+class LastfmPlugin:
     def __init__(self, cardinal, config):
         # Initialize logger
         self.logger = logging.getLogger(__name__)
@@ -158,7 +155,7 @@ class LastfmPlugin(object):
             username = result[0]
 
         try:
-            uh = urllib.request.urlopen(
+            uh = request.urlopen(
                 "http://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks"
                 "&user=%s&api_key=%s&limit=1&format=json" %
                 (username, self.api_key)
@@ -166,7 +163,7 @@ class LastfmPlugin(object):
             content = json.load(uh)
         except Exception as e:
             # Handle 404 (i.e. user not exists) separately
-            if isinstance(e, urllib.error.HTTPError) and e.code == 404:
+            if isinstance(e, urllib_error.HTTPError) and e.code == 404:
                 cardinal.sendMsg(
                         channel,
                         "Last.fm user '{}' does not exist".format(username))

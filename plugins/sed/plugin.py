@@ -1,4 +1,3 @@
-from builtins import object
 import re
 from collections import defaultdict
 
@@ -11,7 +10,7 @@ from cardinal.util import (
 ESCAPE_PLACEHOLDER = '!EsCaPeD SlASh!'
 
 
-class SedPlugin(object):
+class SedPlugin:
     def __init__(self):
         self.history = defaultdict(dict)
 

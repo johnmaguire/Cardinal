@@ -1,8 +1,7 @@
-from builtins import object
 from cardinal.decorators import event
 
 
-class InviteJoinPlugin(object):
+class InviteJoinPlugin:
     """Simple plugin that joins a channel if an invite is given."""
 
     def __init__(self, cardinal, config):

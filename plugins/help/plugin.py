@@ -1,12 +1,8 @@
-from future import standard_library
-standard_library.install_aliases()
-from past.builtins import basestring
-from builtins import object
 from datetime import datetime, timedelta
 from cardinal.decorators import command, help
 
 
-class HelpPlugin(object):
+class HelpPlugin:
     # Gets a list of admins from the admin plugin instantiated within the
     # Cardinal instance, if exists
     def _get_admins(self, cardinal):
@@ -98,7 +94,7 @@ class HelpPlugin(object):
             if isinstance(help, list):
                 for help_line in help:
                     cardinal.sendMsg(channel, help_line)
-            elif isinstance(help, basestring):
+            elif isinstance(help, str):
                 cardinal.sendMsg(channel, help)
             else:
                 cardinal.sendMsg(channel, "Unable to handle help string returned by module.")

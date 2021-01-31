@@ -1,13 +1,9 @@
-# Python 3 conversion
-future==0.18.2
-
 # Core
 Twisted==20.3.0
 
 # SSL connections
 pyOpenSSL==19.0.0
 service_identity==18.1.0
-enum34==1.1.9
 
 # Config parsing
 PyYAML==5.1.1

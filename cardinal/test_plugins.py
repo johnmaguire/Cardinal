@@ -1,9 +1,3 @@
-from __future__ import absolute_import, print_function, division
-
-from future import standard_library
-standard_library.install_aliases()
-from past.builtins import basestring
-from builtins import object
 import inspect
 import logging
 import os
@@ -22,7 +16,7 @@ FIXTURE_PATH = os.path.join(DIR_PATH, 'fixtures')
 sys.path.insert(0, FIXTURE_PATH)
 
 
-class TestPluginManager(object):
+class TestPluginManager:
     def setup_method(self):
         mock_cardinal = self.cardinal = Mock(spec=CardinalBot)
         mock_cardinal.nickname = 'Cardinal'
@@ -663,7 +657,7 @@ class TestPluginManager(object):
         assert instance.command1_calls == expected_calls
 
 
-class TestEventManager(object):
+class TestEventManager:
     def setup_method(self):
         mock_cardinal = self.cardinal = Mock(spec=CardinalBot)
         self.event_manager = EventManager(mock_cardinal)
@@ -686,7 +680,7 @@ class TestEventManager(object):
         # callback id is used for removal
         callback_id = self.event_manager.register_callback(name, callback)
 
-        assert isinstance(callback_id, basestring)
+        assert isinstance(callback_id, str)
         assert len(self.event_manager.registered_callbacks[name]) == \
             callback_count + 1
 

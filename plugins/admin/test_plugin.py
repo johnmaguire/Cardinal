@@ -1,9 +1,8 @@
-from builtins import object
 from cardinal.bot import user_info
 from plugins.admin.plugin import AdminPlugin
 
 
-class TestAdminPlugin(object):
+class TestAdminPlugin:
     def test_admins_translation(self):
         plugin = AdminPlugin(None, {
             'admins': [

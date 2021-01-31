@@ -1,4 +1,3 @@
-from builtins import object
 from datetime import datetime, timedelta
 
 from mock import Mock, PropertyMock, call, patch
@@ -7,7 +6,7 @@ from cardinal.bot import CardinalBot, user_info
 from plugins.help import plugin
 
 
-class TestHelpPlugin(object):
+class TestHelpPlugin:
     def setup_method(self, method):
         self.mock_cardinal = Mock(spec=CardinalBot)
         self.plugin = plugin.HelpPlugin()

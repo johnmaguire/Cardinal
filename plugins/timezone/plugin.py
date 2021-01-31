@@ -1,4 +1,3 @@
-from builtins import object
 import logging
 from datetime import datetime
 
@@ -10,7 +9,7 @@ from cardinal.decorators import command, help
 TIME_FORMAT = '%b %d, %I:%M:%S %p UTC%z'
 
 
-class TimezonePlugin(object):
+class TimezonePlugin:
     @command(['time'])
     @help("Returns the current time in a given time zone or GMT offset.")
     @help("Syntax: time <GMT offset or timezone>")

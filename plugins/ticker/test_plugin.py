@@ -1,8 +1,3 @@
-from __future__ import division
-from builtins import str
-from builtins import range
-from builtins import object
-from past.utils import old_div
 import copy
 import datetime
 import random
@@ -145,7 +140,7 @@ def test_colorize():
     assert colorize(0.159) == '\x03090.16%\x03'
 
 
-class TestTickerPlugin(object):
+class TestTickerPlugin:
     @pytest.fixture(autouse=True)
     def setup_method_fixture(self, request, tmpdir):
         self.api_key = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'

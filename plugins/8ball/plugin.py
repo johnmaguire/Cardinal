@@ -6,7 +6,7 @@ from cardinal.decorators import command, help
 from cardinal.util import sleep
 
 
-class Magic8Ball(object):
+class Magic8BallPlugin:
     @command(['8', '8ball'])
     @help("Ask the might 8-ball a question.")
     @help("Syntax: .8 <question>")
@@ -39,4 +39,4 @@ class Magic8Ball(object):
 
 
 def setup():
-    return Magic8Ball()
+    return Magic8BallPlugin()

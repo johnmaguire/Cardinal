@@ -1,4 +1,3 @@
-from builtins import object
 from cardinal.decorators import command, help
 
 from googlesearch import search
@@ -6,7 +5,7 @@ from googlesearch import search
 DEFAULT_MAX_RESULTS = 3
 
 
-class GoogleSearch(object):
+class GoogleSearch:
     def __init__(self, config):
         config = config if config is not None else {}
         self.max_results = config.get('max_results', DEFAULT_MAX_RESULTS)

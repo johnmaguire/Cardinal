@@ -1,8 +1,7 @@
-from builtins import object
 from cardinal.decorators import command, help, regex
 
 
-class PingPlugin(object):
+class PingPlugin:
     @regex(r'(?i)^ping[.?!]?$')
     @command(['ping'])
     @help("Responds to a ping message with 'Pong.'")
