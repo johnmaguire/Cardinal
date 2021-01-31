@@ -437,15 +437,6 @@ class TestPluginManager:
                                                    ".command")
 
     @defer.inlineCallbacks
-    def test_call_command_no_natural_command_match(self):
-        # FIXME: this isn't really an error...
-        with pytest.raises(exceptions.CommandNotFoundError):
-            yield self.plugin_manager.call_command(('nick', 'ident', 'host'),
-                                                   "#channel",
-                                                   "{}: command".format(
-                                                       self.cardinal.nickname))
-
-    @defer.inlineCallbacks
     def test_command_called(self):
         name = 'commands'
 

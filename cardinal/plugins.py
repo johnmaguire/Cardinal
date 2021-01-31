@@ -37,15 +37,6 @@ class PluginManager:
     the plugin for handling.
     """
 
-    NATURAL_COMMAND_REGEX = r'%s:\s+([A-Za-z0-9_-]+)\s?.*$'
-    """Regex for matching natural commands.
-
-    This will check for anything beginning with the bot's nickname, a colon
-    (:), whitespace, then an alphanumeric command. This may optionally be the
-    end of the message, or there may be whitespace followed by any characters
-    (additional arguments) which will be up to the plugin for handling.
-    """
-
     def __init__(self,
                  cardinal,
                  plugins,
@@ -62,35 +53,23 @@ class PluginManager:
           TypeError -- When the `plugins` argument is not a list.
 
         """
-        # Initialize logger
         self.logger = logging.getLogger(__name__)
+        self.cardinal = cardinal
+        self._blacklist = blacklist
 
         # Module name from which plugins are imported. This exists to assist
         # in unit testing.
         self._plugin_module_import_prefix = _plugin_module_import_prefix
-
-        # This is where we'll look for plugins
         self.plugins_directory = os.path.abspath(os.path.join(
-            # Get the path to this file's directory
             os.path.dirname(os.path.realpath(os.path.abspath(__file__))),
-            # Go up one level
             '..',
-            # And add the `plugins/` directory unless overridden
             _plugin_module_directory_suffix
         ))
 
-        # Set default to empty object
-        self.plugins = {}
-
-        # Plugin blacklist from persistent config
-        self._blacklist = blacklist
-
-        # To prevent circular dependencies, we can't sanity check this. Hope
-        # for the best.
-        self.cardinal = cardinal
-
         # Used for iterating PluginManager plugins
         self.iteration_counter = 0
+
+        self.plugins = {}
 
         self.load(plugins)
 
@@ -659,12 +638,10 @@ class PluginManager:
     def call_command(self, user, channel, message):
         """Checks a message to see if it appears to be a command and calls it.
 
-        This is done by checking both the `COMMAND_REGEX` and
-        `NATURAL_COMMAND_REGEX` properties on this object. If one or both of
-        these tests succeeds, we then check whether any plugins have registered
-        a matching command. If both of these tests fail, we will check whether
-        any plugins have registered a custom regex expression matching the
-        message.
+        This is done by checking `COMMAND_REGEX`  on a message. If the pattern
+        matches, we then check whether any plugins have a matching command.
+        Then we will check whether any plugins have registered a custom regex
+        expression matching the message.
 
         Keyword arguments:
           user -- A tuple containing a user's nick, ident, and hostname.
@@ -682,13 +659,8 @@ class PluginManager:
         # only one of these can match, and the matching groups are in the same
         # order, we only need to check the second one if the first fails, and
         # we only need to use one variable to track this.
-        get_command = re.match(self.COMMAND_REGEX, message)
-        if not get_command:
-            get_command = re.match(
-                self.NATURAL_COMMAND_REGEX % re.escape(self.cardinal.nickname),
-                message, flags=re.IGNORECASE)
+        command_match = re.match(self.COMMAND_REGEX, message)
 
-        # Iterate through all loaded commands
         dl = []
         for command in self.itercommands(channel):
             # Check whether the current command has a regex to match by, and if
@@ -699,17 +671,13 @@ class PluginManager:
                 called_command = True
                 continue
 
-            # If the message didn't match a typical command regex, then we can
-            # skip to the next command without checking whether this one
-            # matches the message.
-            if not get_command:
+            if not command_match:
                 continue
 
-            # Check if the plugin defined any standard commands and whether any
-            # of them match the command we found in the message.
+            # Check if the plugin defined any commands and whether they match
+            # the message.
             if (hasattr(command, 'commands') and
-                    get_command.group(1) in command.commands):
-                # Matched this command, so call it.
+                    command_match.group(1) in command.commands):
                 dl.append(self._call_command(command, user, channel, message))
                 called_command = True
                 continue
@@ -719,7 +687,7 @@ class PluginManager:
         # Alternatively, if we called a command, no need to raise an exception.
         if called_command:
             return defer.DeferredList(dl)
-        elif not get_command:
+        elif not command_match:
             return defer.succeed(None)
 
         # Since we found something that matched a command regex, yet no plugins

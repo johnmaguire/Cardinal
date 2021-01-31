@@ -210,6 +210,15 @@ class CardinalBot(irc.IRCClient, object):
         # replying a little easier.
         if channel == self.nickname:
             channel = nick
+        else:
+            # If the message is directed at us, strip the prefix telling us so.
+            # This allows us to target a specific Cardinal bot if multiple are
+            # in a channel, and it works for plugins that use a regex as well.
+            # If a plugin needs the original message, they can use the
+            # irc.privmsg event.
+            nick_prefix = "{}: ".format(self.nickname)
+            if message.startswith(nick_prefix):
+                message = message[len(nick_prefix):]
 
         # Attempt to call a command. If it doesn't appear to PluginManager to
         # be a command, this will just fall through. If it matches command
@@ -218,9 +227,7 @@ class CardinalBot(irc.IRCClient, object):
         try:
             self.plugin_manager.call_command(user, channel, message)
         except CommandNotFoundError:
-            # This is just an info, since anyone can trigger it, not really a
-            # bad thing.
-            self.logger.info(
+            self.logger.debug(
                 "Unable to find a matching command", exc_info=True)
 
     def irc_NOTICE(self, prefix, params):

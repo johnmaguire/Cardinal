@@ -257,6 +257,29 @@ class TestCardinalBot:
             message,
         )
 
+    def test_irc_PRIVMSG_channel_nick_prefixed_command(self):
+        self.plugin_manager.call_command.side_effect = \
+            exceptions.CommandNotFoundError  # should be caught
+
+        prefix, source = self.get_user()
+        channel = '#test'
+        message = '{}: this is a test'.format(self.cardinal.nickname)
+
+        self.cardinal.irc_PRIVMSG(prefix, [channel, message])
+
+        self.event_manager.fire.assert_called_once_with(
+            'irc.privmsg',
+            source,
+            '#test',
+            message,
+        )
+
+        self.plugin_manager.call_command.assert_called_once_with(
+            source,
+            channel,
+            'this is a test',
+        )
+
     def test_irc_PRIVMSG_in_private_chat(self):
         self.plugin_manager.call_command.side_effect = \
             exceptions.CommandNotFoundError  # should be caught
