@@ -1,8 +1,10 @@
 import re
 import logging
-from urllib import request
 
+import requests
 from bs4 import BeautifulSoup
+from twisted.internet import defer
+from twisted.internet.threads import deferToThread
 
 from cardinal.decorators import command, event, help
 from cardinal.exceptions import EventRejectedMessage
@@ -27,17 +29,22 @@ class WikipediaPlugin:
         try:
             self._max_description_length = config['max_description_length']
         except KeyError:
-            self.logger.warning("No max description length in config -- using"
-                " defaults: %d" % DEFAULT_MAX_DESCRIPTION_LENGTH)
+            self.logger.warning(
+                "No max description length in config -- using defaults: %d" %
+                DEFAULT_MAX_DESCRIPTION_LENGTH
+            )
             self._max_description_length = DEFAULT_MAX_DESCRIPTION_LENGTH
 
         try:
             self._language_code = config['language_code']
         except KeyError:
-            self.logger.warning("No language in config -- using defaults: %s" %
-                DEFAULT_LANGUAGE_CODE)
+            self.logger.warning(
+                "No language in config -- using defaults: %s" %
+                DEFAULT_LANGUAGE_CODE
+            )
             self._language_code = DEFAULT_LANGUAGE_CODE
 
+    @defer.inlineCallbacks
     def _get_article_info(self, name):
         url = "https://%s.wikipedia.org/wiki/%s" % (
             self._language_code,
@@ -45,10 +52,10 @@ class WikipediaPlugin:
         )
 
         try:
-            uh = request.urlopen(url)
-            url = uh.url
-            soup = BeautifulSoup(uh, features="html.parser")
-        except Exception as e:
+            r = yield deferToThread(requests.get, url)
+            url = r.url
+            soup = BeautifulSoup(r.text, features="html.parser")
+        except Exception:
             self.logger.warning(
                 "Couldn't query Wikipedia (404?) for: %s" % name, exc_info=True
             )
@@ -60,20 +67,21 @@ class WikipediaPlugin:
             title = soup.find("h1").get_text()
 
             # Manipulation to get first paragraph without HTML markup
-            is_disambiguation = soup.find("table", id="disambigbox") is not None
-            if is_disambiguation:
-                summary = "Disambiguation"
+            disambiguation = soup.find("table", id="disambigbox") is not None
+            if disambiguation:
+                summary = "Disambiguation Page"
             else:
                 content = soup.find_all("div", id="mw-content-text")[0]
                 first_paragraph = content.find(
                     "p", class_=class_is_not_mw_empty_elt).get_text().strip()
 
                 if len(first_paragraph) > self._max_description_length:
-                    summary = first_paragraph[:self._max_description_length] + \
-                        '...'
+                    summary = "{}...".format(
+                        first_paragraph[:self._max_description_length].strip()
+                    )
                 else:
                     summary = first_paragraph
-        except Exception as e:
+        except Exception:
             self.logger.error(
                 "Error parsing Wikipedia result for: %s" % name,
                 exc_info=True
@@ -81,7 +89,7 @@ class WikipediaPlugin:
 
             return "Error parsing Wikipedia result for: %s" % name
 
-        return "[ Wikipedia: %s | %s | %s ]" % (title, summary, url)
+        return "Wikipedia: %s - %s - %s" % (title, summary, url)
 
     @event('urls.detection')
     def url_callback(self, cardinal, channel, url):
@@ -95,10 +103,11 @@ class WikipediaPlugin:
     @command(['wiki', 'wikipedia'])
     @help("Gets a summary and link to a Wikipedia page")
     @help("Syntax: .wiki <article>")
+    @defer.inlineCallbacks
     def lookup_article(self, cardinal, user, channel, message):
         name = message.split(' ', 1)[1]
 
-        article_info = self._get_article_info(name)
+        article_info = yield self._get_article_info(name)
         cardinal.sendMsg(channel, article_info)
 
 

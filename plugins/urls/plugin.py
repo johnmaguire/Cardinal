@@ -96,7 +96,6 @@ class URLsPlugin:
             if hooked:
                 defer.returnValue(None)
 
-            # FIXME: Replace with Twisted call
             try:
                 o = request.build_opener()
                 # User agent helps combat some bot checks

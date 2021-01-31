@@ -3,6 +3,8 @@ import logging
 from cardinal.decorators import command, help
 
 import requests
+from twisted.internet import defer
+from twisted.internet.threads import deferToThread
 
 URBANDICT_API_PREFIX = 'http://api.urbandictionary.com/v0/define'
 
@@ -11,6 +13,7 @@ class UrbanDictPlugin:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
 
+    @defer.inlineCallbacks
     @command(['ud', 'urbandict'])
     @help('Returns the top Urban Dictionary definition for a given word.')
     @help('Syntax: .ud <word>')
@@ -23,8 +26,9 @@ class UrbanDictPlugin:
 
         try:
             url = URBANDICT_API_PREFIX
-            data = requests.get(url, params={'term': word}).json()
+            r = yield deferToThread(requests.get, url, params={'term': word})
 
+            data = r.json()
             entry = data['list'].pop(0)
 
             definition = entry['definition']
@@ -32,7 +36,7 @@ class UrbanDictPlugin:
             thumbs_down = entry['thumbs_down']
             link = entry['permalink']
 
-            response = ' UD [%s] - %s [\u25b2%d|\u25bc%d] - %s' % (
+            response = 'UD [%s]: %s [\u25b2%d|\u25bc%d] - %s' % (
                 word, definition, thumbs_up, thumbs_down, link
             )
 

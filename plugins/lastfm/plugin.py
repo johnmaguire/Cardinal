@@ -1,9 +1,10 @@
 import os
 import sqlite3
-import json
-from urllib import request
-from urllib import error as urllib_error
 import logging
+
+import requests
+from twisted.internet import defer
+from twisted.internet.threads import deferToThread
 
 from cardinal.decorators import command, help
 
@@ -44,7 +45,6 @@ class LastfmPlugin:
             ")"
         )
         self.conn.commit()
-
 
     @command('setlastfm')
     @help(["Sets the default Last.fm username for your nick.",
@@ -96,11 +96,11 @@ class LastfmPlugin:
             "Your Last.fm username is now set to %s." % username
         )
 
-
     @command(['np', 'nowplaying'])
     @help("Get the Last.fm track currently played by a user (defaults to "
-           "username set with .setlastfm)")
+          "username set with .setlastfm)")
     @help("Syntax: .np [username]")
+    @defer.inlineCallbacks
     def now_playing(self, cardinal, user, channel, msg):
         # Before we do anything, let's make sure we'll be able to query Last.fm
         if self.api_key is None:
@@ -155,22 +155,28 @@ class LastfmPlugin:
             username = result[0]
 
         try:
-            uh = request.urlopen(
-                "http://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks"
-                "&user=%s&api_key=%s&limit=1&format=json" %
-                (username, self.api_key)
+            r = yield deferToThread(
+                requests.get,
+                "http://ws.audioscrobbler.com/2.0/",
+                params={
+                    "method": "user.getrecenttracks",
+                    "user": username,
+                    "api_key": self.api_key,
+                    "limit": 1,
+                    "format": "json",
+                }
             )
-            content = json.load(uh)
-        except Exception as e:
-            # Handle 404 (i.e. user not exists) separately
-            if isinstance(e, urllib_error.HTTPError) and e.code == 404:
+            if r.status_code == 404:
                 cardinal.sendMsg(
                         channel,
                         "Last.fm user '{}' does not exist".format(username))
                 return
+            r.raise_for_status()
 
-            cardinal.sendMsg(channel, "Unable to connect to Last.fm.")
-            self.logger.exception("Failed to connect to Last.fm")
+            content = r.json()
+        except Exception:
+            cardinal.sendMsg(channel, "Error communicating with Last.fm")
+            self.logger.exception("Error communicating with Last.fm")
             return
 
         if 'error' in content and content['error'] == 10:

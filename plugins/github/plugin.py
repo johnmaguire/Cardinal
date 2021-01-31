@@ -1,11 +1,13 @@
 import re
 import json
 import logging
-from urllib import request
-from urllib import error as urllib_error
+import requests
 
 from cardinal.decorators import command, event, help
 from cardinal.exceptions import EventRejectedMessage
+
+from twisted.internet import defer
+from twisted.internet.threads import deferToThread
 
 REPO_URL_REGEX = re.compile(
     r'https://(?:www\.)?github\..{2,4}/([^/]+)/([^/]+)',
@@ -41,6 +43,7 @@ class GithubPlugin:
     @command('issue')
     @help("Find a Github repo or issue (or combination thereof)")
     @help("Syntax: .issue [username/repository] <id or search query>")
+    @defer.inlineCallbacks
     def search(self, cardinal, user, channel, msg):
         # Grab the search query
         try:
@@ -65,10 +68,10 @@ class GithubPlugin:
             return
 
         try:
-            self._show_issue(cardinal, channel, repo, int(query))
+            yield self._show_issue(cardinal, channel, repo, int(query))
         except ValueError:
-            res = self._form_request('search/issues',
-                                     {'q': "repo:%s %s" % (repo, query)})
+            res = yield self._form_request('search/issues',
+                                           {'q': "repo:%s %s" % (repo, query)})
             num = 0
             for issue in res['items']:
                 cardinal.sendMsg(channel, self._format_issue(issue))
@@ -82,11 +85,12 @@ class GithubPlugin:
             elif res['total_count'] == 0:
                 cardinal.sendMsg(channel,
                                  "No matching issues found in %s" % repo)
-        except urllib_error.HTTPError:
+        except requests.exceptions.HTTPError:
             cardinal.sendMsg(channel,
                              "Couldn't find %s#%d" % (repo, int(query)))
 
     @event('urls.detection')
+    @defer.inlineCallbacks
     def get_repo_info(self, cardinal, channel, url):
         match = re.match(ISSUE_URL_REGEX, url)
         if not match:
@@ -97,15 +101,15 @@ class GithubPlugin:
         groups = match.groups()
         try:
             if len(groups) == 3:
-                self._show_issue(cardinal,
-                                 channel,
-                                 '%s/%s' % (groups[0], groups[1]),
-                                 int(groups[2]))
+                yield self._show_issue(cardinal,
+                                       channel,
+                                       '%s/%s' % (groups[0], groups[1]),
+                                       int(groups[2]))
             elif len(groups) == 2:
-                self._show_repo(cardinal,
-                                channel,
-                                '%s/%s' % (groups[0], groups[1]))
-        except urllib_error.HTTPError:
+                yield self._show_repo(cardinal,
+                                      channel,
+                                      '%s/%s' % (groups[0], groups[1]))
+        except requests.exceptions.HTTPError:
             raise EventRejectedMessage
 
     def _format_issue(self, issue):
@@ -119,7 +123,7 @@ class GithubPlugin:
         if issue['assignee']:
             message += " @%s" % issue['assignee']['login']
 
-        message += " " + issue['html_url']
+        message += " - " + issue['html_url']
 
         # Add labels, if there are any
         if issue['labels']:
@@ -129,12 +133,14 @@ class GithubPlugin:
 
         return message
 
+    @defer.inlineCallbacks
     def _show_issue(self, cardinal, channel, repo, number):
-        issue = self._form_request('repos/%s/issues/%d' % (repo, number))
+        issue = yield self._form_request('repos/%s/issues/%d' % (repo, number))
         cardinal.sendMsg(channel, self._format_issue(issue))
 
+    @defer.inlineCallbacks
     def _show_repo(self, cardinal, channel, repo):
-        repo = self._form_request('repos/' + repo)
+        repo = yield self._form_request('repos/' + repo)
         message = "[ %s - %s " % (repo['full_name'], repo['description'])
         if repo['stargazers_count'] > 0:
             message += u"| \u2605 %s stars " % repo['stargazers_count']
@@ -149,13 +155,16 @@ class GithubPlugin:
 
         cardinal.sendMsg(channel, message)
 
-    def _form_request(self, endpoint, params={}):
-        # Make request to specified endpoint and return JSON decoded result
-        uh = urllib.request.urlopen("https://api.github.com/" +
-                             endpoint + "?" +
-                             urllib.parse.urlencode(params))
+    @defer.inlineCallbacks
+    def _form_request(self, endpoint, params=None):
+        if params is None:
+            params = {}
 
-        return json.load(uh)
+        r = yield deferToThread(requests.get, "https://api.github.com/" + endpoint,
+                                params=params)
+        r.raise_for_status()
+
+        return r.json()
 
 
 def setup(cardinal, config):
