@@ -1,12 +1,16 @@
-from urllib.request import urlopen
-import json
+import logging
 
 from cardinal.decorators import command, help
 
-URBANDICT_API_PREFIX = 'http://api.urbandictionary.com/v0/define?term='
+import requests
+
+URBANDICT_API_PREFIX = 'http://api.urbandictionary.com/v0/define'
 
 
 class UrbanDictPlugin:
+    def __init__(self):
+        self.logger = logging.getLogger(__name__)
+
     @command(['ud', 'urbandict'])
     @help('Returns the top Urban Dictionary definition for a given word.')
     @help('Syntax: .ud <word>')
@@ -18,17 +22,23 @@ class UrbanDictPlugin:
             return
 
         try:
-            url = URBANDICT_API_PREFIX + word
-            f = urlopen(url).read()
-            data = json.loads(f)
+            url = URBANDICT_API_PREFIX
+            data = requests.get(url, params={'term': word}).json()
 
-            word_def = data['list'][0]['definition']
-            link = data['list'][0]['permalink']
+            entry = data['list'].pop(0)
 
-            response = 'UD for %s: %s (%s)' % (word, word_def, link)
+            definition = entry['definition']
+            thumbs_up = entry['thumbs_up']
+            thumbs_down = entry['thumbs_down']
+            link = entry['permalink']
+
+            response = ' UD [%s] - %s [\u25b2%d|\u25bc%d] - %s' % (
+                word, definition, thumbs_up, thumbs_down, link
+            )
 
             cardinal.sendMsg(channel, response)
         except Exception:
+            self.logger.exception("Error with definition: %s", word)
             cardinal.sendMsg(channel, "Could not retrieve definition for %s" % word)
 
 
