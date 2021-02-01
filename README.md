@@ -13,14 +13,15 @@ You can find us at [#cardinal](https://www.mibbit.com/#cardinal@irc.darkscience.
 Anything, if you're creative! Cardinal does come with some plugins to get you started...
 
 * Fetching URL titles
-* sed-like substitutions
-* Reminders
+* Wolfram Alpha calculations
+* Wikipedia definitions
+* Urban Dictionary definitions
 * Weather reports
+* Reminders
 * Google searches
 * Now playing w/ Last.fm
-* Urban Dictionary definitions
-* Wikipedia definitions
 * Stock ticker
+* sed-like substitutions
 * ... and more!
 
 But the best part of Cardinal is how easy it is to add more!
