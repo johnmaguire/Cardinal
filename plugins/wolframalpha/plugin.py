@@ -7,7 +7,7 @@ from twisted.internet.threads import deferToThread
 from cardinal.decorators import command, help
 
 
-API_URL = "https://api.wolframalpha.com/v1/result?appid={app_id}&i={query}"
+API_URL = "https://api.wolframalpha.com/v1/result"
 
 
 class WolframAlphaPlugin:
@@ -21,10 +21,10 @@ class WolframAlphaPlugin:
     def make_query(self, query):
         self.logger.debug("Making query to Wolfram Alpha: %s", query)
 
-        r = yield deferToThread(requests.get, API_URL.format(
-            app_id=self.app_id,
-            query=query,
-        ))
+        r = yield deferToThread(requests.get, API_URL, params={
+            'appid': self.app_id,
+            'i': query,
+        })
         r.raise_for_status()
         answer = r.text
 
