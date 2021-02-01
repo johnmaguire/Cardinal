@@ -422,7 +422,7 @@ class TickerPlugin:
         nick = user.nick
         if match.group(1):
             if not self.is_relay_bot(user):
-                defer.returnValue(None)
+                return None
 
             nick = util.strip_formatting(match.group(1))
 
@@ -452,14 +452,14 @@ class TickerPlugin:
         else:
             # this shouldn't happen
             self.logger.warning("No price or percentage: {}".format(message))
-            defer.returnValue(None)
+            return None
 
-        defer.returnValue((
+        return (
             nick,
             symbol,
             prediction,
             base,
-        ))
+        )
 
     def save_prediction(self, symbol, nick, base, prediction):
         with self.db() as db:
@@ -485,11 +485,11 @@ class TickerPlugin:
         data = r.json()
 
         try:
-            defer.returnValue({'symbol': data['symbol'],
-                               'price': float(data['latestPrice']),
-                               'previous close': float(data['previousClose']),
-                               'change': float(data['changePercent']) * 100,
-                               })
+            return ({'symbol': data['symbol'],
+                     'price': float(data['latestPrice']),
+                     'previous close': float(data['previousClose']),
+                     'change': float(data['changePercent']) * 100,
+                     })
         except KeyError as e:
             self.logger.error("{}, with data: {}".format(e, data))
 

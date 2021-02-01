@@ -83,7 +83,7 @@ class URLsPlugin:
             if (url == self.last_url and self.last_url_at and
                     (datetime.now() - self.last_url_at).seconds <
                     self.lookup_cooloff):
-                defer.returnValue(None)
+                return None
 
             self.last_url = url
             self.last_url_at = datetime.now()
@@ -94,7 +94,7 @@ class URLsPlugin:
                 'urls.detection', channel, url)
 
             if hooked:
-                defer.returnValue(None)
+                return None
 
             try:
                 o = request.build_opener()
@@ -105,13 +105,13 @@ class URLsPlugin:
                 f = yield deferToThread(o.open, url, timeout=self.timeout)
             except Exception:
                 self.logger.exception("Unable to load URL: %s" % url)
-                defer.returnValue(None)
+                return None
 
             # Attempt to find the title
             content_type = f.info()['content-type']
             if not ('text/html' in content_type or
                     'text/xhtml' in content_type):
-                defer.returnValue(None)
+                return None
             content = f.read(self.read_bytes).decode('utf-8')
             f.close()
 
