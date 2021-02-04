@@ -24,7 +24,7 @@ class SedPlugin:
         message = message.replace('\\/', ESCAPE_PLACEHOLDER)
 
         # check for substitution
-        match = re.match('^s/(.+?)/(.+?)(?:/([gi]*))?$', message)
+        match = re.match('^s/(.+?)/(.*?)(?:/([gi]*))?$', message)
         if match is None:
             return None
 
@@ -110,7 +110,8 @@ class SedPlugin:
     @event('irc.quit')
     def on_quit(self, cardinal, quitter, message):
         if quitter.nick == cardinal.nickname:
-            self.history = defauldict(dict)
+            self.history = defaultdict(dict)
+
         else:
             for channel in self.history:
                 try:
