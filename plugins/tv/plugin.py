@@ -121,7 +121,7 @@ class TVPlugin:
         self.logger = logging.getLogger(__name__)
 
     @command('ep')
-    @help('Get the next air date for a TV show')
+    @help('Get air date info for a TV show.')
     @help('Syntax: .ep <tv show>')
     @defer.inlineCallbacks
     def next_air_date(self, cardinal, user, channel, msg):

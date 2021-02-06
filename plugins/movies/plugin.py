@@ -19,7 +19,7 @@ class MoviePlugin(object):
         self.api_key = config.get('api_key', None)
 
     @command(['movie', 'omdb', 'imdb'])
-    @help('Get the first imdb result for a given search.')
+    @help('Get the first IMDb result for a given search')
     @help('Syntax: .movie <search query>')
     @defer.inlineCallbacks
     def search(self, cardinal, user, channel, msg):
