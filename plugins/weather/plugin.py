@@ -41,8 +41,10 @@ class WeatherPlugin:
         merged_params.update(oauth_params)
 
         # Sort and canonicalize the params
-        sorted_params = [k + '=' + urllib_parse.quote(merged_params[k], safe='')
-                         for k in sorted(merged_params.keys())]
+        sorted_params = [
+            k + '=' + urllib_parse.quote(merged_params[k], safe='')
+            for k in sorted(merged_params.keys())
+        ]
 
         signature_string = method + SIGNATURE_CONCAT + \
             urllib_parse.quote(url, safe='') + SIGNATURE_CONCAT + \
@@ -145,13 +147,13 @@ class WeatherPlugin:
         cardinal.sendMsg(
             channel,
             "[ {} | {} | Temp: {} °F ({} °C) | Humidity: {}% |"
-            " Winds: {} mph ({} kph) ]".format(location,
-                                               condition,
-                                               temperature,
-                                               temperature_c,
-                                               humidity,
-                                               winds,
-                                               winds_k))
+            " Winds: {} mph ({} km/h) ]".format(location,
+                                                condition,
+                                                temperature,
+                                                temperature_c,
+                                                humidity,
+                                                winds,
+                                                winds_k))
 
 
 def setup(cardinal):
