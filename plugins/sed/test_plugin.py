@@ -23,7 +23,8 @@ def test_substitute_modifiers(message, new_message):
 
     assert plugin.substitute(user, channel, message) == new_message
 
-def test_on_msg_failed_correction():
+
+def test_on_msg_correction():
     user = user_info('user', None, None)
     channel = '#channel'
 
@@ -36,8 +37,9 @@ def test_on_msg_failed_correction():
     plugin.on_msg(cardinal, user, channel, 's/foo/bar/')
     cardinal.sendMsg.assert_called_with(
         channel,
-        "{} meant: yo bar matters".format(nick),
+        "{} meant: yo, bar matters".format(user.nick),
     )
+
 
 def test_on_msg_no_history():
     user = user_info('user', None, None)
@@ -64,9 +66,9 @@ def test_on_msg_failed_correction():
 
 
 @pytest.mark.parametrize("message,new_message", [
-    ('s/\//X', 'hiXhey/hello'),
-    ('s/\//X/g', 'hiXheyXhello'),
-    ('s/hi/\//', '//hey/hello'),
+    (r's/\//X', 'hiXhey/hello'),
+    (r's/\//X/g', 'hiXheyXhello'),
+    (r's/hi/\//', '//hey/hello'),
     ('s/hi/hey//', None),
 ])
 def test_substitute_escaping(message, new_message):
@@ -86,7 +88,7 @@ def test_not_a_substitute():
     plugin = SedPlugin()
     plugin.history[channel][user.nick] = 'doesnt matter'
 
-    assert plugin.substitute(user, channel, 'foobar') == None
+    assert plugin.substitute(user, channel, 'foobar') is None
 
 
 def test_substitution_doesnt_match():
@@ -135,7 +137,6 @@ def test_on_part():
 def test_on_part_no_history():
     channel = '#channel'
     user = user_info('nick', None, None)
-    msg = 'msg'
 
     plugin = SedPlugin()
     cardinal = Mock()
@@ -150,7 +151,6 @@ def test_on_part_self_no_history():
 
     channel = '#channel'
     user = user_info(cardinal.nickname, None, None)
-    msg = 'msg'
 
     plugin = SedPlugin()
 
@@ -189,7 +189,6 @@ def test_on_kick():
 def test_on_kick_no_history():
     channel = '#channel'
     user = user_info('nick', None, None)
-    msg = 'msg'
 
     plugin = SedPlugin()
     cardinal = Mock()
@@ -204,7 +203,6 @@ def test_on_kick_self_no_history():
 
     channel = '#channel'
     user = user_info(cardinal.nickname, None, None)
-    msg = 'msg'
 
     plugin = SedPlugin()
 
