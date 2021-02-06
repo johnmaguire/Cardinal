@@ -16,6 +16,7 @@ Anything, if you're creative! Cardinal does come with some plugins to get you st
 * Wolfram Alpha calculations
 * Wikipedia definitions
 * Urban Dictionary definitions
+* Movie and TV show lookups
 * Weather reports
 * Reminders
 * Google searches
