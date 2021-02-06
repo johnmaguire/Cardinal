@@ -1,4 +1,5 @@
 import logging
+import math
 
 from twisted.internet import defer
 from twisted.internet.threads import deferToThread
@@ -123,6 +124,10 @@ class MoviePlugin(object):
         )).json()
 
     def _format_data(self, data):
+        rating = float(data['imdbRating'])
+        stars = '\u2b51' * round(rating)
+        stars += '.' * (10 - round(rating))
+
         return [
             "[IMDb] {title} ({year}) - https://imdb.com/title/{movie_id}"
             .format(
@@ -133,8 +138,8 @@ class MoviePlugin(object):
                 F.bold("Director"), data['Director'],
                 F.bold("Cast"), data['Actors'],
             ),
-            "{}: {}  {}: {}  {}: {}  {}: {}".format(
-                F.bold("Rating"), data['imdbRating'],
+            "{}: {} [{}]  {}: {}  {}: {}  {}: {}".format(
+                F.bold("Rating"), data['imdbRating'], stars,
                 F.bold("Runtime"), data['Runtime'],
                 F.bold("Genre"), data['Genre'],
                 F.bold("Released"), data['Released'],
