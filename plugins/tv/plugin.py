@@ -163,16 +163,22 @@ def format_episode(data):
 
 
 class TVPlugin:
-    def __init__(self, config):
+    def __init__(self, cardinal, config):
         self.logger = logging.getLogger(__name__)
+        self.cardinal = cardinal
 
         if config is None:
             config = {}
 
         self.default_output = config.get('default_output', 'short')
+        self.private_output = config.get('private_output', 'full')
         self.channels = config.get('channels', {})
 
     def get_output_format(self, channel):
+        chantypes = self.cardinal.supported.getFeature("CHANTYPES") or ('#',)
+        if channel[0] not in chantypes:
+            return self.private_output
+
         # Fetch channel-specific output format, or default
         return self.channels.get(channel, {}) \
             .get('output', self.default_output)
@@ -227,5 +233,5 @@ class TVPlugin:
             cardinal.sendMsg(channel, message)
 
 
-def setup(_cardinal, config):
-    return TVPlugin(config)
+def setup(cardinal, config):
+    return TVPlugin(cardinal, config)

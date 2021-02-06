@@ -46,17 +46,23 @@ def format_data_full(data):
 
 
 class MoviePlugin(object):
-    def __init__(self, config):
+    def __init__(self, cardinal, config):
         self.logger = logging.getLogger(__name__)
+        self.cardinal = cardinal
 
         if config is None:
             raise Exception("Movie plugin requires configuration")
 
         self.api_key = config.get('api_key', None)
         self.default_output = config.get('default_output', 'short')
+        self.private_output = config.get('private_output', 'full')
         self.channels = config.get('channels', {})
 
     def get_output_format(self, channel):
+        chantypes = self.cardinal.supported.getFeature("CHANTYPES") or ('#',)
+        if channel[0] not in chantypes:
+            return self.private_output
+
         # Fetch channel-specific output format, or default
         return self.channels.get(channel, {}) \
             .get('output', self.default_output)
@@ -173,5 +179,5 @@ class MoviePlugin(object):
             return format_data_full(data)
 
 
-def setup(_cardinal, config):
-    return MoviePlugin(config)
+def setup(cardinal, config):
+    return MoviePlugin(cardinal, config)
