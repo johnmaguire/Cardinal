@@ -1,5 +1,4 @@
 import logging
-import math
 
 from twisted.internet import defer
 from twisted.internet.threads import deferToThread
@@ -10,14 +9,57 @@ from cardinal.exceptions import EventRejectedMessage
 from cardinal.util import F
 
 
+def format_data_short(data):
+    return "[ IMDb: {title} ({year}) - {runtime} | Rating: {rating} | Plot: {plot} | {link} ]".format(  # noqa: E501
+        title=data['Title'],
+        year=data['Year'],
+        runtime=data['Runtime'],
+        rating=data['imdbRating'],
+        plot=data['Plot'],
+        link="https://imdb.com/title/{}".format(data['imdbID']),
+    )
+
+
+def format_data_full(data):
+    rating = float(data['imdbRating'])
+    stars = '\u2b51' * round(rating)
+    stars += '.' * (10 - round(rating))
+
+    return [
+        "[IMDb] {title} ({year}) - https://imdb.com/title/{movie_id}"
+        .format(
+            title=F.bold(data['Title']), year=data['Year'],
+            movie_id=data['imdbID']
+        ),
+        "{}: {}  {}: {}".format(
+            F.bold("Director"), data['Director'],
+            F.bold("Cast"), data['Actors'],
+        ),
+        "{}: {} [{}]  {}: {}  {}: {}  {}: {}".format(
+            F.bold("Rating"), data['imdbRating'], stars,
+            F.bold("Runtime"), data['Runtime'],
+            F.bold("Genre"), data['Genre'],
+            F.bold("Released"), data['Released'],
+        ),
+        "{}: {}".format(F.bold("Plot"), data['Plot']),
+    ]
+
+
 class MoviePlugin(object):
-    def __init__(self, cardinal, config):
+    def __init__(self, config):
         self.logger = logging.getLogger(__name__)
 
         if config is None:
-            return
+            raise Exception("Movie plugin requires configuration")
 
         self.api_key = config.get('api_key', None)
+        self.default_output = config.get('default_output', 'short')
+        self.channels = config.get('channels', {})
+
+    def get_output_format(self, channel):
+        # Fetch channel-specific output format, or default
+        return self.channels.get(channel, {}) \
+            .get('output', self.default_output)
 
     @command('movie')
     @help('Get the first movie IMDb result for a given search')
@@ -88,11 +130,11 @@ class MoviePlugin(object):
 
             params = {
                 "i": movie_id,
-                "plot": "full",
+                "plot": self.get_output_format(channel),
             }
-        # We should never reach this but just in case..
         except IndexError:
-            cardinal.sendMsg(channel, "Unable to get movie id.")
+            cardinal.sendMsg(channel, "Error parsing result.")
+            self.logger.exception("Failure parsing result: {}".format(result))
             return
 
         try:
@@ -103,10 +145,11 @@ class MoviePlugin(object):
             return
 
         try:
-            for message in self._format_data(result):
+            for message in self._format_data(channel, result):
                 cardinal.sendMsg(channel, message)
         except Exception:
-            self.logger.exception("Failed to parse info for %s" % movie_id)
+            cardinal.sendMsg(channel, "Error parsing result.")
+            self.logger.exception("Failed to parse info for %s", movie_id)
             raise EventRejectedMessage
 
     @defer.inlineCallbacks
@@ -119,34 +162,16 @@ class MoviePlugin(object):
 
         return (yield deferToThread(
             requests.get,
-            'http://www.omdbapi.com',
+            'https://www.omdbapi.com',
             params=payload
         )).json()
 
-    def _format_data(self, data):
-        rating = float(data['imdbRating'])
-        stars = '\u2b51' * round(rating)
-        stars += '.' * (10 - round(rating))
-
-        return [
-            "[IMDb] {title} ({year}) - https://imdb.com/title/{movie_id}"
-            .format(
-                title=F.bold(data['Title']), year=data['Year'],
-                movie_id=data['imdbID']
-            ),
-            "{}: {}  {}: {}".format(
-                F.bold("Director"), data['Director'],
-                F.bold("Cast"), data['Actors'],
-            ),
-            "{}: {} [{}]  {}: {}  {}: {}  {}: {}".format(
-                F.bold("Rating"), data['imdbRating'], stars,
-                F.bold("Runtime"), data['Runtime'],
-                F.bold("Genre"), data['Genre'],
-                F.bold("Released"), data['Released'],
-            ),
-            "{}: {}".format(F.bold("Plot"), data['Plot']),
-        ]
+    def _format_data(self, channel, data):
+        if self.get_output_format(channel) == 'short':
+            return [format_data_short(data)]
+        else:
+            return format_data_full(data)
 
 
-def setup(cardinal, config):
-    return MoviePlugin(cardinal, config)
+def setup(_cardinal, config):
+    return MoviePlugin(config)
