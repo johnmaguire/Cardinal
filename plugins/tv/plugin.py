@@ -162,7 +162,8 @@ class TVPlugin:
             header += " [{}]".format(
                 show['network'] if show['network'] else show['country']
             )
-        if show['schedule']:
+        # don't show schedule if the next episode isn't announced
+        if show['schedule'] and next_episode is not None:
             header += " - {}".format(show['schedule'])
         header += " - [{}]".format(show['status'])
 
