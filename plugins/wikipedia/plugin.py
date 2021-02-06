@@ -92,12 +92,13 @@ class WikipediaPlugin:
         return "Wikipedia: %s - %s - %s" % (title, summary, url)
 
     @event('urls.detection')
+    @defer.inlineCallbacks
     def url_callback(self, cardinal, channel, url):
         match = re.match(ARTICLE_URL_REGEX, url)
         if not match:
             raise EventRejectedMessage
 
-        article_info = self._get_article_info(match.group(1))
+        article_info = yield self._get_article_info(match.group(1))
         cardinal.sendMsg(channel, article_info)
 
     @command(['wiki', 'wikipedia'])
