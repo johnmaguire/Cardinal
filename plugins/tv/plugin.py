@@ -64,7 +64,9 @@ def fetch_show(show):
 
     imdb_url = None
     if data['externals']['imdb']:
-        imdb_url = "https://imdb.com/{}".format(data['externals']['imdb'])
+        imdb_url = "https://imdb.com/title/{}".format(
+            data['externals']['imdb']
+        )
 
     return {
         'name': data['name'],
@@ -78,6 +80,50 @@ def fetch_show(show):
             'previous_episode': previous_episode,
         }
     }
+
+
+def format_data_full(show, next_episode, previous_episode):
+    # Format header
+    header = show['name']
+    if show['network'] and show['country']:
+        header += " [{} - {}]".format(show['country'], show['network'])
+    elif show['network'] or show['country']:
+        header += " [{}]".format(
+            show['network'] if show['network'] else show['country']
+        )
+    # don't show schedule if the next episode isn't announced
+    if show['schedule'] and next_episode is not None:
+        header += " - {}".format(show['schedule'])
+    header += " - [{}]".format(show['status'])
+
+    # Build messages
+    messages = [header]
+    messages.append("Last Episode: {}".format(
+        format_episode(previous_episode)
+    ))
+    if show['status'] != 'Ended':
+        messages.append("Next Episode: {}".format(
+            format_episode(next_episode)
+        ))
+    if show['imdb_url']:
+        messages.append(show['imdb_url'])
+
+    return messages
+
+
+def format_data_short(show, next_episode):
+    title = show['name']
+    if show['network']:
+        title += " - " + show['network']
+
+    if show['status'] == 'Ended':
+        next_ep = "Show Ended"
+    else:
+        next_ep = "Next Episode: {}".format(
+            format_episode(next_episode)
+        )
+
+    return "[ {} | {} ]".format(title, next_ep)
 
 
 @defer.inlineCallbacks
@@ -117,8 +163,19 @@ def format_episode(data):
 
 
 class TVPlugin:
-    def __init__(self):
+    def __init__(self, config):
         self.logger = logging.getLogger(__name__)
+
+        if config is None:
+            config = {}
+
+        self.default_output = config.get('default_output', 'short')
+        self.channels = config.get('channels', {})
+
+    def get_output_format(self, channel):
+        # Fetch channel-specific output format, or default
+        return self.channels.get(channel, {}) \
+            .get('output', self.default_output)
 
     @command('ep')
     @help('Get air date info for a TV show.')
@@ -149,35 +206,16 @@ class TVPlugin:
         if show['_links']['next_episode']:
             next_episode = yield fetch_episode(
                 show['_links']['next_episode'])
-        previous_episode = None
-        if show['_links']['previous_episode']:
-            previous_episode = yield fetch_episode(
-                show['_links']['previous_episode'])
 
-        # Format header
-        header = show['name']
-        if show['network'] and show['country']:
-            header += " [{} - {}]".format(show['country'], show['network'])
-        elif show['network'] or show['country']:
-            header += " [{}]".format(
-                show['network'] if show['network'] else show['country']
-            )
-        # don't show schedule if the next episode isn't announced
-        if show['schedule'] and next_episode is not None:
-            header += " - {}".format(show['schedule'])
-        header += " - [{}]".format(show['status'])
+        if self.get_output_format(channel) == 'short':
+            messages = [format_data_short(show, next_episode)]
+        else:
+            previous_episode = None
+            if show['_links']['previous_episode']:
+                previous_episode = yield fetch_episode(
+                    show['_links']['previous_episode'])
 
-        # Build messages
-        messages = [header]
-        messages.append("Last Episode: {}".format(
-            format_episode(previous_episode)
-        ))
-        if show['status'] != 'Ended':
-            messages.append("Next Episode: {}".format(
-                format_episode(next_episode)
-            ))
-        if show['imdb_url']:
-            messages.append(show['imdb_url'])
+            messages = format_data_full(show, next_episode, previous_episode)
 
         # Show Name [Network] - [Status]
         #  - or -
@@ -189,5 +227,5 @@ class TVPlugin:
             cardinal.sendMsg(channel, message)
 
 
-def setup():
-    return TVPlugin()
+def setup(_cardinal, config):
+    return TVPlugin(config)
