@@ -1,9 +1,12 @@
 import logging
 
+from twisted.internet import defer
+from twisted.internet.threads import deferToThread
 import requests
 
 from cardinal.decorators import command, help
 from cardinal.exceptions import EventRejectedMessage
+from cardinal.util import F
 
 
 class MoviePlugin(object):
@@ -18,6 +21,7 @@ class MoviePlugin(object):
     @command(['movie', 'omdb', 'imdb'])
     @help('Get the first imdb result for a given search.')
     @help('Syntax: .movie <search query>')
+    @defer.inlineCallbacks
     def search(self, cardinal, user, channel, msg):
         # Before we do anything, let's make sure we'll be able to query omdb.
         if self.api_key is None:
@@ -36,7 +40,7 @@ class MoviePlugin(object):
         params = {'s': search_query, 'type': 'movie'}
 
         try:
-            result = self._form_request(params)
+            result = yield self._form_request(params)
         except Exception:
             cardinal.sendMsg(channel, "Unable to connect to OMDb.")
             self.logger.exception("Failed to connect to OMDb")
@@ -61,7 +65,8 @@ class MoviePlugin(object):
             movie_id = result['Search'][0]['imdbID']
 
             params = {
-                "i": movie_id
+                "i": movie_id,
+                "plot": "full",
             }
         # We should never reach this but just in case..
         except IndexError:
@@ -69,19 +74,20 @@ class MoviePlugin(object):
             return
 
         try:
-            result = self._form_request(params)
+            result = yield self._form_request(params)
         except Exception:
             cardinal.sendMsg(channel, "Unable to connect to OMDb.")
             self.logger.exception("Failed to connect to OMDb.")
             return
 
         try:
-            message = self._parse_data(result)
-            cardinal.sendMsg(channel, message)
+            for message in self._format_data(result):
+                cardinal.sendMsg(channel, message)
         except Exception:
             self.logger.exception("Failed to parse info for %s" % movie_id)
             raise EventRejectedMessage
 
+    @defer.inlineCallbacks
     def _form_request(self, payload):
         payload.update({
             'apikey': self.api_key,
@@ -89,20 +95,27 @@ class MoviePlugin(object):
             'r': 'json',
         })
 
-        return requests.get('http://www.omdbapi.com', params=payload).json()
+        return (yield deferToThread(requests.get, 'http://www.omdbapi.com', params=payload)).json()
 
-    def _parse_data(self, data):
-        title = data['Title']
-        year = data['Year']
-        rating = data['imdbRating']
-        genre = data['Genre']
-        plot = data['Plot']
-
-        movie_id = data['imdbID']
-
-        return "[ Title: {} | Year: {} | Rating: {} | Genre: {} | Plot: {} | http://imdb.com/title/{} ]".format(
-            title, year, rating, genre, plot, movie_id
-        )
+    def _format_data(self, data):
+        return [
+            "[IMDb] {title} ({year}) - https://imdb.com/title/{movie_id}"
+            .format(
+                title=F.bold(data['Title']), year=data['Year'],
+                movie_id=data['imdbID']
+            ),
+            "{}: {}  {}: {}".format(
+                F.bold("Director"), data['Director'],
+                F.bold("Cast"), data['Actors'],
+            ),
+            "{}: {}  {}: {}  {}: {}  {}: {}".format(
+                F.bold("Rating"), data['imdbRating'],
+                F.bold("Runtime"), data['Runtime'],
+                F.bold("Genre"), data['Genre'],
+                F.bold("Released"), data['Released'],
+            ),
+            "{}: {}".format(F.bold("Plot"), data['Plot']),
+        ]
 
 
 def setup(cardinal, config):

@@ -108,6 +108,26 @@ class formatting:
     # alias as this will be used commonly
     C = color
 
+    @staticmethod
+    def bold(text):
+        return "\x02{}\x02".format(text)
+
+    @staticmethod
+    def monospace(text):
+        return "\x11{}\x11".format(text)
+
+    @staticmethod
+    def italic(text):
+        return "\x1d{}\x1d".format(text)
+
+    @staticmethod
+    def strikethrough(text):
+        return "\x1e{}\x1e".format(text)
+
+    @staticmethod
+    def underline(text):
+        return "\x1f{}\x1f".format(text)
+
     reset = "\x03"
 
 
