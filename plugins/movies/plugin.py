@@ -18,11 +18,25 @@ class MoviePlugin(object):
 
         self.api_key = config.get('api_key', None)
 
-    @command(['movie', 'omdb', 'imdb'])
-    @help('Get the first IMDb result for a given search')
+    @command('movie')
+    @help('Get the first movie IMDb result for a given search')
     @help('Syntax: .movie <search query>')
     @defer.inlineCallbacks
-    def search(self, cardinal, user, channel, msg):
+    def movie(self, cardinal, user, channel, msg):
+        yield self.search(cardinal, user, channel, msg, result_type='movie')
+
+    @command('show')
+    @help('Get the first TV show IMDb result for a given search')
+    @help('Syntax: .show <search query>')
+    @defer.inlineCallbacks
+    def show(self, cardinal, user, channel, msg):
+        yield self.search(cardinal, user, channel, msg, result_type='series')
+
+    @command(['omdb', 'imdb'])
+    @help('Get the first IMDb result for a given search')
+    @help('Syntax: .imdb <search query>')
+    @defer.inlineCallbacks
+    def search(self, cardinal, user, channel, msg, result_type=None):
         # Before we do anything, let's make sure we'll be able to query omdb.
         if self.api_key is None:
             cardinal.sendMsg(
@@ -37,7 +51,16 @@ class MoviePlugin(object):
             cardinal.sendMsg("Syntax: .movie <search query>")
             return
 
-        params = {'s': search_query, 'type': 'movie'}
+        params = {}
+        if result_type:
+            params['type'] = result_type
+
+        # separate out year if search ends in 4 digits
+        if len(search_query) > 5 and search_query[-5] == " " \
+                and search_query[-4:].isnumeric():
+            params['y'] = search_query[-4:]
+            search_query = search_query[:-5]
+        params['s'] = search_query
 
         try:
             result = yield self._form_request(params)
@@ -45,8 +68,6 @@ class MoviePlugin(object):
             cardinal.sendMsg(channel, "Unable to connect to OMDb.")
             self.logger.exception("Failed to connect to OMDb")
             return
-
-        self.logger.debug("Search result: {}".format(result))
 
         if result['Response'] == 'False':
             if "Error" in result:
@@ -95,7 +116,11 @@ class MoviePlugin(object):
             'r': 'json',
         })
 
-        return (yield deferToThread(requests.get, 'http://www.omdbapi.com', params=payload)).json()
+        return (yield deferToThread(
+            requests.get,
+            'http://www.omdbapi.com',
+            params=payload
+        )).json()
 
     def _format_data(self, data):
         return [
