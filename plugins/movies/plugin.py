@@ -10,20 +10,32 @@ from cardinal.util import F
 
 
 def format_data_short(data):
-    return "[ IMDb: {title} ({year}) - {runtime} | Rating: {rating} | Plot: {plot} | {link} ]".format(  # noqa: E501
+    if data['imdbRating'] == "N/A":
+        rating = ""
+    else:
+        rating = "Rating: {} | ".format(float(data['imdbRating']))
+
+    return "[ IMDb: {title} ({year}) - {runtime} | {maybe_rating}Plot: {plot} | {link} ]".format(  # noqa: E501
         title=data['Title'],
         year=data['Year'],
         runtime=data['Runtime'],
-        rating=data['imdbRating'],
+        maybe_rating=rating,
         plot=data['Plot'],
         link="https://imdb.com/title/{}".format(data['imdbID']),
     )
 
 
 def format_data_full(data):
-    rating = float(data['imdbRating'])
-    stars = '\u2b51' * round(rating)
-    stars += '.' * (10 - round(rating))
+    if data['imdbRating'] == "N/A":
+        maybe_rating = ""
+    else:
+        rating = float(data['imdbRating'])
+        stars = '\u2b51' * round(rating)
+        stars += '.' * (10 - round(rating))
+
+        maybe_rating = "{}: {} [{}]  ".format(
+            F.bold("Rating"), data['imdbRating'], stars
+        )
 
     return [
         "[IMDb] {title} ({year}) - https://imdb.com/title/{movie_id}"
@@ -35,8 +47,8 @@ def format_data_full(data):
             F.bold("Director"), data['Director'],
             F.bold("Cast"), data['Actors'],
         ),
-        "{}: {} [{}]  {}: {}  {}: {}  {}: {}".format(
-            F.bold("Rating"), data['imdbRating'], stars,
+        "{}{}: {}  {}: {}  {}: {}".format(
+            maybe_rating,
             F.bold("Runtime"), data['Runtime'],
             F.bold("Genre"), data['Genre'],
             F.bold("Released"), data['Released'],
