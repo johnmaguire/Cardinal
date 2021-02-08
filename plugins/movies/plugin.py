@@ -30,7 +30,7 @@ def format_data_full(data):
         maybe_rating = ""
     else:
         rating = float(data['imdbRating'])
-        stars = '\u2b51' * round(rating)
+        stars = '*' * round(rating)
         stars += '.' * (10 - round(rating))
 
         maybe_rating = "{}: {} [{}]  ".format(
@@ -43,15 +43,15 @@ def format_data_full(data):
             title=F.bold(data['Title']), year=data['Year'],
             movie_id=data['imdbID']
         ),
-        "{}: {}  {}: {}".format(
-            F.bold("Director"), data['Director'],
-            F.bold("Cast"), data['Actors'],
-        ),
         "{}{}: {}  {}: {}  {}: {}".format(
             maybe_rating,
             F.bold("Runtime"), data['Runtime'],
             F.bold("Genre"), data['Genre'],
             F.bold("Released"), data['Released'],
+        ),
+        "{}: {}  {}: {}".format(
+            F.bold("Director"), data['Director'],
+            F.bold("Cast"), data['Actors'],
         ),
         "{}: {}".format(F.bold("Plot"), data['Plot']),
     ]
