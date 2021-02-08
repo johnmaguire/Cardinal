@@ -189,7 +189,7 @@ class TVPlugin:
     @defer.inlineCallbacks
     def next_air_date(self, cardinal, user, channel, msg):
         try:
-            show = msg.split(' ', 1)[1]
+            show = msg.split(' ', 1)[1].strip()
         except IndexError:
             cardinal.sendMsg(channel, "Syntax: .ep <tv show>")
             return

@@ -107,7 +107,7 @@ class MoviePlugin(object):
             return
 
         try:
-            search_query = msg.split(' ', 1)[1]
+            search_query = msg.split(' ', 1)[1].strip()
         except IndexError:
             cardinal.sendMsg("Syntax: .movie <search query>")
             return
