@@ -2,5 +2,5 @@ class TestSetupTooManyArgumentsPlugin:
     pass
 
 
-def setup(one, two, three):
+def setup(cardinal, config, three):
     pass

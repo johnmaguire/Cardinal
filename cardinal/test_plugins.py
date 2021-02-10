@@ -132,12 +132,15 @@ class TestPluginManager:
         'setup_missing',
         # This plugin's setup() function takes three arguments
         'setup_too_many_arguments',
+        # This plugin's entrypoint isn't callable
+        'entrypoint_invalid',
     ])
     def test_load_invalid(self, plugins):
         self.assert_load_failed(plugins)
 
     @pytest.mark.parametrize("plugins", [
         'valid',
+        'entrypoint',
         ['valid'],  # test list format
         # This plugin has both a config.yaml and config.json which used to be
         # disallowed, but now config.yaml is ignored
@@ -154,6 +157,14 @@ class TestPluginManager:
 
     def test_load_config_passed(self):
         name = 'setup_two_arguments'
+        self.assert_load_success(name, assert_config_is_none=False)
+        assert self.plugin_manager.plugins[name]['instance'].cardinal is \
+            self.cardinal
+        assert self.plugin_manager.plugins[name]['instance'].config == \
+            {'test': True}
+
+    def test_load_config_passed_opposite_order(self):
+        name = 'setup_config_cardinal_order'
         self.assert_load_success(name, assert_config_is_none=False)
         assert self.plugin_manager.plugins[name]['instance'].cardinal is \
             self.cardinal

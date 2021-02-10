@@ -140,7 +140,7 @@ class PluginManager:
 
         return module
 
-    def _create_plugin_instance(self, module, config=None):
+    def _instantiate_plugin(self, module, config=None):
         """Creates an instance of the plugin module.
 
         If the setup() function of the plugin's module takes an argument then
@@ -158,25 +158,42 @@ class PluginManager:
           PluginError -- When a plugin's setup function has more than one
             argument.
         """
-        if (not hasattr(module, 'setup') or
-                not inspect.isfunction(module.setup)):
-            raise PluginError("Plugin does not have a setup function")
+        if hasattr(module, 'entrypoint'):
+            entrypoint = module.entrypoint
+        # Old-style - will be deprecated in a future release of Cardinal
+        elif hasattr(module, 'setup') and inspect.isfunction(module.setup):
+            entrypoint = module.setup
+        else:
+            raise PluginError(
+                "Plugin must define an entrypoint attribute pointing to "
+                "the plugin's class definition or factory method/function."
+            )
+
+        try:
+            signature = inspect.signature(entrypoint)
+        except TypeError:
+            raise PluginError(
+                "Plugin's entrypoint must be a callable returning a new "
+                "instance of the plugin."
+            )
 
         # Check whether the setup method on the module accepts an argument. If
         # it does, they are expecting our instance of CardinalBot to be passed
         # in. If not, just call setup. If there is more than one argument
         # accepted, the method is invalid.
-        argspec = inspect.getfullargspec(module.setup)
-        if len(argspec.args) == 0:
-            instance = module.setup()
-        elif len(argspec.args) == 1:
-            instance = module.setup(self.cardinal)
-        elif len(argspec.args) == 2:
-            instance = module.setup(self.cardinal, config)
-        else:
-            raise PluginError("Unknown arguments for setup function")
+        kwargs = {}
+        for param in signature.parameters:
+            if param == 'cardinal':
+                kwargs['cardinal'] = self.cardinal
+            elif param == 'config':
+                kwargs['config'] = config
+            else:
+                raise PluginError(
+                    "Unknown parameter {} in entrypoint signature"
+                    .format(param)
+                )
 
-        return instance
+        return entrypoint(**kwargs)
 
     def _register_plugin_callbacks(self, callbacks):
         """Registers callbacks found in a plugin
@@ -450,7 +467,7 @@ class PluginManager:
 
             # Instanstiate the plugin
             try:
-                instance = self._create_plugin_instance(module, config)
+                instance = self._instantiate_plugin(module, config)
             except Exception:
                 self.logger.exception(
                     "Could not instantiate plugin: %s" % plugin

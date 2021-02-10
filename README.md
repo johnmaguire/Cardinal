@@ -65,8 +65,7 @@ class HelloWorldPlugin:
         nick, ident, vhost = user
         cardinal.sendMsg(channel, "Hello {}!".format(nick))
 
-def setup():
-    return HelloWorldPlugin()
+entrypoint = HelloWorldPlugin()
 ```
 
 Cardinal also offers a [lightweight database API](https://github.com/JohnMaguire/Cardinal/wiki/Database-Access). [Visit the wiki](https://github.com/JohnMaguire/Cardinal/wiki/Writing-Plugins) for detailed information.
