@@ -1,12 +1,7 @@
 class TestSetupOneArgumentPlugin:
-    pass
+    def __init__(self, cardinal):
+        self.cardinal = cardinal
 
 
-cardinal = None
-
-
-def setup(one):
-    global cardinal
-    cardinal = one
-
-    return TestSetupOneArgumentPlugin()
+def setup(cardinal):
+    return TestSetupOneArgumentPlugin(cardinal)

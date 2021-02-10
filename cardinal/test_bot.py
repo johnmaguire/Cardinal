@@ -1,9 +1,6 @@
 import logging
 import os
-import shutil
 import signal
-import tempfile
-from contextlib import contextmanager
 from datetime import datetime
 
 import pytest
@@ -19,15 +16,7 @@ from cardinal.bot import (
     user_info,
 )
 
-
-@contextmanager
-def tempdir(name):
-    tempdir_path = os.path.join(tempfile.gettempdir(), name)
-    os.mkdir(tempdir_path)
-    try:
-        yield tempdir_path
-    finally:
-        shutil.rmtree(tempdir_path)
+from .unittest_util import tempdir
 
 
 class TestCardinalBot:

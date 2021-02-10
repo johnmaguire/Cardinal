@@ -42,7 +42,7 @@ class PluginManager:
                  plugins,
                  blacklist,
                  _plugin_module_import_prefix='plugins',
-                 _plugin_module_directory_suffix='plugins'):
+                 _plugin_module_directory=None):
         """Creates a new instance, optionally with a list of plugins to load
 
         Keyword arguments:
@@ -60,16 +60,20 @@ class PluginManager:
         # Module name from which plugins are imported. This exists to assist
         # in unit testing.
         self._plugin_module_import_prefix = _plugin_module_import_prefix
-        self.plugins_directory = os.path.abspath(os.path.join(
-            os.path.dirname(os.path.realpath(os.path.abspath(__file__))),
-            '..',
-            _plugin_module_directory_suffix
-        ))
+        if _plugin_module_directory is None:
+            self.plugins_directory = os.path.abspath(os.path.join(
+                os.path.dirname(os.path.realpath(os.path.abspath(__file__))),
+                '..',
+                'plugins',
+            ))
+        else:
+            self.plugins_directory = _plugin_module_directory
 
         # Used for iterating PluginManager plugins
         self.iteration_counter = 0
 
         self.plugins = {}
+        self._module_cache = {}
 
         self.load(plugins)
 
@@ -111,17 +115,11 @@ class PluginManager:
 
         return self.plugins[keys[self.iteration_counter - 1]]
 
-    def _import_module(self, module, suffix='plugin'):
+    def _import_module(self, plugin, suffix='plugin'):
         """Given a plugin name, will import it from its directory or reload it.
 
-        If we are passing in a module, we can safely assume at this point that
-        it's a plugin we've already loaded, so we just need to run reload() on
-        it. However, if we're loading it fresh then we need to import it out
-        of the plugins directory.
-
         Returns:
-          object -- The module that was loaded.
-
+          The module that was loaded.
         """
         # Sort of a hack... this helps with debugging, as uncaught exceptions
         # can show the wrong data (line numbers / relevant code) if linecache
@@ -129,13 +127,18 @@ class PluginManager:
         # internal cache of code files and line numbers.
         linecache.clearcache()
 
-        if inspect.ismodule(module):
-            return reload(module)
-        elif isinstance(module, str):
-            return importlib.import_module('%s.%s.%s' %
-                                           (self._plugin_module_import_prefix,
-                                            module,
-                                            suffix))
+        if plugin in self._module_cache:
+            module = reload(self._module_cache[plugin])
+        else:
+            module = importlib.import_module(
+                '%s.%s.%s' %
+                (self._plugin_module_import_prefix,
+                 plugin,
+                 suffix))
+
+        self._module_cache[plugin] = module
+
+        return module
 
     def _create_plugin_instance(self, module, config=None):
         """Creates an instance of the plugin module.
@@ -401,6 +404,8 @@ class PluginManager:
           TypeError -- When the `plugins` argument is not a string or list.
 
         """
+        global _module_cache
+
         if isinstance(plugins, str):
             plugins = [plugins]
         if not isinstance(plugins, list):
@@ -422,12 +427,9 @@ class PluginManager:
                     self.logger.info("Already loaded, unloading first: %s" %
                                      plugin)
 
-                    module_to_import = self.plugins[plugin]['module']
                     self.unload(plugin)
-                else:
-                    module_to_import = plugin
 
-                module = self._import_module(module_to_import)
+                module = self._import_module(plugin)
             except Exception:
                 # Probably a syntax error in the plugin, log the exception
                 self.logger.exception(
@@ -475,15 +477,16 @@ class PluginManager:
 
             self.plugins[plugin] = {
                 'name': plugin,
-                'module': module,
                 'instance': instance,
                 'commands': commands,
                 'callbacks': callbacks,
                 'callback_ids': callback_ids,
                 'config': config,
-                'blacklist': copy(self._blacklist[plugin]) \
-                    if plugin in self._blacklist else \
-                    [],
+                'blacklist': (
+                    copy(self._blacklist[plugin])
+                    if plugin in self._blacklist else
+                    []
+                ),
             }
 
             self.logger.info("Plugin %s successfully loaded" % plugin)

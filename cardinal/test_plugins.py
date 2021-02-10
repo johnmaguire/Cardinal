@@ -5,11 +5,13 @@ import sys
 
 import pytest
 from twisted.internet.task import defer
-from mock import Mock, PropertyMock, patch
+from mock import Mock, patch
 
 from cardinal import exceptions
-from cardinal.bot import CardinalBot, CardinalBotFactory
+from cardinal.bot import CardinalBot
 from cardinal.plugins import EventManager, PluginManager
+
+from .unittest_util import tempdir
 
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 FIXTURE_PATH = os.path.join(DIR_PATH, 'fixtures')
@@ -25,20 +27,28 @@ class TestPluginManager:
 
         self.blacklist = {}
 
+        plugins_directory = os.path.abspath(os.path.join(
+            os.path.dirname(os.path.realpath(os.path.abspath(__file__))),
+            '..',
+            'cardinal/fixtures/fake_plugins',
+        ))
         self.plugin_manager = PluginManager(
             mock_cardinal,
             [],
             self.blacklist,
             _plugin_module_import_prefix='fake_plugins',
-            _plugin_module_directory_suffix='cardinal/fixtures/fake_plugins')
+            _plugin_module_directory=plugins_directory,
+        )
 
     def assert_load_success(self,
                             plugins,
                             assert_callbacks_is_empty=True,
                             assert_commands_is_empty=True,
                             assert_blacklist_is_empty=True,
-                            assert_config_is_none=True):
-        failed_plugins = self.plugin_manager.load(plugins)
+                            assert_config_is_none=True,
+                            plugin_manager=None):
+        plugin_manager = plugin_manager or self.plugin_manager
+        failed_plugins = plugin_manager.load(plugins)
 
         # regardless of the whether plugins was a string or list, the rest of
         # this function requires it to be a list
@@ -46,7 +56,7 @@ class TestPluginManager:
             plugins = [plugins]
 
         assert failed_plugins == []
-        assert len(list(self.plugin_manager.plugins.keys())) == len(plugins)
+        assert len(list(plugin_manager.plugins.keys())) == len(plugins)
 
         for name in plugins:
             # class name for plugins must be Test(CamelCaseName)Plugin
@@ -58,26 +68,25 @@ class TestPluginManager:
             class_ += 'Plugin'
 
             # check that everything was set correctly
-            assert name in list(self.plugin_manager.plugins.keys())
-            assert self.plugin_manager.plugins[name]['name'] == name
-            assert inspect.ismodule(
-                self.plugin_manager.plugins[name]['module'])
+            assert name in list(plugin_manager.plugins.keys())
+            assert plugin_manager.plugins[name]['name'] == name
             assert isinstance(
-                self.plugin_manager.plugins[name]['instance'],
-                getattr(self.plugin_manager.plugins[name]['module'],
-                        class_))
+                plugin_manager.plugins[name]['instance'],
+                object,
+            )
             if assert_commands_is_empty:
-                assert self.plugin_manager.plugins[name]['commands'] == []
+                assert plugin_manager.plugins[name]['commands'] == []
             if assert_callbacks_is_empty:
-                assert self.plugin_manager.plugins[name]['callbacks'] == []
-                assert self.plugin_manager.plugins[name]['callback_ids'] == {}
+                assert plugin_manager.plugins[name]['callbacks'] == []
+                assert plugin_manager.plugins[name]['callback_ids'] == {}
             if assert_config_is_none:
-                assert self.plugin_manager.plugins[name]['config'] is None
+                assert plugin_manager.plugins[name]['config'] is None
             if assert_blacklist_is_empty:
-                assert self.plugin_manager.plugins[name]['blacklist'] == []
+                assert plugin_manager.plugins[name]['blacklist'] == []
 
-    def assert_load_failed(self, plugins):
-        failed_plugins = self.plugin_manager.load(plugins)
+    def assert_load_failed(self, plugins, plugin_manager=None):
+        plugin_manager = plugin_manager or self.plugin_manager
+        failed_plugins = plugin_manager.load(plugins)
 
         # regardless of the whether plugins was a string or list, the rest of
         # this function requires it to be a list
@@ -85,7 +94,7 @@ class TestPluginManager:
             plugins = [plugins]
 
         assert failed_plugins == plugins
-        assert self.plugin_manager.plugins == {}
+        assert plugin_manager.plugins == {}
 
     def test_constructor(self):
         manager = PluginManager(Mock(), [], [])
@@ -140,15 +149,15 @@ class TestPluginManager:
     def test_load_cardinal_passed(self):
         name = 'setup_one_argument'
         self.assert_load_success(name)
-        assert self.plugin_manager.plugins[name]['module'].cardinal is \
+        assert self.plugin_manager.plugins[name]['instance'].cardinal is \
             self.cardinal
 
     def test_load_config_passed(self):
         name = 'setup_two_arguments'
         self.assert_load_success(name, assert_config_is_none=False)
-        assert self.plugin_manager.plugins[name]['module'].cardinal is \
+        assert self.plugin_manager.plugins[name]['instance'].cardinal is \
             self.cardinal
-        assert self.plugin_manager.plugins[name]['module'].config == \
+        assert self.plugin_manager.plugins[name]['instance'].config == \
             {'test': True}
 
     def test_load_invalid_json_config(self):
@@ -228,6 +237,90 @@ class TestPluginManager:
         self.assert_load_success(plugins)
         assert 'test.event' in self.event_manager.registered_events
 
+    def test_reload_for_error_in_constructor_succeeds(self):
+        """Cardinal has a bug where constructor exceptions brick a plugin.
+
+        Basically, the plugin won't be reloadable without a restart of the bot
+        itself. This is obviously problematic for plugin development.
+
+        This test aims to solve the problem and act as a regression test.
+        """
+        plugin = 'valid'
+        with tempdir('cardinal_fixtures') as fixture_dir:
+            with open(os.path.join(fixture_dir, '__init__.py'), 'w') as f:
+                pass
+
+            plugins_dir = os.path.join(fixture_dir, 'test_plugins')
+            os.mkdir(plugins_dir)
+            with open(os.path.join(plugins_dir, '__init__.py'), 'w') as f:
+                pass
+
+            plugin_dir = os.path.join(
+                plugins_dir,
+                plugin,
+            )
+            os.mkdir(plugin_dir)
+            with open(os.path.join(plugin_dir, '__init__.py'), 'w') as f:
+                pass
+
+            # Write a plugin that will load successfully
+            with open(
+                os.path.join(
+                    FIXTURE_PATH,
+                    'fake_plugins',
+                    'valid',
+                    'plugin.py',
+                ),
+                'r'
+            ) as f:
+                valid_plugin = f.read()
+
+            with open(os.path.join(plugin_dir, 'plugin.py'), 'w') as f:
+                f.write(valid_plugin)
+
+            # Make sure the fake_plugins dir is in the import path
+            sys.path.insert(0, os.path.join(fixture_dir))
+            try:
+                # Load the plugin successfully
+                plugin_manager = PluginManager(
+                    self.cardinal,
+                    [],
+                    self.blacklist,
+                    _plugin_module_import_prefix='test_plugins',
+                    _plugin_module_directory=plugins_dir)
+
+                self.assert_load_success(
+                    [plugin],
+                    plugin_manager=plugin_manager,
+                )
+
+                # Now overwrite with a plugin that will fail during load
+                with open(os.path.join(plugin_dir, 'plugin.py'), 'w') as f:
+                    f.write("""
+class TestPlugin:
+    def __init__(self):
+        self.x = y  # this should raise
+
+
+def setup():
+    return TestPlugin()
+""")
+
+                # Verify the load failed
+                self.assert_load_failed([plugin], plugin_manager)
+
+                # Now back to a valid version
+                with open(os.path.join(plugin_dir, 'plugin.py'), 'w') as f:
+                    f.write(valid_plugin)
+
+                # and then make sure the valid version does load successfully
+                self.assert_load_success(
+                    [plugin],
+                    plugin_manager=plugin_manager,
+                )
+            finally:
+                sys.path.pop(0)
+
     @pytest.mark.parametrize("plugins", [
         12345,
         0.0,
@@ -283,7 +376,7 @@ class TestPluginManager:
         plugin = 'close_one_argument'
 
         self.assert_load_success(plugin)
-        module = self.plugin_manager.plugins[plugin]['module']
+        instance = self.plugin_manager.plugins[plugin]['instance']
 
         failed_plugins = self.plugin_manager.unload(plugin)
 
@@ -291,13 +384,13 @@ class TestPluginManager:
         assert list(self.plugin_manager.plugins.keys()) == []
 
         # Our close() method will set module.cardinal for us to inspect
-        assert module.cardinal is self.cardinal
+        assert instance.cardinal is self.cardinal
 
     def test_unload_too_many_arguments_in_close(self):
         plugin = 'close_too_many_arguments'
 
         self.assert_load_success(plugin)
-        module = self.plugin_manager.plugins[plugin]['module']
+        instance = self.plugin_manager.plugins[plugin]['instance']
 
         failed_plugins = self.plugin_manager.unload(plugin)
 
@@ -305,7 +398,7 @@ class TestPluginManager:
         assert list(self.plugin_manager.plugins.keys()) == []
 
         # Our close() method will set module.called to True if called
-        assert module.called is False
+        assert instance.called is False
 
     def test_unload_all(self):
         self.assert_load_success([
@@ -392,7 +485,7 @@ class TestPluginManager:
         res = yield self.event_manager.fire(event)
 
         # this should return False if no callbacks fired
-        assert res == False
+        assert res is False
 
     def test_load_command_registration(self):
         name = 'commands'

@@ -1,14 +1,8 @@
 class TestSetupTwoArgumentsPlugin:
-    pass
+    def __init__(self, cardinal, config):
+        self.cardinal = cardinal
+        self.config = config
 
 
-cardinal = None
-config = None
-
-
-def setup(one, two):
-    global cardinal, config
-    cardinal = one
-    config = two
-
-    return TestSetupTwoArgumentsPlugin()
+def setup(cardinal, config):
+    return TestSetupTwoArgumentsPlugin(cardinal, config)

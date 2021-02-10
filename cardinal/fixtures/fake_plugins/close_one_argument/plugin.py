@@ -1,10 +1,6 @@
-cardinal = None
-
-
 class TestCloseOneArgumentPlugin:
-    def close(self, cardinal_):
-        global cardinal
-        cardinal = cardinal_
+    def close(self, cardinal):
+        self.cardinal = cardinal
 
 
 def setup():
