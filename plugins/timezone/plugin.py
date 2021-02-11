@@ -1,4 +1,3 @@
-import logging
 from datetime import datetime
 
 import pytz
@@ -21,7 +20,7 @@ class TimezonePlugin:
             tz_input = msg.split(' ', 1)[1].strip()
         except IndexError:
             # no timezone specified, default to UTC
-            return cardinal.sendMsg(channel, now.strftime(fmt))
+            return cardinal.sendMsg(channel, now.strftime(TIME_FORMAT))
 
         # handle common offset formats
         if (tz_input.startswith('UTC') or tz_input.startswith('GMT')) and \
@@ -37,7 +36,8 @@ class TimezonePlugin:
         if offset is not None:
             try:
                 if offset < 0:
-                    # for some reason the GMT+4 == America/Eastern, and GMT-4 is over in Asia
+                    # for some reason the GMT+4 == America/Eastern, and GMT-4
+                    # is over in Asia
                     user_tz = pytz.timezone('Etc/GMT+{0}'.format(offset * -1))
                 elif offset > 0:
                     user_tz = pytz.timezone('Etc/GMT{0}'.format(offset * -1))
