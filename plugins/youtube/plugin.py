@@ -163,5 +163,4 @@ class YouTubePlugin:
         return "[ {} ]".format(' | '.join(message_parts))
 
 
-def setup(cardinal, config):
-    return YouTubePlugin(cardinal, config)
+entrypoint = YouTubePlugin

@@ -156,5 +156,4 @@ class WeatherPlugin:
                                                 winds_k))
 
 
-def setup(cardinal):
-    return WeatherPlugin(cardinal)
+entrypoint = WeatherPlugin

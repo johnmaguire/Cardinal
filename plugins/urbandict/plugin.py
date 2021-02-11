@@ -46,5 +46,4 @@ class UrbanDictPlugin:
             cardinal.sendMsg(channel, "Could not retrieve definition for %s" % word)
 
 
-def setup():
-    return UrbanDictPlugin()
+entrypoint = UrbanDictPlugin

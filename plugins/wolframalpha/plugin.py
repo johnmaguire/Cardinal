@@ -52,5 +52,4 @@ class WolframAlphaPlugin:
         cardinal.sendMsg(channel, "{}: {}".format(user.nick, answer))
 
 
-def setup(_, config):
-    return WolframAlphaPlugin(config)
+entrypoint = WolframAlphaPlugin

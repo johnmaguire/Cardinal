@@ -191,5 +191,4 @@ class MoviePlugin(object):
             return format_data_full(data)
 
 
-def setup(cardinal, config):
-    return MoviePlugin(cardinal, config)
+entrypoint = MoviePlugin

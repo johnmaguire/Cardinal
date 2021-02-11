@@ -34,7 +34,6 @@ class SeenPlugin:
                 users[k.lower()] = v
             db['users'] = users
 
-
     def update_user(self, nick, action, params):
         if not isinstance(params, list):
             raise TypeError("params must be a list")
@@ -182,5 +181,4 @@ class SeenPlugin:
         cardinal.sendMsg(channel, self.format_seen(nick))
 
 
-def setup(cardinal, config):
-    return SeenPlugin(cardinal, config)
+entrypoint = SeenPlugin

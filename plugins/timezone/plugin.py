@@ -54,5 +54,5 @@ class TimezonePlugin:
         now = user_tz.normalize(now)
         cardinal.sendMsg(channel, now.strftime(TIME_FORMAT))
 
-def setup():
-    return TimezonePlugin()
+
+entrypoint = TimezonePlugin

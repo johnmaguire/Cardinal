@@ -112,5 +112,4 @@ class WikipediaPlugin:
         cardinal.sendMsg(channel, article_info)
 
 
-def setup(cardinal, config):
-    return WikipediaPlugin(cardinal, config)
+entrypoint = WikipediaPlugin

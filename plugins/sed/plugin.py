@@ -120,5 +120,4 @@ class SedPlugin:
                     pass
 
 
-def setup():
-    return SedPlugin()
+entrypoint = SedPlugin

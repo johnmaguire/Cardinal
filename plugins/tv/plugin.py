@@ -233,5 +233,4 @@ class TVPlugin:
             cardinal.sendMsg(channel, message)
 
 
-def setup(cardinal, config):
-    return TVPlugin(cardinal, config)
+entrypoint = TVPlugin

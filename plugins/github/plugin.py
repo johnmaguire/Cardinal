@@ -167,5 +167,4 @@ class GithubPlugin:
         return r.json()
 
 
-def setup(cardinal, config):
-    return GithubPlugin(cardinal, config)
+entrypoint = GithubPlugin

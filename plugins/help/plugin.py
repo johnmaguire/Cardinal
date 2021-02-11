@@ -124,5 +124,4 @@ class HelpPlugin:
         )
 
 
-def setup():
-    return HelpPlugin()
+entrypoint = HelpPlugin

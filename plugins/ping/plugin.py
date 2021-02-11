@@ -11,5 +11,5 @@ class PingPlugin:
         else:
             cardinal.sendMsg(channel, "Pong.")
 
-def setup():
-    return PingPlugin()
+
+entrypoint = PingPlugin

@@ -31,5 +31,4 @@ class RemindPlugin:
                 pass
 
 
-def setup():
-    return RemindPlugin()
+entrypoint = RemindPlugin

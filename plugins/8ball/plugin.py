@@ -38,5 +38,4 @@ class Magic8BallPlugin:
         return random.choice(answers)
 
 
-def setup():
-    return Magic8BallPlugin()
+entrypoint = Magic8BallPlugin

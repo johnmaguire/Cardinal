@@ -23,5 +23,4 @@ class InviteJoinPlugin:
             cardinal.join(channel)
 
 
-def setup(cardinal, config):
-    return InviteJoinPlugin(cardinal, config)
+entrypoint = InviteJoinPlugin

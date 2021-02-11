@@ -242,11 +242,4 @@ class AdminPlugin:
             cardinal.quit('Debug disconnect')
 
 
-def setup(cardinal, config):
-    """Returns an instance of the plugin.
-
-    Keyword arguments:
-      cardinal -- An instance of Cardinal. Passed in by PluginManager.
-      config -- A config for this plugin.
-    """
-    return AdminPlugin(cardinal, config)
+entrypoint = AdminPlugin

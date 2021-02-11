@@ -132,5 +132,4 @@ class URLsPlugin:
         cardinal.event_manager.remove('urls.detection')
 
 
-def setup(cardinal, config):
-    return URLsPlugin(cardinal, config)
+entrypoint = URLsPlugin

@@ -46,5 +46,4 @@ class GoogleSearch:
                 cardinal.sendMsg(channel, "  {}".format(url))
 
 
-def setup(_, config):
-    return GoogleSearch(config)
+entrypoint = GoogleSearch

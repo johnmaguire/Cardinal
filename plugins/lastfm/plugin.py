@@ -216,5 +216,4 @@ class LastfmPlugin:
             self.conn.close()
 
 
-def setup(cardinal, config):
-    return LastfmPlugin(cardinal, config)
+entrypoint = LastfmPlugin

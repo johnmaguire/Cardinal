@@ -494,5 +494,4 @@ class TickerPlugin:
             self.logger.error("{}, with data: {}".format(e, data))
 
 
-def setup(cardinal, config):
-    return TickerPlugin(cardinal, config)
+entrypoint = TickerPlugin
