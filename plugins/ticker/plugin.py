@@ -10,11 +10,11 @@ from twisted.internet.threads import deferToThread
 
 from cardinal import util
 from cardinal.bot import user_info
-from cardinal.decorators import command, regex
+from cardinal.decorators import regex
 from cardinal.util import F
 
 # IEX API Endpoint
-IEX_QUOTE_API_URL = "https://cloud.iexapis.com/stable/stock/{symbol}/quote?token={token}"
+IEX_QUOTE_API_URL = "https://cloud.iexapis.com/stable/stock/{symbol}/quote?token={token}"  # noqa: E501
 
 # This is actually max tries, not max retries (for AV API requests)
 MAX_RETRIES = 3
@@ -480,7 +480,10 @@ class TickerPlugin:
 
     @defer.inlineCallbacks
     def make_iex_request(self, symbol):
-        url = IEX_QUOTE_API_URL.format(symbol=symbol, token=self.config["api_key"])
+        url = IEX_QUOTE_API_URL.format(
+            symbol=symbol,
+            token=self.config["api_key"],
+        )
         r = yield deferToThread(requests.get, url)
         data = r.json()
 

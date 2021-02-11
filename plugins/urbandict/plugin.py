@@ -43,7 +43,8 @@ class UrbanDictPlugin:
             cardinal.sendMsg(channel, response)
         except Exception:
             self.logger.exception("Error with definition: %s", word)
-            cardinal.sendMsg(channel, "Could not retrieve definition for %s" % word)
+            cardinal.sendMsg(channel,
+                             "Could not retrieve definition for %s" % word)
 
 
 entrypoint = UrbanDictPlugin

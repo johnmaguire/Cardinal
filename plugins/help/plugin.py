@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 from cardinal.decorators import command, help
 
 
@@ -24,11 +24,11 @@ class HelpPlugin:
 
         # Loop through commands registered in Cardinal
         for plugin in cardinal.plugin_manager:
-            for command in plugin['commands']:
+            for cmd in plugin['commands']:
                 if hasattr(command, 'commands'):
-                    commands.append(command.commands[0])
+                    commands.append(cmd.commands[0])
                 elif hasattr(command, 'name'):
-                    commands.append(command.name)
+                    commands.append(cmd.name)
 
         return commands
 

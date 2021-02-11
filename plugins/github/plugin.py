@@ -1,5 +1,4 @@
 import re
-import json
 import logging
 import requests
 
@@ -160,7 +159,8 @@ class GithubPlugin:
         if params is None:
             params = {}
 
-        r = yield deferToThread(requests.get, "https://api.github.com/" + endpoint,
+        r = yield deferToThread(requests.get,
+                                "https://api.github.com/" + endpoint,
                                 params=params)
         r.raise_for_status()
 
