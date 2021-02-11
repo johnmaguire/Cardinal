@@ -1,3 +1,4 @@
+import datetime
 import re
 import logging
 
@@ -10,6 +11,37 @@ from cardinal.exceptions import EventRejectedMessage
 
 VIDEO_URL_REGEX = re.compile(r'https?:\/\/(?:www\.)?youtube\..{2,4}\/watch\?.*(?:v=(.+?))(?:(?:&.*)|$)', flags=re.IGNORECASE)  # noqa: E501
 VIDEO_URL_SHORT_REGEX = re.compile(r'https?:\/\/(?:www\.)?youtu\.be\/(.+?)(?:(?:\?.*)|$)', flags=re.IGNORECASE)  # noqa: E501
+
+
+# The following two functions were borrowed from Stack Overflow:
+# https://stackoverflow.com/a/64232786/242129
+def get_isosplit(s, split):
+    if split in s:
+        n, s = s.split(split)
+    else:
+        n = 0
+    return n, s
+
+
+def parse_isoduration(s):
+    # Remove prefix
+    s = s.split('P')[-1]
+
+    # Step through letter dividers
+    days, s = get_isosplit(s, 'D')
+    _, s = get_isosplit(s, 'T')
+    hours, s = get_isosplit(s, 'H')
+    minutes, s = get_isosplit(s, 'M')
+    seconds, s = get_isosplit(s, 'S')
+
+    # Convert all to seconds
+    dt = datetime.timedelta(
+        days=int(days),
+        hours=int(hours),
+        minutes=int(minutes),
+        seconds=int(seconds),
+    )
+    return dt
 
 
 class YouTubePlugin:
@@ -79,7 +111,7 @@ class YouTubePlugin:
             params = {
                 'id': video_id,
                 'maxResults': 1,
-                'part': 'snippet,statistics'
+                'part': 'snippet,statistics,contentDetails'
             }
         except IndexError:
             cardinal.sendMsg(channel, "No videos found matching that search.")
@@ -114,7 +146,7 @@ class YouTubePlugin:
         params = {
             'id': video_id,
             'maxResults': 1,
-            'part': 'snippet,statistics',
+            'part': 'snippet,statistics,contentDetails',
         }
 
         try:
@@ -149,14 +181,14 @@ class YouTubePlugin:
         uploader = str(item['snippet']['channelTitle'])
         if len(uploader) == 0:
             uploader = "(not available)"
+        dt = parse_isoduration(item['contentDetails']['duration'])
 
-        # TODO: Verify no videos return the ID as item['id']['videoId']
-        # (Hint: If this breaks, that's probably why.)
         video_id = str(item['id'])
 
         message_parts = [
             "Title: {}".format(title),
             "Uploaded by: {}".format(uploader),
+            "Duration: {}".format(dt),
             "{:,} views".format(views),
             "https://youtube.com/watch?v={}".format(video_id),
         ]
