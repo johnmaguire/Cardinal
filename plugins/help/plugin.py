@@ -40,15 +40,12 @@ class HelpPlugin:
         for plugin in cardinal.plugin_manager:
             found_command = False
 
-            for command in plugin['commands']:
-                # First check if the command responds to the requested command
-                if hasattr(command, 'commands') and help_command in command.commands:
-                    found_command = command
-                    break
-
-                # Check if the command's name is the requested command
-                if hasattr(command, 'name') and help_command == command.name:
-                    found_command = command
+            for cmd in plugin['commands']:
+                # Check if the command responds with the command the user
+                # requested
+                if hasattr(cmd, 'commands') and \
+                        help_command in cmd.commands:
+                    found_command = cmd
                     break
 
             # If the command was found and has a help file, set the help_text
