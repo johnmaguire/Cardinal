@@ -225,8 +225,14 @@ class PluginManager:
                 # Loop through all events the callback should be registered to
                 for event_name in callback['event_names']:
                     # Get callback ID from register_callback method
-                    id_ = self.cardinal.event_manager.register_callback(
-                        event_name, callback['method'])
+                    try:
+                        id_ = self.cardinal.event_manager.register_callback(
+                            event_name, callback['method'])
+                    except Exception:
+                        self.logger.exception(
+                            "Error registering callback for event: {}"
+                            .format(event_name))
+                        raise
 
                     # Append to list of callbacks for given event_name
                     callback_ids[event_name].append(id_)
@@ -805,19 +811,41 @@ class EventManager:
             "Attempting to register callback for event: %s" % event_name
         )
 
-        if not callable(callback):
-            self.logger.debug("Invalid callback for event: %s" % event_name)
+        try:
+            parameters = inspect.signature(callback).parameters
+        except TypeError:
             raise EventCallbackError(
                 "Can't register callback that isn't callable"
             )
 
-        argspec = inspect.getfullargspec(callback)
-        num_func_args = len(argspec.args)
+        num_func_args = 0
+        num_required_args = 0
+        accepts_vargs = False
+        for param in parameters.values():
+            if param.kind in (param.POSITIONAL_ONLY,
+                              param.POSITIONAL_OR_KEYWORD):
+                num_func_args += 1
+                if param.default == param.empty:
+                    num_required_args += 1
+            # As long as num_func_args doesn't exceed the number of arguments
+            # required, this ensures that the signature works
+            elif param.kind == param.VAR_POSITIONAL:
+                accepts_vargs = True
+            # We will never pass keyword arguments, so if the param must be a
+            # keyword, and there's no default set, we can error early
+            elif param.kind == param.KEYWORD_ONLY \
+                    and param.default == param.empty:
+                raise EventCallbackError(
+                    "Callbacks must not take required keyword arguments"
+                )
+            # These are irrelevant - we'll never pass any but they are optional
+            elif param.kind == param.VAR_KEYWORD:
+                pass
 
         # If no event is registered, we will still register the callback but
         # we can't sanity check it since the event hasn't been registered yet
         if event_name not in self.registered_events:
-            if num_func_args < 1:
+            if num_func_args < 1 and not accepts_vargs:
                 raise EventCallbackError(
                     "Callback must take at least one argument (cardinal)")
 
@@ -826,18 +854,17 @@ class EventManager:
         # Add one to needed args to account for CardinalBot being passed in
         num_needed_args = self.registered_events[event_name] + 1
 
-        # If it's a method, it'll have an arbitrary "self" argument we don't
-        # want to include in our param count
-        if inspect.ismethod(callback):
-            num_func_args -= 1
-
-        if (num_func_args != num_needed_args and
-                not argspec.varargs):
-            self.logger.debug("Invalid callback for event: %s" % event_name)
+        if (not accepts_vargs and num_func_args < num_needed_args):
             raise EventCallbackError(
                 "Can't register callback with wrong number of arguments "
-                "(%d needed, %d accepted)" %
+                "(event passes %d, %d accepted)" %
                 (num_needed_args, num_func_args)
+            )
+        elif num_required_args > num_needed_args:
+            raise EventCallbackError(
+                "Can't register callback with wrong number of arguments "
+                "(event passes %d, %d required)" %
+                (num_needed_args, num_required_args)
             )
 
         return self._add_callback(event_name, callback)

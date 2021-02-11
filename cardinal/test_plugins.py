@@ -841,6 +841,15 @@ class TestEventManager:
 
         self.assert_register_callback_success(name, callback)
 
+    def test_add_callback_registered_varargs(self):
+        def callback(*args):
+            pass
+
+        name = 'test_event'
+        self.assert_register_success(name, params=3)
+
+        self.assert_register_callback_success(name, callback)
+
     def test_add_callback_non_callable(self):
         callback = 'this is not callable'
 
@@ -889,6 +898,32 @@ class TestEventManager:
 
         with pytest.raises(exceptions.EventCallbackError):
             self.event_manager.register_callback(name, callback)
+
+    def test_add_callback_varargs_success(self):
+        def callback(*args, **kwargs):
+            pass
+
+        name = 'test_event'
+
+        self.event_manager.register_callback(name, callback)
+
+    def test_add_callback_requires_keyword_fails(self):
+        def callback(cardinal, *args, foobar):
+            pass
+
+        name = 'test_event'
+
+        with pytest.raises(exceptions.EventCallbackError):
+            self.event_manager.register_callback(name, callback)
+
+    def test_add_callback_deferred_signature(self):
+        @defer.inlineCallbacks
+        def callback(cardinal):
+            pass
+
+        name = 'test_event'
+
+        self.event_manager.register_callback(name, callback)
 
     def test_remove_callback(self):
         name = 'test_event'
