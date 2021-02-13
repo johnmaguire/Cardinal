@@ -5,17 +5,6 @@ Twisted==20.3.0
 pyOpenSSL==19.0.0
 service_identity==18.1.0
 
-# Config parsing
-PyYAML==5.1.1
-
-# Wikipedia plugin
+# Various URL scraping plugins
 beautifulsoup4==4.9.3
-
-# Weather & YouTube plugins
 requests==2.22.0
-
-# Google plugin
-google==2.0.3
-
-# Timezone plugin
-pytz==2020.4
