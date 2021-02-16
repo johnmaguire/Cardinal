@@ -1,6 +1,23 @@
 import random
+import re
 
 from cardinal.decorators import command
+
+
+def parse_roll(arg):
+    # some people might separate with commas
+    arg = arg.rstrip(',')
+
+    if match := re.match(r'^(\d+)?d(\d+)$', arg):
+        num_dice = match.group(1)
+        sides = match.group(2)
+    elif match := re.match(r'^d?(\d+)$', arg):
+        num_dice = 1
+        sides = match.group(1)
+    else:
+        return []
+
+    return [int(sides)] * int(num_dice)
 
 
 class RandomPlugin:
@@ -11,18 +28,7 @@ class RandomPlugin:
 
         dice = []
         for arg in args:
-            try:
-                sides = int(arg)
-                dice.append(sides)
-            except (TypeError, ValueError):
-                if arg[0] != 'd':
-                    continue
-
-                try:
-                    sides = int(arg[1:])
-                    dice.append(sides)
-                except (TypeError, ValueError):
-                    pass
+            dice = dice + parse_roll(arg)
 
         results = []
         limit = 10
