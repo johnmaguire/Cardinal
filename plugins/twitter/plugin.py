@@ -7,6 +7,7 @@ from twisted.internet import defer
 from twisted.internet.threads import deferToThread
 
 from cardinal.decorators import event
+from cardinal.exceptions import EventRejectedMessage
 
 
 class TwitterPlugin:
@@ -62,6 +63,8 @@ class TwitterPlugin:
                 t.user.screen_name,
                 t.text,
             ))
+        else:
+            raise EventRejectedMessage
 
 
 entrypoint = TwitterPlugin
