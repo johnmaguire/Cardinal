@@ -21,12 +21,16 @@ EPOCH = datetime.utcfromtimestamp(0)
 
 class SeenPlugin:
     def __init__(self, cardinal, config):
+        self.cardinal = cardinal
         self.ignored_channels = config.get('ignored_channels', [])
 
         self.db = cardinal.get_db('seen')
         with self.db() as db:
             if 'users' not in db:
                 db['users'] = {}
+
+            if 'tells' not in db:
+                db['tells'] = {}
 
             # Fix case for old databases
             users = dict()
@@ -51,39 +55,73 @@ class SeenPlugin:
                 channel not in self.ignored_channels:
             self.update_user(user.nick, PRIVMSG, [channel, message])
 
+        self.do_tell(user.nick)
+
     @event('irc.notice')
     def irc_notice(self, cardinal, user, channel, message):
         if channel != cardinal.nickname and \
                 channel not in self.ignored_channels:
             self.update_user(user.nick, NOTICE, [channel, message])
 
+        self.do_tell(user.nick)
+
     @event('irc.mode')
     def irc_mode(self, cardinal, user, channel, mode):
         if channel not in self.ignored_channels:
             self.update_user(user.nick, MODE, [channel, mode])
+
+        self.do_tell(user.nick)
 
     @event('irc.topic')
     def irc_topic(self, cardinal, user, channel, topic):
         if channel not in self.ignored_channels:
             self.update_user(user.nick, TOPIC, [channel, topic])
 
+        self.do_tell(user.nick)
+
     @event('irc.join')
     def irc_join(self, cardinal, user, channel):
         if channel not in self.ignored_channels:
             self.update_user(user.nick, JOIN, [channel])
+
+        self.do_tell(user.nick)
 
     @event('irc.part')
     def irc_part(self, cardinal, user, channel, reason):
         if channel not in self.ignored_channels:
             self.update_user(user.nick, PART, [channel, reason])
 
+        self.do_tell(user.nick)
+
     @event('irc.nick')
     def irc_nick(self, cardinal, user, new_nick):
         self.update_user(user.nick, NICK, [new_nick])
 
+        self.do_tell(user.nick)
+
     @event('irc.quit')
     def irc_quit(self, cardinal, user, reason):
         self.update_user(user.nick, QUIT, [reason])
+
+    # TODO Add irc_kick/irc_kicked
+
+    def do_tell(self, nick):
+        with self.db() as db:
+            if nick in db['tells']:
+                for message in db['tells'][nick]:
+                    self.cardinal.sendMsg(
+                        nick,
+                        f"{message['sender']} left a message: "
+                        f"{message['message']}"
+                    )
+
+                self.cardinal.sendMsg(
+                    nick,
+                    "You can send a message to an offline user with "
+                    ".tell <nick> <message>"
+                )
+
+                del db['tells'][nick]
 
     @staticmethod
     def _pretty_seconds(seconds):
@@ -179,6 +217,30 @@ class SeenPlugin:
             return
 
         cardinal.sendMsg(channel, self.format_seen(nick))
+
+    @command('tell')
+    @help("Tell an offline user something when they come online.")
+    @help("Syntax: .tell <nick> <message>")
+    def tell(self, cardinal, user, channel, msg):
+        try:
+            nick, message = msg.split(' ', 2)[1:]
+        except IndexError:
+            cardinal.sendMsg(channel, "Syntax: .tell <nick> <message>")
+            return
+
+        if nick == user.nick:
+            cardinal.sendMsg(channel, "{}: Don't be daft.".format(user.nick))
+            return
+
+        with self.db() as db:
+            tells = db['tells'].get(nick, [])
+            tells.append({
+                'sender': user.nick,
+                'message': message,
+            })
+            db['tells'][nick] = tells
+
+        cardinal.sendMsg(channel, f"{user.nick}: I'll let them know.")
 
 
 entrypoint = SeenPlugin
