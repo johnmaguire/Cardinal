@@ -57,7 +57,7 @@ def format_data_full(data):
     ]
 
 
-class MoviePlugin(object):
+class MoviePlugin:
     def __init__(self, cardinal, config):
         self.logger = logging.getLogger(__name__)
         self.cardinal = cardinal
