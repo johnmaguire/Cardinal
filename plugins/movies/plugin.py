@@ -1,10 +1,12 @@
 import logging
+import re
+from urllib.parse import urlparse
 
 from twisted.internet import defer
 from twisted.internet.threads import deferToThread
 import requests
 
-from cardinal.decorators import command, help
+from cardinal.decorators import command, event, help
 from cardinal.exceptions import EventRejectedMessage
 from cardinal.util import F
 
@@ -109,9 +111,35 @@ class MoviePlugin:
         try:
             search_query = msg.split(' ', 1)[1].strip()
         except IndexError:
-            cardinal.sendMsg("Syntax: .movie <search query>")
+            command = 'imdb'
+            if result_type == 'series':
+                command = 'show'
+            elif result_type == 'movie':
+                command = 'movie'
+            cardinal.sendMsg(channel, f"Syntax: .{command} <search query>")
             return
 
+        # first, check if this is just an IMDB id
+        if re.match(r'^tt\d{7,8}$', search_query):
+            imdb_id = search_query
+        else:
+            try:
+                result = yield self._search(search_query, result_type)
+                imdb_id = result['Search'][0]['imdbID']
+            except RuntimeError as e:
+                cardinal.sendMsg(channel, str(e))
+            except Exception:
+                self.logger.exception("Unknown error while searching")
+
+        try:
+            yield self._send_result(cardinal, channel, imdb_id)
+        except Exception:
+            cardinal.sendMsg(channel, "Error fetching movie info.")
+            self.logger.exception("Failed to parse info for %s", imdb_id)
+            return
+
+    @defer.inlineCallbacks
+    def _search(self, search_query, result_type):
         params = {}
         if result_type:
             params['type'] = result_type
@@ -126,49 +154,30 @@ class MoviePlugin:
         try:
             result = yield self._form_request(params)
         except Exception:
-            cardinal.sendMsg(channel, "Unable to connect to OMDb.")
-            self.logger.exception("Failed to connect to OMDb")
-            return
+            self.logger.exception("Unable to connect to OMDb")
+            raise RuntimeError("Failed to connect to OMDb")
 
         if result['Response'] == 'False':
             if "Error" in result:
-                cardinal.sendMsg(channel, result['Error'])
-            else:
-                cardinal.sendMsg(
-                    channel,
-                    "An error occurred while attempting to search OMDb.",
-                )
                 self.logger.error(
                     "Error attempting to search OMDb: %s" % result['Error']
                 )
-                return
 
-        try:
-            movie_id = result['Search'][0]['imdbID']
+            raise RuntimeError("Error searching OMDb: %s" % result['Error'])
 
-            params = {
-                "i": movie_id,
-                "plot": self.get_output_format(channel),
-            }
-        except IndexError:
-            cardinal.sendMsg(channel, "Error parsing result.")
-            self.logger.exception("Failure parsing result: {}".format(result))
-            return
+        return result
 
-        try:
-            result = yield self._form_request(params)
-        except Exception:
-            cardinal.sendMsg(channel, "Unable to connect to OMDb.")
-            self.logger.exception("Failed to connect to OMDb.")
-            return
+    @defer.inlineCallbacks
+    def _send_result(self, cardinal, channel, imdb_id):
+        params = {
+            "i": imdb_id,
+            "plot": self.get_output_format(channel),
+        }
 
-        try:
-            for message in self._format_data(channel, result):
-                cardinal.sendMsg(channel, message)
-        except Exception:
-            cardinal.sendMsg(channel, "Error parsing result.")
-            self.logger.exception("Failed to parse info for %s", movie_id)
-            raise EventRejectedMessage
+        result = yield self._form_request(params)
+
+        for message in self._format_data(channel, result):
+            cardinal.sendMsg(channel, message)
 
     @defer.inlineCallbacks
     def _form_request(self, payload):
@@ -189,6 +198,27 @@ class MoviePlugin:
             return [format_data_short(data)]
         else:
             return format_data_full(data)
+
+    @event('urls.detection')
+    @defer.inlineCallbacks
+    def imdb_handler(self, cardinal, channel, url):
+        if self.api_key is None:
+            raise EventRejectedMessage
+
+        o = urlparse(url)
+
+        if o.netloc not in ('imdb.com', 'www.imdb.com'):
+            raise EventRejectedMessage
+
+        match = re.match(r'^/title/(tt\d{7,8})(?:$|/.*)', o.path)
+        if not match:
+            raise EventRejectedMessage
+
+        try:
+            yield self._send_result(cardinal, channel, match.group(1))
+        except Exception:
+            self.logger.exception("Error parsing IMDB ID %s", match.group(1))
+            raise EventRejectedMessage
 
 
 entrypoint = MoviePlugin
