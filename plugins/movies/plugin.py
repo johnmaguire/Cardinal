@@ -128,8 +128,10 @@ class MoviePlugin:
                 imdb_id = result['Search'][0]['imdbID']
             except RuntimeError as e:
                 cardinal.sendMsg(channel, str(e))
+                return
             except Exception:
                 self.logger.exception("Unknown error while searching")
+                return
 
         try:
             yield self._send_result(cardinal, channel, imdb_id)
