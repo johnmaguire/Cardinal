@@ -11,6 +11,36 @@ from cardinal.exceptions import EventRejectedMessage
 from cardinal.util import F
 
 
+class SearchCache:
+    def __init__(self, max_length):
+        self.max_length = max_length
+
+        self._cache = dict()
+        self._keys = list()
+
+    def add(self, channel, results):
+        # don't duplicate channel in list
+        try:
+            self._keys.remove(channel)
+        except ValueError:
+            pass
+
+        self._keys.append(channel)
+        self._cache[channel] = results
+
+        # remove oldest item in list
+        while len(self._keys) > self.max_length:
+            key = self._keys.pop(0)
+            del self._cache[key]
+
+    def get(self, channel):
+        return self._cache[channel]
+
+
+def get_imdb_link(id):
+    return "https://imdb.com/title/{}".format(id)
+
+
 def format_data_short(data):
     if data['imdbRating'] == "N/A":
         rating = ""
@@ -23,7 +53,7 @@ def format_data_short(data):
         runtime=data['Runtime'],
         maybe_rating=rating,
         plot=data['Plot'],
-        link="https://imdb.com/title/{}".format(data['imdbID']),
+        link=get_imdb_link(data['imdbID']),
     )
 
 
@@ -39,11 +69,13 @@ def format_data_full(data):
             F.bold("Rating"), data['imdbRating'], stars
         )
 
+    link = get_imdb_link(data['imdbID'])
     return [
-        "[IMDb] {title} ({year}) - https://imdb.com/title/{movie_id}"
+        "[IMDb] {title} ({year}) - {link}"
         .format(
-            title=F.bold(data['Title']), year=data['Year'],
-            movie_id=data['imdbID']
+            title=F.bold(data['Title']),
+            year=data['Year'],
+            link=link
         ),
         "{}{}: {}  {}: {}  {}: {}".format(
             maybe_rating,
@@ -71,6 +103,18 @@ class MoviePlugin:
         self.default_output = config.get('default_output', 'short')
         self.private_output = config.get('private_output', 'full')
         self.channels = config.get('channels', {})
+        self.max_search_results = config.get('max_search_results', 5)
+
+        # Stores results for quick lookup
+        self._search_cache = SearchCache(5)
+
+    def search_allowed(self, channel):
+        chantypes = self.cardinal.supported.getFeature("CHANTYPES") or ('#',)
+        if channel[0] not in chantypes:
+            return True
+
+        return self.channels.get(channel, {}) \
+            .get('allow_search', False)
 
     def get_output_format(self, channel):
         chantypes = self.cardinal.supported.getFeature("CHANTYPES") or ('#',)
@@ -86,20 +130,20 @@ class MoviePlugin:
     @help('Syntax: .movie <search query>')
     @defer.inlineCallbacks
     def movie(self, cardinal, user, channel, msg):
-        yield self.search(cardinal, user, channel, msg, result_type='movie')
+        yield self.imdb(cardinal, user, channel, msg, result_type='movie')
 
     @command('show')
     @help('Get the first TV show IMDb result for a given search')
     @help('Syntax: .show <search query>')
     @defer.inlineCallbacks
     def show(self, cardinal, user, channel, msg):
-        yield self.search(cardinal, user, channel, msg, result_type='series')
+        yield self.imdb(cardinal, user, channel, msg, result_type='series')
 
     @command(['omdb', 'imdb'])
     @help('Get the first IMDb result for a given search')
     @help('Syntax: .imdb <search query>')
     @defer.inlineCallbacks
-    def search(self, cardinal, user, channel, msg, result_type=None):
+    def imdb(self, cardinal, user, channel, msg, result_type=None):
         # Before we do anything, let's make sure we'll be able to query omdb.
         if self.api_key is None:
             cardinal.sendMsg(
@@ -120,12 +164,19 @@ class MoviePlugin:
             return
 
         # first, check if this is just an IMDB id
+        imdb_id = None
         if re.match(r'^tt\d{7,8}$', search_query):
             imdb_id = search_query
-        else:
+        # next, check if this is is a search selection
+        elif (match := re.match(r'^(\d+)$', search_query)):
+            res_id = int(match.group(1))
+            imdb_id = self._search_cache.get(channel)[res_id - 1]['imdbID']
+
+        # otherwise, try to find the best match
+        if not imdb_id:
             try:
-                result = yield self._search(search_query, result_type)
-                imdb_id = result['Search'][0]['imdbID']
+                results = yield self._search(search_query, result_type)
+                imdb_id = results[0]['imdbID']
             except RuntimeError as e:
                 cardinal.sendMsg(channel, str(e))
                 return
@@ -140,8 +191,51 @@ class MoviePlugin:
             self.logger.exception("Failed to parse info for %s", imdb_id)
             return
 
+    @command('search')
+    @help('Return IMDb search results (use .imdb for a single title)')
+    @help('Syntax: .search <search query>')
     @defer.inlineCallbacks
-    def _search(self, search_query, result_type):
+    def search(self, cardinal, user, channel, msg):
+        if self.api_key is None:
+            cardinal.sendMsg(
+                channel,
+                "Movie plugin is not configured correctly. Please set API key."
+            )
+            return
+
+        if not self.search_allowed(channel):
+            cardinal.sendMsg(channel, "nope")
+            return
+
+        try:
+            search_query = msg.split(' ', 1)[1].strip()
+        except IndexError:
+            cardinal.sendMsg(channel, "Syntax: .search <search query>")
+            return
+
+        results = yield self._search(search_query)
+        if not results:
+            cardinal.sendMsg(channel, "No results found.")
+            return
+
+        # Store these for quick lookup in imdb command
+        self._search_cache.add(channel, results)
+
+        i = 0
+        for result in results:
+            i += 1
+            type_ = result['Type'].capitalize()
+            link = get_imdb_link(result['imdbID'])
+            cardinal.sendMsg(
+                channel,
+                f"{i}. {result['Title']} ({result['Year']})  "
+                f"[{type_}] - {link}"
+            )
+            if i >= self.max_search_results:
+                break
+
+    @defer.inlineCallbacks
+    def _search(self, search_query, result_type=None):
         params = {}
         if result_type:
             params['type'] = result_type
@@ -167,7 +261,7 @@ class MoviePlugin:
 
             raise RuntimeError("Error searching OMDb: %s" % result['Error'])
 
-        return result
+        return result['Search']
 
     @defer.inlineCallbacks
     def _send_result(self, cardinal, channel, imdb_id):
