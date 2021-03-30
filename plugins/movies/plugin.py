@@ -10,6 +10,9 @@ from cardinal.decorators import command, event, help
 from cardinal.exceptions import EventRejectedMessage
 from cardinal.util import F
 
+_numerals = {1: 'a', 2: 'b', 3: 'c', 4: 'd', 5: 'e'}
+_indexes = {v: k for k, v in _numerals.items()}
+
 
 class SearchCache:
     def __init__(self, max_length):
@@ -104,6 +107,8 @@ class MoviePlugin:
         self.private_output = config.get('private_output', 'full')
         self.channels = config.get('channels', {})
         self.max_search_results = config.get('max_search_results', 5)
+        if self.max_search_results > 5:
+            raise Exception("max_search_results must be between 1-5")
 
         # Stores results for quick lookup
         self._search_cache = SearchCache(5)
@@ -168,9 +173,15 @@ class MoviePlugin:
         if re.match(r'^tt\d{7,8}$', search_query):
             imdb_id = search_query
         # next, check if this is is a search selection
-        elif (match := re.match(r'^(\d+)$', search_query)):
-            res_id = int(match.group(1))
-            imdb_id = self._search_cache.get(channel)[res_id - 1]['imdbID']
+        elif search_query in _indexes:
+            try:
+                res_id = _indexes[search_query]
+                res = self._search_cache.get(channel)[res_id - 1]
+            except KeyError:
+                # no search results in this channel yet
+                pass
+            else:
+                imdb_id = res['imdbID']
 
         # otherwise, try to find the best match
         if not imdb_id:
@@ -213,7 +224,11 @@ class MoviePlugin:
             cardinal.sendMsg(channel, "Syntax: .search <search query>")
             return
 
-        results = yield self._search(search_query)
+        try:
+            results = yield self._search(search_query)
+        except RuntimeError as e:
+            cardinal.sendMsg(channel, str(e))
+            return
         if not results:
             cardinal.sendMsg(channel, "No results found.")
             return
@@ -224,15 +239,18 @@ class MoviePlugin:
         i = 0
         for result in results:
             i += 1
+            n = _numerals[i]
             type_ = result['Type'].capitalize()
             link = get_imdb_link(result['imdbID'])
             cardinal.sendMsg(
                 channel,
-                f"{i}. {result['Title']} ({result['Year']})  "
+                f"{n}. {result['Title']} ({result['Year']})  "
                 f"[{type_}] - {link}"
             )
             if i >= self.max_search_results:
                 break
+
+        cardinal.sendMsg(channel, "Use .imdb <numeral> to view more.")
 
     @defer.inlineCallbacks
     def _search(self, search_query, result_type=None):
