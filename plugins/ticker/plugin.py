@@ -488,10 +488,13 @@ class TickerPlugin:
         data = r.json()
 
         try:
+            price = float(data['latestPrice'])
+            previous_close = float(data['previousClose'])
+            change_percent = ((price - previous_close) / previous_close) * 100
             return ({'symbol': data['symbol'],
-                     'price': float(data['latestPrice']),
-                     'previous close': float(data['previousClose']),
-                     'change': float(data['changePercent']) * 100,
+                     'price': price,
+                     'previous close': previous_close,
+                     'change': change_percent,
                      })
         except KeyError as e:
             self.logger.error("{}, with data: {}".format(e, data))
