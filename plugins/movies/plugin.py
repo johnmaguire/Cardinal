@@ -10,8 +10,8 @@ from cardinal.decorators import command, event, help
 from cardinal.exceptions import EventRejectedMessage
 from cardinal.util import F
 
-_numerals = {1: 'a', 2: 'b', 3: 'c', 4: 'd', 5: 'e'}
-_indexes = {v: k for k, v in _numerals.items()}
+_indexes = {1: 'a', 2: 'b', 3: 'c', 4: 'd', 5: 'e'}
+_numerals = {v: k for k, v in _indexes.items()}
 
 
 class SearchCache:
@@ -173,12 +173,20 @@ class MoviePlugin:
         if re.match(r'^tt\d{7,8}$', search_query):
             imdb_id = search_query
         # next, check if this is is a search selection
-        elif search_query in _indexes:
+        elif search_query.isnumeric() \
+                and int(search_query) in _indexes:
             try:
-                res_id = _indexes[search_query]
-                res = self._search_cache.get(channel)[res_id - 1]
+                res_id = int(search_query) - 1
+                res = self._search_cache.get(channel)[res_id]
             except KeyError:
-                # no search results in this channel yet
+                pass
+            else:
+                imdb_id = res['imdbID']
+        elif search_query in _numerals:
+            try:
+                res_id = _numerals[search_query] - 1
+                res = self._search_cache.get(channel)[res_id]
+            except KeyError:
                 pass
             else:
                 imdb_id = res['imdbID']
@@ -239,18 +247,20 @@ class MoviePlugin:
         i = 0
         for result in results:
             i += 1
-            n = _numerals[i]
             type_ = result['Type'].capitalize()
             link = get_imdb_link(result['imdbID'])
             cardinal.sendMsg(
                 channel,
-                f"{n}. {result['Title']} ({result['Year']})  "
+                f"{i}. {result['Title']} ({result['Year']})  "
                 f"[{type_}] - {link}"
             )
             if i >= self.max_search_results:
                 break
 
-        cardinal.sendMsg(channel, "Use .imdb <numeral> to view more.")
+        cardinal.sendMsg(
+            channel,
+            "Use .imdb <numeral> to view more. (1/a, 2/b, etc.)"
+        )
 
     @defer.inlineCallbacks
     def _search(self, search_query, result_type=None):
