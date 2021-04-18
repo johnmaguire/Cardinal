@@ -21,6 +21,9 @@ EPOCH = datetime.utcfromtimestamp(0)
 
 class SeenPlugin:
     def __init__(self, cardinal, config):
+        if config is None:
+            config = {}
+
         self.cardinal = cardinal
         self.ignored_channels = config.get('ignored_channels', [])
 
