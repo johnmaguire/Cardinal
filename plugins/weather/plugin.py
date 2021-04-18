@@ -117,7 +117,11 @@ class WeatherPlugin:
                 try:
                     location = db[user.nick]
                 except KeyError:
-                    cardinal.sendMsg(channel, "Syntax: .weather <location>")
+                    cardinal.sendMsg(
+                        channel,
+                        "Syntax: .weather <location> "
+                        "(.setw <location> to make it permanent)"
+                    )
                     return
 
         try:
