@@ -41,7 +41,7 @@ def get_urls(message):
 
 
 class URLsPlugin:
-    TIMEOUT = 10
+    TIMEOUT = 5
     """Timeout in seconds before bailing on loading page"""
 
     READ_BYTES = 524288
@@ -66,6 +66,9 @@ class URLsPlugin:
         self.timeout = config.get('timeout', self.TIMEOUT)
         self.read_bytes = config.get('read_bytes', self.READ_BYTES)
         self.lookup_cooloff = config.get('lookup_cooloff', self.LOOKUP_COOLOFF)
+        # Whether to attempt to grab a title if no other plugin handles it
+        self.generic_handler_enabled = config.get(
+            'handle_generic_urls', True)
 
         cardinal.event_manager.register('urls.detection', 2)
 
@@ -83,7 +86,7 @@ class URLsPlugin:
             if (url == self.last_url and self.last_url_at and
                     (datetime.now() - self.last_url_at).seconds <
                     self.lookup_cooloff):
-                return None
+                return
 
             self.last_url = url
             self.last_url_at = datetime.now()
@@ -93,8 +96,10 @@ class URLsPlugin:
             hooked = yield cardinal.event_manager.fire(
                 'urls.detection', channel, url)
 
-            if hooked:
-                return None
+            # Move to the next URL if a plugin has handled it or generic
+            # handling is disabled
+            if hooked or not self.generic_handler_enabled:
+                continue
 
             try:
                 o = request.build_opener()
@@ -105,13 +110,13 @@ class URLsPlugin:
                 f = yield deferToThread(o.open, url, timeout=self.timeout)
             except Exception:
                 self.logger.exception("Unable to load URL: %s" % url)
-                return None
+                return
 
             # Attempt to find the title
             content_type = f.info()['content-type']
             if not ('text/html' in content_type or
                     'text/xhtml' in content_type):
-                return None
+                return
             content = f.read(self.read_bytes).decode('utf-8')
             f.close()
 
@@ -126,7 +131,6 @@ class URLsPlugin:
                     title_to_send = title[:200] if len(title) >= 200 else title
 
                     cardinal.sendMsg(channel, "URL Found: %s" % title_to_send)
-                    continue
 
     def close(self, cardinal):
         cardinal.event_manager.remove('urls.detection')
