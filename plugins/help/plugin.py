@@ -25,9 +25,9 @@ class HelpPlugin:
         # Loop through commands registered in Cardinal
         for plugin in cardinal.plugin_manager:
             for cmd in plugin['commands']:
-                if hasattr(command, 'commands'):
+                if hasattr(cmd, 'commands'):
                     commands.append(cmd.commands[0])
-                elif hasattr(command, 'name'):
+                elif hasattr(cmd, 'name'):
                     commands.append(cmd.name)
 
         return commands
@@ -79,12 +79,15 @@ class HelpPlugin:
     # Give the user a list of valid commands in the bot if no command is
     # provided. If a valid command is provided, return its help text
     @command(['help'])
-    @help("Shows loaded commands if no command is given. Otherwise, returns that command's help string.")
+    @help("Shows loaded commands or a specific command's help.")
     @help("Syntax: .help [command]")
     def cmd_help(self, cardinal, user, channel, msg):
         parameters = msg.split()
         if len(parameters) == 1:
-            cardinal.sendMsg(channel, "Loaded commands: %s" % ', '.join(self._get_commands(cardinal)))
+            cardinal.sendMsg(
+                channel,
+                "Loaded commands: %s" % ', '.join(self._get_commands(cardinal))
+            )
         else:
             command = parameters[1]
             help = self._get_command_help(cardinal, command)
@@ -94,7 +97,9 @@ class HelpPlugin:
             elif isinstance(help, str):
                 cardinal.sendMsg(channel, help)
             else:
-                cardinal.sendMsg(channel, "Unable to handle help string returned by module.")
+                cardinal.sendMsg(
+                    channel,
+                    "Unable to handle help string returned by module.")
 
     # Sends some basic meta information about the bot
     @command('info')
