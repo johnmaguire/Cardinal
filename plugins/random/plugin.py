@@ -1,7 +1,7 @@
 import random
 import re
 
-from cardinal.decorators import command
+from cardinal.decorators import command, help
 
 
 def parse_roll(arg):
@@ -22,9 +22,13 @@ def parse_roll(arg):
 
 class RandomPlugin:
     @command('roll')
+    @help("Roll dice")
+    @help("Syntax: .roll #d# (e.g. .roll 2d6)")
     def roll(self, cardinal, user, channel, msg):
         args = msg.split(' ')
         args.pop(0)
+        if not args:
+            return
 
         dice = []
         for arg in args:
