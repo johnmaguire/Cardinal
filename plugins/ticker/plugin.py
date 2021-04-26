@@ -16,20 +16,14 @@ from cardinal.util import F
 # IEX API Endpoint
 IEX_QUOTE_API_URL = "https://cloud.iexapis.com/stable/stock/{symbol}/quote?token={token}"  # noqa: E501
 
-# This is actually max tries, not max retries (for AV API requests)
-MAX_RETRIES = 3
-RETRY_WAIT = 15
+# Regex pattern that matches PyLink relay bots
+RELAY_REGEX = r'^(?:<(.+?)>\s+)?'
 
-# Supports relayed messages
-CHECK_REGEX = r'^(?:<(.+?)>\s+)?!check (\^?[A-Za-z]+(?:[:\.][A-Za-z]+)?)$'
+# For 'check' command - checking stock price
+CHECK_REGEX = RELAY_REGEX + r'!check (\^?[A-Za-z]+(?:[:\.][A-Za-z]+)?)$'
 
-# Supports relayed messages
-PREDICT_REGEX = r'^(?:<(.+?)>\s+)?!predict (\^?[A-Za-z]+(?:[:\.][A-Za-z]+)?) (?:([-+])?(\d+(?:\.\d+)?)%|\$?(\d+(?:\.\d+)?))$'  # noqa: E501
-
-
-class ThrottledException(Exception):
-    """An exception we raise when we believe we are being API throttled."""
-    pass
+# For 'predict' command - predicting stock price
+PREDICT_REGEX = RELAY_REGEX + r'!predict (\^?[A-Za-z]+(?:[:\.][A-Za-z]+)?) (?:([-+])?(\d+(?:\.\d+)?)%|\$?(\d+(?:\.\d+)?))$'  # noqa: E501
 
 
 def est_now():
@@ -228,8 +222,8 @@ class TickerPlugin:
     def format_symbol(self, symbol, change):
         name = self.stocks[symbol]
 
-        return "{name} (\x02{symbol}\x02): {change}".format(
-                symbol=symbol,
+        return "{name} ({symbol}): {change}".format(
+                symbol=F.bold(symbol),
                 name=name,
                 change=colorize(change),
             )
@@ -289,11 +283,11 @@ class TickerPlugin:
             for channel in self.config["channels"]:
                 self.cardinal.sendMsg(
                     channel,
-                    "{} had the closest guess for \x02{}\x02 out of {} "
+                    "{} had the closest guess for {} out of {} "
                     "predictions with a prediction of {:.2f} ({}) "
                     "compared to the actual {} of {:.2f} ({}).".format(
                         closest_nick,
-                        symbol,
+                        F.bold(symbol),
                         len(predictions),
                         closest_prediction,
                         colorize(get_delta(closest_prediction,
@@ -498,6 +492,7 @@ class TickerPlugin:
                      })
         except KeyError as e:
             self.logger.error("{}, with data: {}".format(e, data))
+            raise
 
 
 entrypoint = TickerPlugin
