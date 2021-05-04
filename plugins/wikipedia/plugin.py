@@ -72,8 +72,13 @@ class WikipediaPlugin:
                 summary = "Disambiguation Page"
             else:
                 content = soup.find_all("div", id="mw-content-text")[0]
-                first_paragraph = content.find(
-                    "p", class_=class_is_not_mw_empty_elt).get_text().strip()
+                for x in content.find_all(
+                            "p",
+                            class_=class_is_not_mw_empty_elt,
+                        ):
+                    if len(x.get_text(strip=True)) != 0:
+                        first_paragraph = x.get_text(strip=True)
+                        break
 
                 if len(first_paragraph) > self._max_description_length:
                     summary = "{}...".format(
