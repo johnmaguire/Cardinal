@@ -51,6 +51,14 @@ class CryptoPlugin:
                 "Missing cmc_api_key (CoinMarketCap) - crypto functions will "
                 "be unavailable")
 
+        self.relay_bots = []
+        for relay_bot in self.config['relay_bots']:
+            user = user_info(
+                relay_bot['nick'],
+                relay_bot['user'],
+                relay_bot['vhost'])
+            self.relay_bots.append(user)
+
     @command('crypto')
     @help('Check the price of a cryptocurrency')
     @help('Syntax: .crypto <cryptocurrency,...> [price currency]')
@@ -118,18 +126,20 @@ class CryptoPlugin:
     def crypto_regex(self, cardinal, user, channel, message):
         """Hack to support relayed messages"""
         match = re.match(CRYPTO_REGEX, message)
-        if match.group(1):
-            # this group should only be present when a relay bot is relaying a
-            # message for another user
-            if not self.is_relay_bot(user):
-                return
 
-            user = user_info(util.strip_formatting(match.group(1)),
-                             user.user,
-                             user.vhost,
-                             )
+        # this group should only be present when a relay bot is relaying a
+        # message for another user
+        if not match.group(1):
+            return
+        if not self.is_relay_bot(user):
+            return
 
-            yield self.crypto(cardinal, user, channel, match.group(2))
+        user = user_info(util.strip_formatting(match.group(1)),
+                         user.user,
+                         user.vhost,
+                         )
+
+        yield self.crypto(cardinal, user, channel, match.group(2))
 
     @defer.inlineCallbacks
     def make_cmc_request(self, coin, currency):
@@ -151,6 +161,16 @@ class CryptoPlugin:
                 ))
 
         return resp['data']
+
+    def is_relay_bot(self, user):
+        """Compares a user against the registered relay bots."""
+        for bot in self.relay_bots:
+            if (bot.nick is None or bot.nick == user.nick) and \
+                    (bot.user is None or bot.user == user.user) and \
+                    (bot.vhost is None or bot.vhost == user.vhost):
+                return True
+
+        return False
 
 
 entrypoint = CryptoPlugin
