@@ -77,7 +77,7 @@ class WikipediaPlugin:
                             class_=class_is_not_mw_empty_elt,
                         ):
                     if len(x.get_text(strip=True)) != 0:
-                        first_paragraph = x.get_text(strip=True)
+                        first_paragraph = x.get_text().strip()
                         break
 
                 if len(first_paragraph) > self._max_description_length:
