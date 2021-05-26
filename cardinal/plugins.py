@@ -177,10 +177,9 @@ class PluginManager:
                 "instance of the plugin."
             )
 
-        # Check whether the setup method on the module accepts an argument. If
-        # it does, they are expecting our instance of CardinalBot to be passed
-        # in. If not, just call setup. If there is more than one argument
-        # accepted, the method is invalid.
+        # entrypoint should accept cardinal and/or config arguments - the
+        # former will get an instance of the CardinalBot and the latter will
+        # get the config object if we loaded one.
         kwargs = {}
         for param in signature.parameters:
             if param == 'cardinal':
@@ -282,23 +281,26 @@ class PluginManager:
         """
 
         instance = self.plugins[plugin]['instance']
+        if hasattr(instance, 'close'):
+            try:
+                signature = inspect.signature(instance.close)
+            except TypeError:
+                raise PluginError(
+                    "Plugin's close method must be a callable that closes out "
+                    "the instance."
+                )
 
-        if hasattr(instance, 'close') and inspect.ismethod(instance.close):
-            # The plugin has a close method, so we now need to check how
-            # many arguments the method has. If it only has one, then the
-            # argument must be 'self' and therefore they aren't expecting
-            # us to pass in an instance of CardinalBot. If there are two
-            # arguments, they expect CardinalBot. Anything else is invalid.
-            argspec = inspect.getfullargspec(
-                instance.close
-            )
+            kwargs = {}
+            for param in signature.parameters:
+                if param == 'cardinal':
+                    kwargs['cardinal'] = self.cardinal
+                else:
+                    raise PluginError(
+                        "Unknown parameter {} in close signature"
+                        .format(param)
+                    )
 
-            if len(argspec.args) == 1:
-                instance.close()
-            elif len(argspec.args) == 2:
-                instance.close(self.cardinal)
-            else:
-                raise PluginError("Unknown arguments for close function")
+            instance.close(**kwargs)
 
     def _load_plugin_config(self, plugin):
         """Loads a JSON config for a given plugin
