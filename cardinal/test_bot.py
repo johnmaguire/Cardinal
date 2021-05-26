@@ -584,17 +584,10 @@ class TestCardinalBot:
         quit_mock.assert_called_once_with(message)
 
     def test_get_db(self):
-        assert self.cardinal.db_locks == {}
-
         with tempdir('database') as database_path:
             self.factory.storage_path = os.path.dirname(database_path)
 
             db = self.cardinal.get_db('test')
-
-        assert len(self.cardinal.db_locks) == 1
-        db_path = list(self.cardinal.db_locks.keys())[0]
-        assert db_path.endswith(os.path.join(
-            'database', 'test-{}.json'.format(self.factory.network)))
 
         assert callable(db)
 
@@ -603,12 +596,6 @@ class TestCardinalBot:
             self.factory.storage_path = os.path.dirname(database_path)
 
             self.cardinal.get_db('test', network_specific=False)
-
-        assert len(self.cardinal.db_locks) == 1
-        db_path = list(self.cardinal.db_locks.keys())[0]
-        # note lack of network formatted in below
-        assert db_path.endswith(os.path.join(
-            'database', 'test.json'))
 
     def test_get_db_db(self):
         with tempdir('database') as database_path:

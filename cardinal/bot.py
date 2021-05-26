@@ -77,7 +77,7 @@ class CardinalBot(irc.IRCClient, object):
         return self.factory.storage_path
 
     def __init__(self):
-        """Initializes the logging"""
+        # Setup logging
         self.logger = logging.getLogger(__name__)
         self.irc_logger = logging.getLogger("%s.irc" % __name__)
 
@@ -108,7 +108,7 @@ class CardinalBot(irc.IRCClient, object):
         self._who_deferreds = {}
 
         # Database file locks
-        self.db_locks = {}
+        self._db_locks = {}
 
     def signedOn(self):
         """Called once we've connected to a network"""
@@ -522,15 +522,15 @@ class CardinalBot(irc.IRCClient, object):
             '-{}'.format(self.network) if network_specific else '') +
             '.json')
 
-        if db_path not in self.db_locks:
-            self.db_locks[db_path] = UNLOCKED
+        if db_path not in self._db_locks:
+            self._db_locks[db_path] = UNLOCKED
 
         @contextmanager
         def db():
-            if self.db_locks[db_path] == LOCKED:
+            if self._db_locks[db_path] == LOCKED:
                 raise LockInUseError('DB {} locked'.format(db_path))
 
-            self.db_locks[db_path] = LOCKED
+            self._db_locks[db_path] = LOCKED
 
             try:
                 if not os.path.exists(db_path):
@@ -547,7 +547,7 @@ class CardinalBot(irc.IRCClient, object):
                     f.truncate()
                     json.dump(database, f)
             finally:
-                self.db_locks[db_path] = UNLOCKED
+                self._db_locks[db_path] = UNLOCKED
 
         return db
 
