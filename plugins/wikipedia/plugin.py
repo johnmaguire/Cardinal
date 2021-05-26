@@ -1,8 +1,8 @@
 import re
 import logging
 
-import requests
-from bs4 import BeautifulSoup
+from mediawiki import MediaWiki
+from mediawiki.exceptions import DisambiguationError
 from twisted.internet import defer
 from twisted.internet.threads import deferToThread
 
@@ -26,75 +26,58 @@ class WikipediaPlugin:
         # Initialize logger
         self.logger = logging.getLogger(__name__)
 
-        try:
-            self._max_description_length = config['max_description_length']
-        except KeyError:
-            self.logger.warning(
-                "No max description length in config -- using defaults: %d" %
-                DEFAULT_MAX_DESCRIPTION_LENGTH
-            )
-            self._max_description_length = DEFAULT_MAX_DESCRIPTION_LENGTH
+        self._max_description_length = config.get(
+            'max_description_length',
+            DEFAULT_MAX_DESCRIPTION_LENGTH)
 
-        try:
-            self._language_code = config['language_code']
-        except KeyError:
-            self.logger.warning(
-                "No language in config -- using defaults: %s" %
-                DEFAULT_LANGUAGE_CODE
-            )
-            self._language_code = DEFAULT_LANGUAGE_CODE
+        self._language_code = config.get(
+            'language_code',
+            DEFAULT_LANGUAGE_CODE)
+
+        self._wiki = None
+
+    @defer.inlineCallbacks
+    def get_wiki(self):
+        if self._wiki:
+            return self._wiki
+
+        # makes a network call
+        def get_wiki():
+            self._wiki = MediaWiki(
+                lang=self._language_code)
+
+        yield deferToThread(get_wiki)
+
+        return self._wiki
 
     @defer.inlineCallbacks
     def _get_article_info(self, name):
-        url = "https://%s.wikipedia.org/wiki/%s" % (
-            self._language_code,
-            name.replace(' ', '_'),
+        try:
+            w = yield self.get_wiki()
+            p = yield deferToThread(w.page, name)
+        # FIXME
+        except DisambiguationError as err:
+            options = "{}".format(', '.join(err.options[:10]))
+            if len(err.options) > 10:
+                options += ", and {} more".format(len(err.options) - 10)
+
+            return "Wikipedia Disambiguation: {options} - {url}".format(
+                options=options,
+                url=err.url,
+            )
+
+        # makes a network call
+        def get_summary(p):
+            return "{}...".format(p.summary[:self._max_description_length]) \
+                if len(p.summary) > self._max_description_length else \
+                p.summary
+        summary = yield deferToThread(get_summary, p)
+
+        return "Wikipedia: {title} - {summary} - {url}".format(
+            title=p.title,
+            summary=summary,
+            url=p.url,
         )
-
-        try:
-            r = yield deferToThread(requests.get, url)
-            url = r.url
-            soup = BeautifulSoup(r.text, features="html.parser")
-        except Exception:
-            self.logger.warning(
-                "Couldn't query Wikipedia (404?) for: %s" % name, exc_info=True
-            )
-
-            return "Unable to find Wikipedia page for: %s" % name
-
-        try:
-            # Title of the Wikipedia page
-            title = soup.find("h1").get_text()
-
-            # Manipulation to get first paragraph without HTML markup
-            disambiguation = soup.find("table", id="disambigbox") is not None
-            if disambiguation:
-                summary = "Disambiguation Page"
-            else:
-                content = soup.find_all("div", id="mw-content-text")[0]
-                for x in content.find_all(
-                            "p",
-                            class_=class_is_not_mw_empty_elt,
-                        ):
-                    if len(x.get_text(strip=True)) != 0:
-                        first_paragraph = x.get_text().strip()
-                        break
-
-                if len(first_paragraph) > self._max_description_length:
-                    summary = "{}...".format(
-                        first_paragraph[:self._max_description_length].strip()
-                    )
-                else:
-                    summary = first_paragraph
-        except Exception:
-            self.logger.error(
-                "Error parsing Wikipedia result for: %s" % name,
-                exc_info=True
-            )
-
-            return "Error parsing Wikipedia result for: %s" % name
-
-        return "Wikipedia: %s - %s - %s" % (title, summary, url)
 
     @event('urls.detection')
     @defer.inlineCallbacks
@@ -103,14 +86,20 @@ class WikipediaPlugin:
         if not match:
             raise EventRejectedMessage
 
-        article_info = yield self._get_article_info(match.group(1))
+        try:
+            article_info = yield self._get_article_info(match.group(1))
+        except Exception:
+            self.logger.exception("Error reading Wikipedia API for: {}".format(
+                match.group(1)))
+            raise EventRejectedMessage
+
         cardinal.sendMsg(channel, article_info)
 
     @command(['wiki', 'wikipedia'])
     @help("Gets a summary and link to a Wikipedia page")
     @help("Syntax: .wiki <article>")
     @defer.inlineCallbacks
-    def lookup_article(self, cardinal, user, channel, message):
+    def wiki(self, cardinal, user, channel, message):
         name = message.split(' ', 1)[1]
 
         article_info = yield self._get_article_info(name)
