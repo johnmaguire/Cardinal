@@ -37,6 +37,9 @@ pip-selfcheck.json
 nosetests.xml
 .cache
 
+# python-rope
+.ropeproject/
+
 # Translations
 *.mo
 
