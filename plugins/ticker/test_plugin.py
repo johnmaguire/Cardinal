@@ -359,39 +359,35 @@ class TestTickerPlugin:
                    "Prediction set at 2020-03-20 10:50:00 EDT.")
         self.mock_cardinal.sendMsg.assert_called_once_with('#test', message)
 
-    @pytest.mark.skip(reason="Not written yet")
-    def test_check(self):
-        pass
-
     @pytest.mark.parametrize("symbol,input_msg,output_msg,market_is_open", [
         ("SPY",
-         "!predict SPY +5%",
+         ".predict SPY +5%",
          "Prediction by nick for \x02SPY\x02 at market close: 105.00 (\x03095.00%\x03) ",
          True,
          ),
         ("SPY",
-         "!predict SPY -5%",
+         ".predict SPY -5%",
          "Prediction by nick for \x02SPY\x02 at market close: 95.00 (\x0304-5.00%\x03) ",
          True,
          ),
         ("SPY",
-         "!predict SPY -5%",
+         ".predict SPY -5%",
          "Prediction by nick for \x02SPY\x02 at market open: 95.00 (\x0304-5.00%\x03) ",
          False,
          ),
         # testing a few more formats of stock symbols
         ("^RUT",
-         "!predict ^RUT -5%",
+         ".predict ^RUT -5%",
          "Prediction by nick for \x02^RUT\x02 at market open: 95.00 (\x0304-5.00%\x03) ",
          False,
          ),
         ("REE.MC",
-         "!predict REE.MC -5%",
+         ".predict REE.MC -5%",
          "Prediction by nick for \x02REE.MC\x02 at market open: 95.00 (\x0304-5.00%\x03) ",
          False,
          ),
         ("LON:HDLV",
-         "!predict LON:HDLV -5%",
+         ".predict LON:HDLV -5%",
          "Prediction by nick for \x02LON:HDLV\x02 at market open: 95.00 (\x0304-5.00%\x03) ",
          False,
          ),
@@ -423,10 +419,10 @@ class TestTickerPlugin:
             output_msg)
 
     @pytest.mark.parametrize("message_pairs", [
-        (("!predict SPY +5%",
+        ((".predict SPY +5%",
           "Prediction by nick for \x02SPY\x02 at market close: 105.00 (\x03095.00%\x03) ",
           ),
-         ("!predict SPY -5%",
+         (".predict SPY -5%",
           "Prediction by nick for \x02SPY\x02 at market close: 95.00 (\x0304-5.00%\x03) "
           "(replaces old prediction of 105.00 (\x03095.00%\x03) set at {})"
           ),
@@ -457,24 +453,25 @@ class TestTickerPlugin:
                     output_msg)
 
     @pytest.mark.parametrize("input_msg,output_msg", [
-        ("<nick> !predict SPY +5%",
+        ("<nick> .predict SPY +5%",
          "Prediction by nick for \x02SPY\x02 at market close: 105.00 (\x03095.00%\x03) ",
          ),
-        ("<nick> !predict SPY -5%",
+        ("<nick> .predict SPY -5%",
          "Prediction by nick for \x02SPY\x02 at market close: 95.00 (\x0304-5.00%\x03) ",
          ),
     ])
     @pytest_twisted.inlineCallbacks
-    def test_predict_relay_bot(self, input_msg, output_msg):
+    def test_predict_relayed_relay_bot(self, input_msg, output_msg):
         symbol = 'SPY'
         channel = "#finance"
 
         response = make_iex_response(symbol, previous_close=100)
         with mock_api(response):
-            yield self.plugin.predict(self.mock_cardinal,
-                                      user_info("relay.bot", "relay", "relay"),
-                                      channel,
-                                      input_msg)
+            yield self.plugin.predict_relayed(
+                self.mock_cardinal,
+                user_info("relay.bot", "relay", "relay"),
+                channel,
+                input_msg)
 
         assert symbol in self.db['predictions']
         assert len(self.db['predictions'][symbol]) == 1
@@ -484,49 +481,38 @@ class TestTickerPlugin:
             output_msg)
 
     @pytest.mark.parametrize("input_msg", [
-        "<whoami> !predict SPY +5%",
-        "<whoami> !predict SPY -5%",
+        "<whoami> .predict SPY +5%",
+        "<whoami> .predict SPY -5%",
     ])
     @pytest_twisted.inlineCallbacks
-    def test_predict_not_relay_bot(self, input_msg):
+    def test_predict_relayed_not_relay_bot(self, input_msg):
         channel = "#finance"
 
-        yield self.plugin.predict(self.mock_cardinal,
-                                  user_info("nick", "user", "vhost"),
-                                  channel,
-                                  input_msg)
+        yield self.plugin.predict_relayed(
+            self.mock_cardinal,
+            user_info("nick", "user", "vhost"),
+            channel,
+            input_msg)
 
         assert len(self.db['predictions']) == 0
         assert self.mock_cardinal.sendMsg.mock_calls == []
 
     @pytest.mark.parametrize("user,message,value,expected", [
         (
-            user_info("whoami", None, None),
-            "!predict SPY 5%",
+            "whoami",
+            ".predict SPY 5%",
             100,
             ("whoami", "SPY", 105, 100),
         ),
         (
-            user_info("whoami", None, None),
-            "!predict SPY +5%",
+            "whoami",
+            ".predict SPY +5%",
             100,
             ("whoami", "SPY", 105, 100),
         ),
         (
-            user_info("whoami", None, None),
-            "!predict SPY -5%",
-            100,
-            ("whoami", "SPY", 95, 100),
-        ),
-        (
-            user_info("not.a.relay.bot", None, None),
-            "<whoami> !predict SPY -5%",
-            100,
-            None,
-        ),
-        (
-            user_info("relay.bot", "relay", "relay"),
-            "<whoami> !predict SPY -5%",
+            "whoami",
+            ".predict SPY -5%",
             100,
             ("whoami", "SPY", 95, 100),
         ),
@@ -549,22 +535,16 @@ class TestTickerPlugin:
 
     @pytest.mark.parametrize("user,message,value,expected", [
         (
-            user_info("whoami", None, None),
-            "!predict SPY 500",
+            "whoami",
+            ".predict SPY 500",
             100,
             ("whoami", "SPY", 500, 100),
         ),
         (
-            user_info("whoami", None, None),
-            "!predict SPY $100",
+            "whoami",
+            ".predict SPY $100",
             100,
             ("whoami", "SPY", 100, 100),
-        ),
-        (
-            user_info("relay.bot", "relay", "relay"),
-            "<whoami> !predict SPY 500",
-            100,
-            ("whoami", "SPY", 500, 100),
         ),
     ])
     @pytest_twisted.inlineCallbacks
@@ -585,32 +565,20 @@ class TestTickerPlugin:
 
     @pytest.mark.parametrize("user,message,value,expected", [
         (
-            user_info("whoami", None, None),
-            "!predict SPY 5%",
+            "whoami",
+            ".predict SPY 5%",
             100,
             ("whoami", "SPY", 105, 100),
         ),
         (
-            user_info("whoami", None, None),
-            "!predict SPY +5%",
+            "whoami",
+            ".predict SPY +5%",
             100,
             ("whoami", "SPY", 105, 100),
         ),
         (
-            user_info("whoami", None, None),
-            "!predict SPY -5%",
-            100,
-            ("whoami", "SPY", 95, 100),
-        ),
-        (
-            user_info("not.a.relay.bot", None, None),
-            "<whoami> !predict SPY -5%",
-            100,
-            None,
-        ),
-        (
-            user_info("relay.bot", "relay", "relay"),
-            "<whoami> !predict SPY -5%",
+            "whoami",
+            ".predict SPY -5%",
             100,
             ("whoami", "SPY", 95, 100),
         ),

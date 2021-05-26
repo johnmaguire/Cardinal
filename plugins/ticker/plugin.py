@@ -10,20 +10,23 @@ from twisted.internet.threads import deferToThread
 
 from cardinal import util
 from cardinal.bot import user_info
-from cardinal.decorators import regex
+from cardinal.decorators import command, help, regex
 from cardinal.util import F
 
 # IEX API Endpoint
 IEX_QUOTE_API_URL = "https://cloud.iexapis.com/stable/stock/{symbol}/quote?token={token}"  # noqa: E501
 
 # Regex pattern that matches PyLink relay bots
-RELAY_REGEX = r'^(?:<(.+?)>\s+)?'
+RELAY_REGEX = r'^(?:<(.+?)>\s+)'
 
-# For 'check' command - checking stock price
-CHECK_REGEX = RELAY_REGEX + r'!check (\^?[A-Za-z]+(?:[:\.][A-Za-z]+)?)$'
+# For 'stock' command - checking stock price
+STOCK_RELAY_REGEX = RELAY_REGEX + r'(\.stock.*?)$'
 
 # For 'predict' command - predicting stock price
-PREDICT_REGEX = RELAY_REGEX + r'!predict (\^?[A-Za-z]+(?:[:\.][A-Za-z]+)?) (?:([-+])?(\d+(?:\.\d+)?)%|\$?(\d+(?:\.\d+)?))$'  # noqa: E501
+PREDICT_REGEX = r'^(.+?) (?:([-+])?(\d+(?:\.\d+)?)%|\$?(\d+(?:\.\d+)?))$'  # noqa: E501
+
+# For 'predict' command - predicting a stock price
+PREDICT_RELAY_REGEX = RELAY_REGEX + r'(\.predict.*?)$'
 
 
 def est_now():
@@ -328,22 +331,19 @@ class TickerPlugin:
                     prediction['when']
                 ))
 
-    @regex(CHECK_REGEX)
+    @command('stock')
+    @help("Check the latest price of a stock")
+    @help("Syntax: .stock <stock symbol>")
     @defer.inlineCallbacks
-    def check(self, cardinal, user, channel, msg):
-        """Check a specific stock for current value and daily change"""
-        nick = user.nick
+    def stock(self, cardinal, user, channel, msg):
+        nick = user.nick  # other values may not exist for relayed users
 
-        match = re.match(CHECK_REGEX, msg)
-        if match.group(1):
-            # this group should only be present when a relay bot is relaying a
-            # message for another user
-            if not self.is_relay_bot(user):
-                return
+        parts = msg.split(' ')
+        if len(parts) != 2:
+            cardinal.sendMsg(channel, "Syntax: .stock <stock symbol>")
+            return
 
-            nick = util.strip_formatting(match.group(1))
-
-        symbol = match.group(2).upper()
+        symbol = parts[1]
         try:
             data = yield self.get_daily(symbol)
         except Exception as exc:
@@ -356,27 +356,58 @@ class TickerPlugin:
         cardinal.sendMsg(
             channel,
             "Symbol: \x02{}\x02 | Current: {:.2f} | Daily Change: {}".format(
-                symbol,
+                data['symbol'],
                 data['price'],
                 colorize(data['change'])))
 
-    @regex(PREDICT_REGEX)
+    @regex(STOCK_RELAY_REGEX)
+    @defer.inlineCallbacks
+    def stock_relayed(self, cardinal, user, channel, msg):
+        """Hack to support relayed messages"""
+        match = re.match(STOCK_RELAY_REGEX, msg)
+
+        # this regex should only match when a relay bot is relaying a message
+        # for another user - make sure this is really a relay bot
+        if not self.is_relay_bot(user):
+            return
+
+        user = user_info(util.strip_formatting(match.group(1)),
+                         user.user,
+                         user.vhost,
+                         )
+
+        yield self.stock(cardinal, user, channel, match.group(2))
+
+    @command('predict')
+    @help("Predict a stock price at the next market open/close")
+    @help("Syntax: .predict <stock> [-]<X>%  |  .predict <stock> $<X>")
     @defer.inlineCallbacks
     def predict(self, cardinal, user, channel, msg):
+        nick = user.nick
+
         try:
-            prediction = yield self.parse_prediction(user, msg)
+            msg = msg.split(' ', 1)[1]
+        except IndexError:
+            cardinal.sendMsg(channel,
+                             "Syntax: .predict <stock> [-]<X>%  |"
+                             "  .predict <stock> $<X>")
+            return
+
+        if not re.match(PREDICT_REGEX, msg):
+            cardinal.sendMsg(channel,
+                             "Syntax: .predict <stock> [-]<X>%  |"
+                             "  .predict <stock> $<X>")
+            return
+
+        try:
+            prediction = yield self.parse_prediction(nick, msg)
         except Exception as exc:
             self.logger.warning("Error trying to parse prediction: {}"
                                 .format(exc))
             cardinal.sendMsg(
                 channel,
-                "{}: I couldn't look that symbol up".format(user.nick))
+                "{}: Are you sure the symbol is correct?".format(user.nick))
             return
-        else:
-            # This may happen if we matched the relay bot regex but a relay bot
-            # didn't send the message
-            if prediction is None:
-                return
 
         nick, symbol, prediction, base = prediction
 
@@ -408,22 +439,29 @@ class TickerPlugin:
                     colorize(get_delta(prediction, base)),
                     old_str))
 
+    @regex(PREDICT_RELAY_REGEX)
     @defer.inlineCallbacks
-    def parse_prediction(self, user, message):
+    def predict_relayed(self, cardinal, user, channel, msg):
+        """Hack to support relayed messages"""
+        match = re.match(PREDICT_RELAY_REGEX, msg)
+
+        # this regex should only match when a relay bot is relaying a message
+        # for another user - make sure this is really a relay bot
+        if not self.is_relay_bot(user):
+            return
+
+        user = user_info(util.strip_formatting(match.group(1)),
+                         user.user,
+                         user.vhost,
+                         )
+
+        yield self.predict(cardinal, user, channel, match.group(2))
+
+    @defer.inlineCallbacks
+    def parse_prediction(self, nick, message):
         match = re.match(PREDICT_REGEX, message)
 
-        # Fix nick if relay bot sent the message
-        nick = user.nick
-        if match.group(1):
-            if not self.is_relay_bot(user):
-                return None
-
-            nick = util.strip_formatting(match.group(1))
-
-        # Convert symbol to uppercase
-        symbol = match.group(2).upper()
-
-        data = yield self.get_daily(symbol)
+        data = yield self.get_daily(match.group(1))
         if market_is_open():
             # get value at previous close
             base = data['previous close']
@@ -431,22 +469,23 @@ class TickerPlugin:
             # get latest price
             base = data['price']
 
-        negative_percentage = match.group(3) == '-'
-        percentage = float(match.group(4)) if match.group(4) else None
-        price = float(match.group(5)) if match.group(5) else None
+        symbol = data['symbol']  # consistent casing
 
-        if percentage:
+        negative_percentage = match.group(2) == '-'
+        percentage = float(match.group(3)) if match.group(3) else None
+        price = float(match.group(4)) if match.group(4) else None
+
+        if percentage is not None:
             prediction = percentage * .01 * base
             if negative_percentage:
                 prediction = base - prediction
             else:
                 prediction = base + prediction
-        elif price:
+        elif price is not None:
             prediction = price
         else:
             # this shouldn't happen
-            self.logger.warning("No price or percentage: {}".format(message))
-            return None
+            raise Exception("No price or percentage: {}".format(message))
 
         return (
             nick,
