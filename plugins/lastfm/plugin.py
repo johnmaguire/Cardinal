@@ -195,9 +195,12 @@ class LastfmPlugin:
         msg = "%s is now listening to: %s by %s" % (
             str(username), str(song), str(artist))
 
-        yt_url = yield self._get_yt_url(song, artist)
-        if yt_url is not None:
-            msg = msg + " - YouTube: {}".format(yt_url)
+        try:
+            yt_url = yield self._get_yt_url(song, artist)
+            if yt_url is not None:
+                msg = msg + " - YouTube: {}".format(yt_url)
+        except Exception:
+            pass
 
         return msg
 
