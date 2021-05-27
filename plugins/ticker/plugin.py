@@ -355,7 +355,8 @@ class TickerPlugin:
 
         cardinal.sendMsg(
             channel,
-            "Symbol: \x02{}\x02 | Current: {:.2f} | Daily Change: {}".format(
+            "{} (\x02{}\x02) = {:.2f} USD - Daily Change: {}".format(
+                data['companyName'],
                 data['symbol'],
                 data['price'],
                 colorize(data['change'])))
@@ -525,6 +526,8 @@ class TickerPlugin:
             previous_close = float(data['previousClose'])
             change_percent = ((price - previous_close) / previous_close) * 100
             return ({'symbol': data['symbol'],
+                     'companyName': data['companyName'],
+                     'exchange': data['primaryExchange'],
                      'price': price,
                      'previous close': previous_close,
                      'change': change_percent,
