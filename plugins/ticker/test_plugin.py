@@ -644,6 +644,8 @@ class TestTickerPlugin:
 
         expected = {
             'symbol': symbol,
+            'companyName': response['companyName'],
+            'exchange': response['primaryExchange'],
             'price': price,
             'previous close': previous_close,
             # this one is calculated by our mock response function so it
