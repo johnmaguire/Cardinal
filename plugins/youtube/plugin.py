@@ -81,6 +81,41 @@ class YouTubePlugin:
             cardinal.sendMsg(channel, "Syntax: .youtube <search query>")
             return
 
+        try:
+            result = yield self._search(search_query)
+        except Exception:
+            self.logger.exception("Failed to search YouTube")
+            cardinal.sendMsg(channel, "Error while searching YouTube")
+            return
+
+        if result is None:
+            cardinal.sendMsg(channel, "No videos found matching that search.")
+            return
+
+        try:
+            message = yield self._get_formatted_details(
+                result['id']['videoId']
+            )
+        except Exception:
+            self.logger.exception("Error finding search result details")
+            cardinal.sendMsg(channel, "Error while searching YouTube")
+            return
+
+        cardinal.sendMsg(channel, message)
+
+    @defer.inlineCallbacks
+    def _get_formatted_details(self, video_id):
+        params = {
+            'id': video_id,
+            'maxResults': 1,
+            'part': 'snippet,statistics,contentDetails'
+        }
+
+        result = (yield self._form_request("videos", params))['items'][0]
+        return self._parse_item(result)
+
+    @defer.inlineCallbacks
+    def _search(self, search_query):
         params = {
             'q': search_query,
             'part': 'snippet',
@@ -88,50 +123,15 @@ class YouTubePlugin:
             'type': 'video',
         }
 
-        try:
-            result = yield self._form_request("search", params)
-        except Exception:
-            cardinal.sendMsg(channel, "Unable to connect to YouTube.")
-            self.logger.exception("Failed to connect to YouTube")
-            return
+        result = yield self._form_request("search", params)
 
         if 'error' in result:
-            cardinal.sendMsg(
-                channel,
-                "An error occurred while attempting to search YouTube."
-            )
-            self.logger.error(
-                "Error attempting to search YouTube: %s" % result['error']
-            )
-            return
+            raise Exception("Error searching Youtube: %s" % result['error'])
 
         try:
-            video_id = str(result['items'][0]['id']['videoId'])
-
-            params = {
-                'id': video_id,
-                'maxResults': 1,
-                'part': 'snippet,statistics,contentDetails'
-            }
+            return result['items'][0]
         except IndexError:
-            cardinal.sendMsg(channel, "No videos found matching that search.")
-            return
-
-        try:
-            result = yield self._form_request("videos", params)
-        except Exception:
-            cardinal.sendMsg(channel, "Unable to connect to YouTube.")
-            self.logger.exception("Failed to connect to YouTube")
-            return
-
-        try:
-            message = self._parse_item(result['items'][0])
-            cardinal.sendMsg(channel, message)
-        except IndexError:
-            cardinal.sendMsg(channel, "No videos found matching that search.")
-        except Exception:
-            self.logger.exception("Failed to parse info for %s'" % video_id)
-            raise EventRejectedMessage
+            return None
 
     @event('urls.detection')
     @defer.inlineCallbacks
