@@ -11,6 +11,7 @@ from twisted.internet import defer, protocol, reactor
 from twisted.internet.task import deferLater
 from twisted.words.protocols import irc
 
+from cardinal.util import strip_formatting
 from cardinal.plugins import PluginManager, EventManager
 from cardinal.exceptions import (
     CommandNotFoundError,
@@ -146,12 +147,55 @@ class CardinalBot(irc.IRCClient, object):
         self.uptime = datetime.now()
         self.booted = self.factory.booted
 
+    def isupport(self, options):
+        """Called for ISUPPORT messages. Provided by Twisted.
+
+        options -- A partial list of all ISUPPORT options, possibly in the
+          format "OPTION=value".
+        """
+        for option in options:
+            # Setup the channel manager at this point - it should occur during
+            # startup before we join channels. We need the result of CHANMODES
+            # to correctly understand channel modes.
+            if option.startswith('CHANMODES='):
+                self.channels = \
+                    ChannelManager(self.supported.getFeature("CHANMODES"),
+                                   self.getChannelModeParams())
+
     def joined(self, channel):
         """Called when we join a channel.
 
         channel -- Channel joined. Provided by Twisted.
         """
         self.logger.info("Joined %s" % channel)
+        self.channels.add(channel)
+
+        # Request the channel modes for this channel
+        self.sendLine("MODE {}".format(channel))
+
+    def irc_RPL_CHANNELMODEIS(self, prefix, params):
+        channel, modes, args = params[1], params[2], params[3:]
+
+        if modes[0] not in "-+":
+            modes = "+" + modes
+
+        self.channels.set_modes(channel, modes, args)
+
+    def left(self, channel):
+        """Called when we leave a channel.
+
+        channel -- Channel joined. Provided by Twisted.
+        """
+        self.logger.info("Parted %s" % channel)
+        self.channels.remove(channel)
+
+    def kickedFrom(self, channel):
+        """Called when we leave a channel.
+
+        channel -- Channel joined. Provided by Twisted.
+        """
+        self.logger.info("Kicked from %s" % channel)
+        self.channels.remove(channel)
 
     def lineReceived(self, line):
         """Called for every line received from the server."""
@@ -285,22 +329,30 @@ class CardinalBot(irc.IRCClient, object):
         """Called when a mode is set on a channel"""
         super().irc_MODE(prefix, params)
 
+        channel, modes, args = params[0], params[1], params[2:]
+        if modes[0] not in "-+":
+            modes = "+" + modes
+
+        # Update channel in memory
+        if channel != self.nickname:
+            self.channels.set_modes(channel, modes, args)
+
         user = self.get_user_tuple(prefix)
-        channel = params[0]
-        mode = ' '.join(params[1:])
+        mode = modes + ' ' + ' '.join(args)
 
         # Sent by network, not a real user
         if not user:
             self.logger.debug(
-                "%s set mode on %s (%s)" % (prefix, channel, mode)
-            )
+                "%s set mode on %s (%s)" % (prefix,
+                                            channel,
+                                            mode))
             return
 
         self.logger.debug(
             "%s!%s@%s set mode on %s (%s)" %
-            (user + (channel, mode))
-        )
+            (user + (channel, mode)))
 
+        # Trigger events
         self.event_manager.fire("irc.mode", user, channel, mode)
 
     def irc_JOIN(self, prefix, params):
@@ -405,27 +457,22 @@ class CardinalBot(irc.IRCClient, object):
 
         del self._who_deferreds[channel]
 
-    def irc_unknown(self, prefix, command, params):
-        """Called when Twisted doesn't understand an IRC command.
+    def irc_INVITE(self, prefix, params):
+        """Called when we are invited to a channel.
 
         Keyword arguments:
           prefix -- User sending command. Provided by Twisted.
-          command -- Command that wasn't recognized. Provided by Twisted.
           params -- Params for command. Provided by Twisted.
         """
-        super().irc_unknown(prefix, command, params)
+        # Break down the user into usable groups
+        user = self.get_user_tuple(prefix)
+        nick = user[0]
+        channel = params[1]
 
-        # A user has invited us to a channel
-        if command == "INVITE":
-            # Break down the user into usable groups
-            user = self.get_user_tuple(prefix)
-            nick = user[0]
-            channel = params[1]
+        self.logger.debug("%s invited us to %s" % (nick, channel))
 
-            self.logger.debug("%s invited us to %s" % (nick, channel))
-
-            # Fire invite event, so plugins can hook into it
-            self.event_manager.fire("irc.invite", user, channel)
+        # Fire invite event, so plugins can hook into it
+        self.event_manager.fire("irc.invite", user, channel)
 
     def who(self, channel):
         """Lists the users in a channel.
@@ -491,7 +538,14 @@ class CardinalBot(irc.IRCClient, object):
           message -- Message to send.
           length -- Length of message. Twisted will calculate if None given.
         """
+        try:
+            if not self.channels[channel].allows_color():
+                message = strip_formatting(message)
+        except KeyError:
+            pass
+
         self.logger.info("Sending in %s: %s" % (channel, message))
+
         self.msg(channel, message, length)
 
     def send(self, message):
@@ -703,3 +757,118 @@ class CardinalBotFactory(protocol.ClientFactory):
             self.last_reconnection_wait,
             connector.connect
         )
+
+
+class ChannelManager:
+    def __init__(self, chanmodes, param_modes):
+        self.logger = logging.getLogger(__name__)
+
+        # chanmodes dict (from Twisted):
+        #   addressModes - param added/removed from address list
+        #   param - param changed (always takes a param)
+        #   setParam - param taken when mode is set
+        #   noParam - no param necessary
+        #
+        # Convert it to e.g. {mode: addressParam}
+        self.chanmodes = {}
+        for k, v in chanmodes.items():
+            for mode in v:
+                self.chanmodes[v] = {
+                    'addressModes': 'addressParam',
+                    'param': 'param',
+                    'setParam': 'setParam',
+                    'noParam': 'noParam',
+                }[k]
+
+        # Keeping this around so we can make a call to irc.parseModes
+        self._twisted_param_modes = param_modes
+
+        self._channels = {}
+
+    def __len__(self):
+        return len(self._channels)
+
+    def __getitem__(self, key):
+        return self._channels[key]
+
+    def __iter__(self):
+        return iter(self._channels)
+
+    def add(self, name):
+        self._channels[name] = Channel(name)
+
+    def remove(self, name):
+        del self._channels[name]
+
+    def set_modes(self, channel, modes, args):
+        try:
+            chan = self._channels[channel]
+        except KeyError:
+            self.logger.error(f"Can't set mode for unknown channel: {channel}")
+            return
+
+        # parse mode changes out into added and removed
+        try:
+            added, removed = irc.parseModes(
+                modes, args, self._twisted_param_modes)
+        except KeyError:
+            self.logger.error("Error parsing modes for {channel}: {modes}"
+                              .format(channel=channel,
+                                      modes=modes + " " + ' '.join(args)))
+            return
+
+        # set modes
+        for mode, param in added:
+            if self.chanmodes.get(mode) == "addressParam":
+                chan.modes[mode] = chan.modes.get(mode, []).append(param)
+
+            elif self.chanmodes.get(mode) in ("param", "setParam"):
+                chan.modes[mode] = param
+
+            else:  # noParam
+                if param is not None:
+                    self.logger.error("Mode '{mode}' should not have a param"
+                                      .format(mode=mode))
+                    continue
+
+                chan.modes[mode] = param
+
+        # unset modes
+        for mode, param in removed:
+            # ignore unset modes
+            if mode not in chan.modes:
+                self.logger.error("Cannot set unset mode '{mode}'"
+                                  .format(mode=mode))
+                continue
+
+            if self.chanmodes.get(mode) == "addressParam":
+                chan.modes[mode] = chan.modes[mode].remove(param)
+
+            elif self.chanmodes.get(mode) == "param":
+                if chan.modes[mode] != param:
+                    self.logger.error(
+                        "Mode '{mode}' param ({param}) does not match "
+                        "set param ({set_param})".format(
+                            mode=mode,
+                            param=param,
+                            set_param=chan.modes[param]))
+                    continue
+                del chan.modes[mode]
+
+            else:  # setParam or noParam
+                del chan.modes[mode]
+
+
+class Channel:
+    def __init__(self, name):
+        self.name = name
+
+        # modes dict:
+        #  address modes - mode: [address, address]
+        #  param modes - mode: param
+        #  paramless modes - mode: None
+        self.modes = {}
+
+    def allows_color(self):
+        # +c bans color
+        return 'c' not in self.modes

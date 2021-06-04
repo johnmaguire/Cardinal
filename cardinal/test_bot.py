@@ -13,6 +13,7 @@ from cardinal import exceptions, plugins
 from cardinal.bot import (
     CardinalBot,
     CardinalBotFactory,
+    ChannelManager,
     user_info,
 )
 
@@ -48,6 +49,11 @@ class TestCardinalBot:
         # typically setup during connectionMade(). That method won't get called
         # in testing.
         self.cardinal.supported = ServerSupportedFeatures()
+
+        self.cardinal.channels = ChannelManager(
+            self.cardinal.supported.getFeature("CHANMODES"),
+            self.cardinal.getChannelModeParams(),
+        )
 
     @staticmethod
     def get_user():
@@ -181,9 +187,11 @@ class TestCardinalBot:
             call('MODE {} +B'.format(self.factory.nickname))
         ])
 
-    def test_joined(self):
+    @patch('cardinal.bot.irc.IRCClient.sendLine')
+    def test_joined(self, mock_sendline):
         self.cardinal.joined("#bots")
-        # This just logs, nothing to assert
+        # need to request modes to track channel
+        mock_sendline.assert_called_once_with("MODE #bots")
 
     @patch('cardinal.bot.irc.IRCClient.lineReceived')
     def test_lineReceived(self, mock_parent_linereceived):
@@ -461,11 +469,11 @@ class TestCardinalBot:
         self.cardinal.irc_unknown(prefix, 'UNKNOWN', [])
         assert not self.event_manager.fire.called
 
-    def test_irc_unknown_handles_INVITE(self):
+    def test_irc_INVITE(self):
         prefix, user = self.get_user()
         channel = '#channel'
 
-        self.cardinal.irc_unknown(prefix, 'INVITE', ['Cardinal', channel])
+        self.cardinal.irc_INVITE(prefix, ['Cardinal', channel])
 
         self.event_manager.fire.assert_called_once_with(
             'irc.invite', user, channel)
