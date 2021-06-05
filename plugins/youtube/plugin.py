@@ -184,6 +184,11 @@ class YouTubePlugin:
         dt = parse_isoduration(item['contentDetails']['duration'])
 
         video_id = str(item['id'])
+        
+        # Check if video's categoryId is 10 (Music)
+        category = int(item['snippet']['categoryId'])
+        if category == 10:
+            title = '♫ ' + title + ' ♫'
 
         message_parts = [
             "Title: {}".format(title),
