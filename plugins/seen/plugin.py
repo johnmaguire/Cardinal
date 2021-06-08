@@ -109,6 +109,8 @@ class SeenPlugin:
     # TODO Add irc_kick/irc_kicked
 
     def do_tell(self, nick):
+        nick = nick.lower()
+
         with self.db() as db:
             if nick in db['tells']:
                 for message in db['tells'][nick]:
@@ -215,7 +217,7 @@ class SeenPlugin:
         except IndexError:
             return cardinal.sendMsg(channel, 'Syntax: .seen <user>')
 
-        if nick == user.nick:
+        if nick.lower() == user.nick.lower():
             cardinal.sendMsg(channel, "{}: Don't be daft.".format(user.nick))
             return
 
@@ -231,9 +233,11 @@ class SeenPlugin:
             cardinal.sendMsg(channel, "Syntax: .tell <nick> <message>")
             return
 
-        if nick == user.nick:
+        if nick.lower() == user.nick.lower():
             cardinal.sendMsg(channel, "{}: Don't be daft.".format(user.nick))
             return
+
+        nick = nick.lower()
 
         with self.db() as db:
             tells = db['tells'].get(nick, [])
