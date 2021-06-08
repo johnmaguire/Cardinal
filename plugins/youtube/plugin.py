@@ -12,6 +12,9 @@ from cardinal.exceptions import EventRejectedMessage
 VIDEO_URL_REGEX = re.compile(r'https?:\/\/(?:www\.)?youtube\..{2,4}\/watch\?.*(?:v=(.+?))(?:(?:&.*)|$)', flags=re.IGNORECASE)  # noqa: E501
 VIDEO_URL_SHORT_REGEX = re.compile(r'https?:\/\/(?:www\.)?youtu\.be\/(.+?)(?:(?:\?.*)|$)', flags=re.IGNORECASE)  # noqa: E501
 
+# Fetched from the YouTube API on 2021-06-04, hopefully it doesn't change.
+MUSIC_CATEGORY_ID = 10
+
 
 # The following two functions were borrowed from Stack Overflow:
 # https://stackoverflow.com/a/64232786/242129
@@ -184,10 +187,10 @@ class YouTubePlugin:
         dt = parse_isoduration(item['contentDetails']['duration'])
 
         video_id = str(item['id'])
-        
-        # Check if video's categoryId is 10 (Music)
+
+        # Decorate music videos
         category = int(item['snippet']['categoryId'])
-        if category == 10:
+        if category == MUSIC_CATEGORY_ID:
             title = '♫ ' + title + ' ♫'
 
         message_parts = [
