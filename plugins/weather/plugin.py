@@ -1,24 +1,13 @@
-import hashlib
-import hmac
 import logging
-import time
-import uuid
-from base64 import b64encode
-from urllib import parse as urllib_parse
 
 import requests
+from requests import Response
 
 from cardinal.decorators import command, help
 
-FORECAST_URL = "https://weather-ydn-yql.media.yahoo.com/forecastrss"
-SIGNATURE_CONCAT = '&'
-
-# Hopefully these don't get banned by Yahoo -- if they do, I'll have to make
-# them config options.
-APP_ID = "jpfkwT7i"
-CONSUMER_KEY = "dj0yJmk9YVpma1VWcno1U01wJmQ9WVdrOWFuQm1hM2RVTjJrbWNHbzlNQS0t" \
-    "JnM9Y29uc3VtZXJzZWNyZXQmc3Y9MCZ4PTRk"
-CONSUMER_SECRET = "b816de899743153300c2c123521bb247cfb0c92a"
+API_ENDPOINT = "https://api.openweathermap.org/data/2.5/weather"
+# Hardcoded key for Cardinal
+API_KEY = "7d00a4a07f7d55d9894aae06b0b473cb"
 
 
 class WeatherPlugin:
@@ -26,56 +15,15 @@ class WeatherPlugin:
         self.logger = logging.getLogger(__name__)
         self.db = cardinal.get_db('weather')
 
-    def api_call(self, method, url, params):
-        method = method.upper()
-
-        oauth_params = {
-            'oauth_consumer_key': CONSUMER_KEY,
-            'oauth_nonce': uuid.uuid4().hex,
-            'oauth_signature_method': 'HMAC-SHA1',
-            'oauth_timestamp': str(int(time.time())),
-            'oauth_version': '1.0',
-        }
-
-        merged_params = params.copy()
-        merged_params.update(oauth_params)
-
-        # Sort and canonicalize the params
-        sorted_params = [
-            k + '=' + urllib_parse.quote(merged_params[k], safe='')
-            for k in sorted(merged_params.keys())
-        ]
-
-        signature_string = method + SIGNATURE_CONCAT + \
-            urllib_parse.quote(url, safe='') + SIGNATURE_CONCAT + \
-            urllib_parse.quote(SIGNATURE_CONCAT.join(sorted_params), safe='')
-
-        # Generate signature
-        composite_key = \
-            urllib_parse.quote(CONSUMER_SECRET, safe='') + SIGNATURE_CONCAT
-        oauth_signature = b64encode(hmac.new(composite_key.encode('utf-8'),
-                                             signature_string.encode('utf-8'),
-                                             hashlib.sha1).digest())
-
-        oauth_params['oauth_signature'] = oauth_signature.decode('utf-8')
-        auth_header = 'OAuth ' + ', '.join(
-            ['{}="{}"'.format(k, v) for k, v in oauth_params.items()])
-
-        res = requests.get(url, params=params, headers={
-            'Authorization': auth_header,
-            'X-Yahoo-App-Id': APP_ID,
-        })
-        res.raise_for_status()
-
-        return res
-
-    def get_forecast(self, location):
+    def get_forecast(self, location) -> Response:
         params = {
-            'location': location,
-            'format': 'json',
+            'q': location,
+            'appid': API_KEY,
+            'units': 'imperial',
+            'lang': 'en',
         }
 
-        return self.api_call('GET', FORECAST_URL, params)
+        return requests.get(API_ENDPOINT, params=params)
 
     @command('setw')
     @help("Set your default weather location.")
@@ -89,13 +37,13 @@ class WeatherPlugin:
 
         try:
             res = self.get_forecast(location).json()
-            location = "{}, {}, {}".format(res['location']['city'].strip(),
-                                           res['location']['region'].strip(),
-                                           res['location']['country'].strip())
+            location = "{}, {}".format(res['name'].strip(),
+                                       res['sys']['country'].strip())
         except Exception:
             cardinal.sendMsg(channel, "Sorry, I can't find that location.")
             self.logger.exception(
-                "Error test fetching for location: '{}'".format(location))
+                "Error test fetching for location: '{}'".format(location)
+            )
             return
 
         with self.db() as db:
@@ -104,10 +52,10 @@ class WeatherPlugin:
         cardinal.sendMsg(channel, '{}: Your default weather location is now '
                                   'set to {}. Next time you want the weather '
                                   'at this location, just use .weather or .w!'
-                                  .format(user.nick, location))
+                         .format(user.nick, location))
 
     @command(['weather', 'w'])
-    @help("Retrieves the weather using the Yahoo! weather API.")
+    @help("Retrieves the weather using the OpenWeatherMap API.")
     @help("Syntax: .weather [location]")
     def weather(self, cardinal, user, channel, msg):
         try:
@@ -133,31 +81,31 @@ class WeatherPlugin:
             return
 
         try:
-            location = "{}, {}, {}".format(res['location']['city'].strip(),
-                                           res['location']['region'].strip(),
-                                           res['location']['country'].strip())
+            location = "{}, {}".format(res['name'].strip(),
+                                       res['sys']['country'].strip())
         except KeyError:
             cardinal.sendMsg(channel,
                              "Couldn't find weather data for your location.")
             return
 
-        condition = res['current_observation']['condition']['text']
-        temperature = \
-            int(res['current_observation']['condition']['temperature'])
+        condition = res['weather'][0]['main']
+        temperature = int(res['main']['temp'])
         temperature_c = (temperature - 32) * 5 // 9
-        humidity = int(res['current_observation']['atmosphere']['humidity'])
-        winds = float(res['current_observation']['wind']['speed'])
+        humidity = int(res['main']['humidity'])
+        winds = float(res['wind']['speed'])
         winds_k = round(winds * 1.609344, 2)
         cardinal.sendMsg(
             channel,
             "[ {} | {} | Temp: {} °F ({} °C) | Humidity: {}% |"
-            " Winds: {} mph ({} km/h) ]".format(location,
-                                                condition,
-                                                temperature,
-                                                temperature_c,
-                                                humidity,
-                                                winds,
-                                                winds_k))
+            " Winds: {} mph ({} km/h) ]".format(
+                location,
+                condition,
+                temperature,
+                temperature_c,
+                humidity,
+                winds,
+                winds_k)
+        )
 
 
 entrypoint = WeatherPlugin
