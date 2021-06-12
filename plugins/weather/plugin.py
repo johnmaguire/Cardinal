@@ -6,22 +6,33 @@ from twisted.internet.threads import deferToThread
 
 from cardinal.decorators import command, help
 
-API_ENDPOINT = "https://api.openweathermap.org/data/2.5/weather"
+
+class Forecast:
+    def __init__(
+        self,
+        location,
+        condition,
+        temperature_f,
+        humidity,
+        winds_mph
+    ):
+        self.location = location
+        self.condition = condition
+        self.temperature_f = temperature_f
+        self.temperature_c = (temperature_f - 32) * 5 // 9
+        self.humidity = humidity
+        self.winds_mph = winds_mph
+        self.winds_k = round(winds_mph * 1.609344, 2)
 
 
-class WeatherPlugin:
-    def __init__(self, cardinal, config=None):
-        self.logger = logging.getLogger(__name__)
-        self.db = cardinal.get_db('weather')
+class OpenWeatherClient:
+    API_ENDPOINT = "https://api.openweathermap.org/data/2.5/weather"
 
-        if config is None:
-            return
-
-        if 'api_key' in config:
-            self.api_key = config['api_key']
+    def __init__(self, api_key):
+        self.api_key = api_key
 
     @defer.inlineCallbacks
-    def _get_forecast(self, location):
+    def get_forecast(self, location) -> Forecast:
         params = {
             'q': location,
             'appid': self.api_key,
@@ -31,11 +42,78 @@ class WeatherPlugin:
 
         r = yield deferToThread(
             requests.get,
-            API_ENDPOINT,
+            self.API_ENDPOINT,
             params=params
         )
 
-        return r.json()
+        return self.parse_forecast(r.json())
+
+    def parse_forecast(self, res):
+        location = "{}, {}".format(res['name'].strip(),
+                                   res['sys']['country'].strip())
+        condition = res['weather'][0]['main']
+        temperature = int(res['main']['temp'])
+        humidity = int(res['main']['humidity'])
+        winds = float(res['wind']['speed'])
+
+        return Forecast(location, condition, temperature, humidity, winds)
+
+
+class WeatherAPIClient:
+    API_ENDPOINT = "https://api.weatherapi.com/v1/current.json"
+
+    def __init__(self, api_key):
+        self.api_key = api_key
+
+    @defer.inlineCallbacks
+    def get_forecast(self, location) -> Forecast:
+        params = {
+            'q': location,
+            'key': self.api_key,
+        }
+
+        r = yield deferToThread(
+            requests.get,
+            self.API_ENDPOINT,
+            params=params
+        )
+
+        return self.parse_forecast(r.json())
+
+    def parse_forecast(self, res):
+        location = res['location']['name']
+        if res['location']['region']:
+            location += ", {}, {}".format(res['location']['region'],
+                                          res['location']['country'])
+        else:
+            location += ", {}".format(res['location']['country'])
+
+        return Forecast(
+            location=location,
+            condition=res['current']['condition']['text'],
+            temperature_f=res['current']['temp_f'],
+            humidity=res['current']['humidity'],
+            winds_mph=res['current']['wind_mph'],
+        )
+
+
+class WeatherPlugin:
+    def __init__(self, cardinal, config):
+        self.logger = logging.getLogger(__name__)
+        self.db = cardinal.get_db('weather')
+
+        if config is None:
+            config = {}
+
+        self.provider = config.get('provider', 'weatherapi')
+        self.api_key = config.get('api_key', None)
+
+        if self.provider == 'openweather':
+            self.client = OpenWeatherClient(self.api_key)
+        elif self.provider == 'weatherapi':
+            self.client = WeatherAPIClient(self.api_key)
+        else:
+            raise Exception(f"Unknown weather provider: {self.provider}")
 
     @command('setw')
     @help("Set your default weather location.")
@@ -49,9 +127,7 @@ class WeatherPlugin:
             return
 
         try:
-            res = yield self._get_forecast(location)
-            location = "{}, {}".format(res['name'].strip(),
-                                       res['sys']['country'].strip())
+            res = yield self.client.get_forecast(location)
         except Exception:
             cardinal.sendMsg(channel, "Sorry, I can't find that location.")
             self.logger.exception(
@@ -65,7 +141,7 @@ class WeatherPlugin:
         cardinal.sendMsg(channel, '{}: Your default weather location is now '
                                   'set to {}. Next time you want the weather '
                                   'at this location, just use .weather or .w!'
-                         .format(user.nick, location))
+                         .format(user.nick, res.location))
 
     @command(['weather', 'w'])
     @help("Retrieves the weather using the OpenWeatherMap API.")
@@ -94,41 +170,24 @@ class WeatherPlugin:
                     return
 
         try:
-            res = yield self._get_forecast(location)
+            res = yield self.client.get_forecast(location)
         except Exception:
             cardinal.sendMsg(channel, "Error fetching weather data.")
             self.logger.exception(
                 "Error fetching forecast for location '{}'".format(location))
             return
 
-        try:
-            self.logger.exception(
-                res
-            )
-            location = "{}, {}".format(res['name'].strip(),
-                                       res['sys']['country'].strip())
-        except KeyError:
-            cardinal.sendMsg(channel,
-                             "Couldn't find weather data for your location: {}".format(location))
-            return
-
-        condition = res['weather'][0]['main']
-        temperature = int(res['main']['temp'])
-        temperature_c = (temperature - 32) * 5 // 9
-        humidity = int(res['main']['humidity'])
-        winds = float(res['wind']['speed'])
-        winds_k = round(winds * 1.609344, 2)
         cardinal.sendMsg(
             channel,
             "[ {} | {} | Temp: {} °F ({} °C) | Humidity: {}% |"
             " Winds: {} mph ({} km/h) ]".format(
-                location,
-                condition,
-                temperature,
-                temperature_c,
-                humidity,
-                winds,
-                winds_k)
+                res.location,
+                res.condition,
+                res.temperature_f,
+                res.temperature_c,
+                res.humidity,
+                res.winds_mph,
+                res.winds_k)
         )
 
 
