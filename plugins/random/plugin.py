@@ -3,6 +3,9 @@ import re
 
 from cardinal.decorators import command, help
 
+# Maximum number of dice we will roll at one time
+DICE_LIMIT = 10
+
 
 def parse_roll(arg):
     # some people might separate with commas
@@ -18,9 +21,13 @@ def parse_roll(arg):
     else:
         return []
 
-    # Ignore things like 2d0, 0d2, etc.
-    if num_dice == 0 or sides == 0:
+    # Ignore 1-sided dice, or large dice
+    if sides < 2 or sides > 120:
         return []
+
+    # Don't let people exhaust memory
+    if num_dice > 10:
+        num_dice = 10
 
     return [sides] * num_dice
 
@@ -38,30 +45,28 @@ class RandomPlugin:
         dice = []
         for arg in args:
             dice = dice + parse_roll(arg)
+            if len(dice) >= DICE_LIMIT:
+                break
+
+        dice = dice[:DICE_LIMIT]
 
         # Ignore things like 2d0, 0d2, etc.
         if not dice:
             return
 
         results = []
-        limit = 10
         sum_ = 0
         for sides in dice:
-            if sides < 2 or sides > 120:
-                continue
-
-            limit -= 1
-            # Don't allow more than ten dice rolled at a time
-            if limit < 0:
-                break
-
             roll = random.randint(1, sides)
+
             results.append((sides, roll))
             sum_ += roll
 
+        count = len(dice)
         messages = '  '.join(
-            [f"d{sides}:{result}" for sides, result in results] +
-            [f"Total: {sum_}"]
+            ["Rolling {} {}...".format(count, "die" if count < 2 else "dice")]
+            + [f"d{sides}:{result}" for sides, result in results]
+            + [f"Total: {sum_}"]
         )
 
         cardinal.sendMsg(channel, messages)
