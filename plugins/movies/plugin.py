@@ -223,7 +223,9 @@ class MoviePlugin:
             return
 
         if not self.search_allowed(channel):
-            cardinal.sendMsg(channel, "nope")
+            cardinal.sendMsg(channel,
+                             "Movie search is not allowed in this channel. "
+                             "Try messaging me directly.")
             return
 
         try:
