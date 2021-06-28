@@ -35,7 +35,7 @@ def parse_roll(arg):
 class RandomPlugin:
     @command('roll')
     @help("Roll dice")
-    @help("Syntax: .roll #d# (e.g. .roll 2d6)")
+    @help("Syntax: @roll #d# (e.g. .roll 2d6)")
     def roll(self, cardinal, user, channel, msg):
         args = msg.split(' ')
         args.pop(0)

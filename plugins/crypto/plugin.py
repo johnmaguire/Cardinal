@@ -61,7 +61,7 @@ class CryptoPlugin:
 
     @command('crypto')
     @help('Check the price of a cryptocurrency')
-    @help('Syntax: .crypto <cryptocurrency,...> [price currency]')
+    @help('Syntax: @crypto <cryptocurrency,...> [price currency]')
     @defer.inlineCallbacks
     def crypto(self, cardinal, user, channel, message):
         nick = user.nick

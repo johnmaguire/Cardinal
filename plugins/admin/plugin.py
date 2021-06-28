@@ -44,7 +44,7 @@ class AdminPlugin:
     @command('eval')
     @help("A super dangerous command that runs eval() on the input. "
           "(admin only)")
-    @help("Syntax: .eval <command>")
+    @help("Syntax: @eval <command>")
     def eval(self, cardinal, user, channel, msg):
         if self.is_admin(user):
             command = ' '.join(msg.split()[1:])
@@ -60,7 +60,7 @@ class AdminPlugin:
     @command('exec')
     @help("A dangerous command that runs exec() on the input. " +
           "(admin only)")
-    @help("Syntax: .exec <command>")
+    @help("Syntax: @exec <command>")
     def execute(self, cardinal, user, channel, msg):
         if self.is_admin(user):
             command = ' '.join(msg.split()[1:])
@@ -76,7 +76,7 @@ class AdminPlugin:
     @command(['load', 'reload'])
     @help("If no plugins are given after the command, reload all plugins. "
           "Otherwise, load (or reload) the selected plugins. (admin only)")
-    @help("Syntax: .load [plugin [plugin ...]]")
+    @help("Syntax: @load [plugin [plugin ...]]")
     def load_plugins(self, cardinal, user, channel, msg):
         if self.is_admin(user):
             cardinal.sendMsg(channel, "%s: Loading plugins..." % user.nick)
@@ -105,7 +105,7 @@ class AdminPlugin:
 
     @command('unload')
     @help("Unload selected plugins. (admin only)")
-    @help("Syntax: .unload <plugin [plugin ...]>")
+    @help("Syntax: @unload <plugin [plugin ...]>")
     def unload_plugins(self, cardinal, user, channel, msg):
         nick = user.nick
 
@@ -135,7 +135,7 @@ class AdminPlugin:
 
     @command('disable')
     @help("Disable plugins in a channel. (admin only)")
-    @help("Syntax: .disable <plugin> <channel [channel ...]>")
+    @help("Syntax: @disable <plugin> <channel [channel ...]>")
     def disable_plugins(self, cardinal, user, channel, msg):
         if not self.is_admin(user):
             return
@@ -164,7 +164,7 @@ class AdminPlugin:
 
     @command('enable')
     @help("Enable plugins in a channel. (admin only)")
-    @help("Syntax: .enable <plugin> <channel [channel ...]>")
+    @help("Syntax: @enable <plugin> <channel [channel ...]>")
     def enable_plugins(self, cardinal, user, channel, msg):
         if not self.is_admin(user):
             return
@@ -202,7 +202,7 @@ class AdminPlugin:
 
     @command('join')
     @help("Joins selected channels. (admin only)")
-    @help("Syntax: .join <channel [channel ...]>")
+    @help("Syntax: @join <channel [channel ...]>")
     def join(self, cardinal, user, channel, msg):
         if self.is_admin(user):
             channels = msg.split()
@@ -212,7 +212,7 @@ class AdminPlugin:
 
     @command('part')
     @help("Parts selected channels. (admin only)")
-    @help("Syntax: .join <channel [channel ...]>")
+    @help("Syntax: @join <channel [channel ...]>")
     def part(self, cardinal, user, channel, msg):
         if not self.is_admin(user):
             return
@@ -228,7 +228,7 @@ class AdminPlugin:
     @command('quit')
     @help("Quits the network with a quit message, if one is defined. "
           "(admin only)")
-    @help("Syntax: .quit [message]")
+    @help("Syntax: @quit [message]")
     def quit(self, cardinal, user, channel, msg):
         if self.is_admin(user):
             cardinal.disconnect(' '.join(msg.split(' ')[1:]))
@@ -236,7 +236,7 @@ class AdminPlugin:
     @command('dbg_quit')
     @help("Quits the network without setting disconnect flag "
           "(for testing reconnection, admin only)")
-    @help("Syntax: .dbg_quit")
+    @help("Syntax: @dbg_quit")
     def debug_quit(self, cardinal, user, channel, msg):
         if self.is_admin(user):
             cardinal.quit('Debug disconnect')

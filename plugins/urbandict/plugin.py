@@ -16,7 +16,7 @@ class UrbanDictPlugin:
     @defer.inlineCallbacks
     @command(['ud', 'urbandict'])
     @help('Returns the top Urban Dictionary definition for a given word.')
-    @help('Syntax: .ud <word>')
+    @help('Syntax: @ud <word>')
     def get_ud(self, cardinal, user, channel, msg):
         try:
             word = msg.split(' ', 1)[1]

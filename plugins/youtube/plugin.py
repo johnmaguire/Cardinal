@@ -12,6 +12,7 @@ from cardinal.exceptions import EventRejectedMessage
 VIDEO_URL_REGEX = re.compile(r'https?:\/\/(?:www\.)?youtube\..{2,4}\/watch\?.*(?:v=(.+?))(?:(?:&.*)|$)', flags=re.IGNORECASE)  # noqa: E501
 VIDEO_URL_SHORT_REGEX = re.compile(r'https?:\/\/(?:www\.)?youtu\.be\/(.+?)(?:(?:\?.*)|$)', flags=re.IGNORECASE)  # noqa: E501
 
+
 # Fetched from the YouTube API on 2021-06-04, hopefully it doesn't change.
 MUSIC_CATEGORY_ID = 10
 
@@ -66,7 +67,7 @@ class YouTubePlugin:
 
     @command(['youtube', 'yt'])
     @help("Get the first YouTube result for a given search.")
-    @help("Syntax: .youtube <search query>")
+    @help("Syntax: @youtube <search query>")
     @defer.inlineCallbacks
     def search(self, cardinal, user, channel, msg):
         # Before we do anything, let's make sure we'll be able to query YouTube

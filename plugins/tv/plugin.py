@@ -185,7 +185,7 @@ class TVPlugin:
 
     @command('ep')
     @help('Get air date info for a TV show.')
-    @help('Syntax: .ep <tv show>')
+    @help('Syntax: @ep <tv show>')
     @defer.inlineCallbacks
     def next_air_date(self, cardinal, user, channel, msg):
         try:

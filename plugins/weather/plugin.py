@@ -117,7 +117,7 @@ class WeatherPlugin:
 
     @command('setw')
     @help("Set your default weather location.")
-    @help("Syntax: .setw <location>")
+    @help("Syntax: @setw <location>")
     @defer.inlineCallbacks
     def set_weather(self, cardinal, user, channel, msg):
         try:
@@ -145,7 +145,7 @@ class WeatherPlugin:
 
     @command(['weather', 'w'])
     @help("Retrieves the weather using the OpenWeatherMap API.")
-    @help("Syntax: .weather [location]")
+    @help("Syntax: @weather [location]")
     @defer.inlineCallbacks
     def weather(self, cardinal, user, channel, msg):
         if self.api_key is None:

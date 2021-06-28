@@ -12,7 +12,7 @@ class GoogleSearch:
 
     @command(['google', 'lmgtfy', 'g'])
     @help("Returns the URL of the top result for a given search query")
-    @help("Syntax: .google <query>")
+    @help("Syntax: @google <query>")
     def query(self, cardinal, user, channel, msg):
         # gets search string from message, and makes it url safe
         try:

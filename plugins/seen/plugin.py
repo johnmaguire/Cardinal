@@ -210,7 +210,7 @@ class SeenPlugin:
 
     @command('seen')
     @help("Returns the last time a user was seen, and their last action.")
-    @help("Syntax: .seen <user>")
+    @help("Syntax: @seen <user>")
     def seen(self, cardinal, user, channel, msg):
         try:
             nick = msg.split(' ')[1]
@@ -225,7 +225,7 @@ class SeenPlugin:
 
     @command('tell')
     @help("Tell an offline user something when they come online.")
-    @help("Syntax: .tell <nick> <message>")
+    @help("Syntax: @tell <nick> <message>")
     def tell(self, cardinal, user, channel, msg):
         try:
             nick, message = msg.split(' ', 2)[1:]

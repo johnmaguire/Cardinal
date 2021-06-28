@@ -41,7 +41,7 @@ class GithubPlugin:
 
     @command('issue')
     @help("Find a Github repo or issue (or combination thereof)")
-    @help("Syntax: .issue [username/repository] <id or search query>")
+    @help("Syntax: @issue [username/repository] <id or search query>")
     @defer.inlineCallbacks
     def search(self, cardinal, user, channel, msg):
         # Grab the search query

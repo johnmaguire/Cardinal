@@ -97,7 +97,7 @@ class WikipediaPlugin:
 
     @command(['wiki', 'wikipedia'])
     @help("Gets a summary and link to a Wikipedia page")
-    @help("Syntax: .wiki <article>")
+    @help("Syntax: @wiki <article>")
     @defer.inlineCallbacks
     def wiki(self, cardinal, user, channel, message):
         name = message.split(' ', 1)[1]
