@@ -27,19 +27,20 @@ from twisted.internet import defer
 class PluginManager:
     """Keeps track of, loads, and unloads plugins."""
 
-    COMMAND_REGEX = re.compile(r'\.([A-Za-z0-9_-]+)\s?.*$')
+    COMMAND_REGEX = None    # set during __init__()
     """Regex for matching standard commands.
 
-    This will check for anything beginning with a period (.) followed by any
-    alphanumeric character, then whitespace, then any character(s). This means
-    registered commands will be found so long as the registered command is
-    alphanumeric (or either _ or -), and any additional arguments will be up to
-    the plugin for handling.
+    This will check for anything beginning with a command prefix as defined by
+    the config file, followed by any alphanumeric character, then whitespace, 
+    then any character(s). This means registered commands will be found so long
+    as the registered command is alphanumeric (or either _ or -), and any 
+    additional arguments will be up to the plugin for handling.
     """
 
     def __init__(self,
                  cardinal,
                  plugins,
+                 cmd_prefix,
                  blacklist,
                  _plugin_module_import_prefix='plugins',
                  _plugin_module_directory=None):
@@ -56,6 +57,10 @@ class PluginManager:
         self.logger = logging.getLogger(__name__)
         self.cardinal = cardinal
         self._blacklist = blacklist
+        
+        # Allow for user-defined command prefix (default is '.')
+        self._cmd_prefix = cmd_prefix
+        self.COMMAND_REGEX = re.compile(r'[{}]([A-Za-z0-9_-]+)\s?.*$'.format(cmd_prefix))
 
         # Module name from which plugins are imported. This exists to assist
         # in unit testing.
@@ -187,6 +192,10 @@ class PluginManager:
                 kwargs['cardinal'] = self.cardinal
             elif param == 'config':
                 kwargs['config'] = config
+            elif param == 'cmd_prefix':
+                # The plugin needs the user-defined cmd prefix for whatever 
+                # reason (e.g. help):
+                kwargs['cmd_prefix'] = self._cmd_prefix
             else:
                 raise PluginError(
                     "Unknown parameter {} in entrypoint signature"

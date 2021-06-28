@@ -31,6 +31,8 @@
         "youtube"
     ],
 
+    "cmd_prefix": "."
+
     "logging": {
         "version": 1,
 

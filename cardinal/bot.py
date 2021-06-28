@@ -124,6 +124,7 @@ class CardinalBot(irc.IRCClient, object):
         # Setup PluginManager
         self.plugin_manager = PluginManager(self,
                                             self.factory.plugins,
+                                            self.factory.cmd_prefix,
                                             self.factory.blacklist)
 
         if self.factory.server_commands:
@@ -639,6 +640,7 @@ class CardinalBotFactory(protocol.ClientFactory):
                  username,
                  realname,
                  plugins,
+                 cmd_prefix,
                  blacklist,
                  storage):
         """Boots the bot, triggers connection, and initializes logging.
@@ -653,6 +655,7 @@ class CardinalBotFactory(protocol.ClientFactory):
           username -- A string with the ident to be used.
           realname -- A string containing the real name field.
           plugins -- A list of plugins to load on boot.
+          cmd_prefix -- A string containing the command prefix.
           blacklist -- A dict mapping plugins to lists of blacklisted channels.
           storage -- A string containing path to storage directory.
         """
@@ -666,6 +669,7 @@ class CardinalBotFactory(protocol.ClientFactory):
         self.username = username
         self.realname = realname
         self.plugins = plugins
+        self.cmd_prefix = cmd_prefix
         self.blacklist = blacklist
         self.storage_path = storage
 
