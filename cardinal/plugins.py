@@ -912,10 +912,9 @@ class EventManager:
         Returns:
           boolean -- Whether a callback (or multiple) was called successfully.
         """
-        self.logger.debug("Attempting to fire event: %s" % name)
-
         if name not in self.registered_events:
-            self.logger.debug("Event does not exist: %s" % name)
+            self.logger.debug("Refusing to fire event that does not exist: %s"
+                              % name)
             raise EventDoesNotExistError(
                 "Can't call an event that does not exist: %s" % name
             )
