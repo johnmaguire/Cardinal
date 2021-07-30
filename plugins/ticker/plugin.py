@@ -1,16 +1,9 @@
 from collections import OrderedDict
-import datetime
-import logging
-import re
-
-import pytz
-import requests
-from twisted.internet import defer, error, reactor
-from twisted.internet.threads import deferToThread
-
-from datetime import date
+from datetime import date, datetime
 from dateutil.easter import easter
 from dateutil.relativedelta import relativedelta as rd, MO, TH, FR
+import logging
+import re
 
 from holidays.constants import (
     JAN,
@@ -23,19 +16,25 @@ from holidays.constants import (
 )
 from holidays.constants import FRI, SAT, SUN
 from holidays.holiday_base import HolidayBase
+from twisted.internet import defer, error, reactor
+from twisted.internet.threads import deferToThread
+import pytz
+import requests
 
 from cardinal import util
 from cardinal.bot import user_info
 from cardinal.decorators import command, help, regex
 from cardinal.util import F
 
-# Basis: https://github.com/dr-prodigy/python-holidays/blob/master/holidays/countries/united_states.py
-# NYSE currently has nine (9) trading holidays: New Year's Day, MLK Jr. Day,
-# Washington's Birthday, Good Friday, Memorial Day, Independence Day,
-# Labor Day, Thanksgiving Day, and Christmas Day. This does not take into account
-# early closes.
-class NYSEHolidays(HolidayBase):
 
+# NYSE currently has nine (9) trading holidays: New Year's Day, MLK Jr. Day,
+# Washington's Birthday, Good Friday, Memorial Day, Independence Day, Labor
+# Day, Thanksgiving Day, and Christmas Day. This does not take into account
+# early closes.
+#
+# Reference:
+# https://github.com/dr-prodigy/python-holidays/blob/master/holidays/countries/united_states.py
+class NYSEHolidays(HolidayBase):
     def __init__(self, **kwargs):
         self.observed = True
         HolidayBase.__init__(self, **kwargs)
@@ -47,14 +46,14 @@ class NYSEHolidays(HolidayBase):
         if self.observed and date(year, JAN, 1).weekday() == SUN:
             self[date(year, JAN, 1) + rd(days=+1)] = name + " (Observed)"
         elif self.observed and date(year, JAN, 1).weekday() == SAT:
-            # Add Dec 31st from the previous year without triggering
+            # Add December 31st from the previous year without triggering
             # the entire year to be added
             expand = self.expand
             self.expand = False
             self[date(year, JAN, 1) + rd(days=-1)] = name + " (Observed)"
             self.expand = expand
         # The next year's observed New Year's Day can be in this year
-        # when it falls on a Friday (Jan 1st is a Saturday)
+        # when it falls on a Friday (i.e. Jan 1st is a Saturday)
         if self.observed and date(year, DEC, 31).weekday() == FRI:
             self[date(year, DEC, 31)] = name + " (Observed)"
 
@@ -98,6 +97,7 @@ class NYSEHolidays(HolidayBase):
         elif self.observed and date(year, DEC, 25).weekday() == SUN:
             self[date(year, DEC, 25) + rd(days=+1)] = name + " (Observed)"
 
+
 # Class populated with NYSE holidays
 HOLIDAYS = NYSEHolidays()
 
@@ -119,7 +119,7 @@ PREDICT_RELAY_REGEX = RELAY_REGEX + r'(\.predict.*?)$'
 
 def est_now():
     tz = pytz.timezone('America/New_York')
-    now = datetime.datetime.now(tz)
+    now = datetime.now(tz)
 
     return now
 
