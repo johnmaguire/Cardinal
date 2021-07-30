@@ -12,7 +12,7 @@ REPO_URL_REGEX = re.compile(
     r'https://(?:www\.)?github\..{2,4}/([^/]+)/([^/]+)',
     flags=re.IGNORECASE)
 ISSUE_URL_REGEX = re.compile(
-    r'https://(?:www\.)?github\..{2,4}/([^/]+)/([^/]+)/issues/([0-9]+)',
+    r'https://(?:www\.)?github\..{2,4}/([^/]+)/([^/]+)/(?:issues|pull)/([0-9]+)',  # noqa: E501
     flags=re.IGNORECASE)
 REPO_NAME_REGEX = re.compile(
     r'^[a-z0-9-]+/[a-z0-9_-]+$',
