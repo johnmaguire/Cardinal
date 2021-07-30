@@ -209,7 +209,7 @@ class TickerPlugin:
         seconds_to_sleep = minutes_to_sleep * 60
         seconds_to_sleep = seconds_to_sleep - now.second
 
-        self.call_id = reactor.callLater(minutes_to_sleep * 60, self.tick)
+        self.call_id = reactor.callLater(seconds_to_sleep, self.tick)
 
     def close(self, cardinal):
         if self.call_id:
