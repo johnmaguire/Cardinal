@@ -1,17 +1,10 @@
 from collections import OrderedDict
-import datetime
+from datetime import date, datetime
 import logging
 import re
 
-import pytz
-import requests
-from twisted.internet import defer, error, reactor
-from twisted.internet.threads import deferToThread
-
-from datetime import date
 from dateutil.easter import easter
 from dateutil.relativedelta import relativedelta as rd, MO, TH, FR
-
 from holidays.constants import (
     JAN,
     FEB,
@@ -20,9 +13,15 @@ from holidays.constants import (
     SEP,
     NOV,
     DEC,
+    FRI,
+    SAT,
+    SUN,
 )
-from holidays.constants import FRI, SAT, SUN
 from holidays.holiday_base import HolidayBase
+import pytz
+import requests
+from twisted.internet import defer, error, reactor
+from twisted.internet.threads import deferToThread
 
 from cardinal import util
 from cardinal.bot import user_info
@@ -35,7 +34,6 @@ from cardinal.util import F
 # Labor Day, Thanksgiving Day, and Christmas Day. This does not take into account
 # early closes.
 class NYSEHolidays(HolidayBase):
-
     def __init__(self, **kwargs):
         self.observed = True
         HolidayBase.__init__(self, **kwargs)
@@ -47,14 +45,14 @@ class NYSEHolidays(HolidayBase):
         if self.observed and date(year, JAN, 1).weekday() == SUN:
             self[date(year, JAN, 1) + rd(days=+1)] = name + " (Observed)"
         elif self.observed and date(year, JAN, 1).weekday() == SAT:
-            # Add Dec 31st from the previous year without triggering
+            # Add December 31st from the previous year without triggering
             # the entire year to be added
             expand = self.expand
             self.expand = False
             self[date(year, JAN, 1) + rd(days=-1)] = name + " (Observed)"
             self.expand = expand
         # The next year's observed New Year's Day can be in this year
-        # when it falls on a Friday (Jan 1st is a Saturday)
+        # when it falls on a Friday (i.e., Jan 1st is a Saturday)
         if self.observed and date(year, DEC, 31).weekday() == FRI:
             self[date(year, DEC, 31)] = name + " (Observed)"
 
@@ -98,28 +96,31 @@ class NYSEHolidays(HolidayBase):
         elif self.observed and date(year, DEC, 25).weekday() == SUN:
             self[date(year, DEC, 25) + rd(days=+1)] = name + " (Observed)"
 
+
 # Class populated with NYSE holidays
 HOLIDAYS = NYSEHolidays()
 
 # IEX API Endpoint
-IEX_QUOTE_API_URL = "https://cloud.iexapis.com/stable/stock/{symbol}/quote?token={token}"  # noqa: E501
+IEX_QUOTE_API_URL = (
+    "https://cloud.iexapis.com/stable/stock/{symbol}/quote?token={token}"  # noqa: E501
+)
 
 # Regex pattern that matches PyLink relay bots
-RELAY_REGEX = r'^(?:<(.+?)>\s+)'
+RELAY_REGEX = r"^(?:<(.+?)>\s+)"
 
 # For 'stock' command - checking stock price
-STOCK_RELAY_REGEX = RELAY_REGEX + r'(\.stock.*?)$'
+STOCK_RELAY_REGEX = RELAY_REGEX + r"(\.stock.*?)$"
 
 # For 'predict' command - predicting stock price
-PREDICT_REGEX = r'^(.+?) (?:([-+])?(\d+(?:\.\d+)?)%|\$?(\d+(?:\.\d+)?))$'  # noqa: E501
+PREDICT_REGEX = r"^(.+?) (?:([-+])?(\d+(?:\.\d+)?)%|\$?(\d+(?:\.\d+)?))$"  # noqa: E501
 
 # For 'predict' command - predicting a stock price
-PREDICT_RELAY_REGEX = RELAY_REGEX + r'(\.predict.*?)$'
+PREDICT_RELAY_REGEX = RELAY_REGEX + r"(\.predict.*?)$"
 
 
 def est_now():
-    tz = pytz.timezone('America/New_York')
-    now = datetime.datetime.now(tz)
+    tz = pytz.timezone("America/New_York")
+    now = datetime.now(tz)
 
     return now
 
@@ -128,11 +129,13 @@ def market_is_open():
     now = est_now()
 
     # Determine if the market is currently open
-    is_market_closed = (now in HOLIDAYS) or \
-        (now.weekday() >= 5) or \
-        (now.hour < 9 or now.hour >= 17) or \
-        (now.hour == 9 and now.minute < 30) or \
-        (now.hour == 16 and now.minute > 0)
+    is_market_closed = (
+        (now in HOLIDAYS)
+        or (now.weekday() >= 5)
+        or (now.hour < 9 or now.hour >= 17)
+        or (now.hour == 9 and now.minute < 30)
+        or (now.hour == 16 and now.minute > 0)
+    )
 
     return not is_market_closed
 
@@ -142,7 +145,7 @@ def get_delta(new_value, old_value):
 
 
 def colorize(percentage):
-    message = '{:.2f}%'.format(percentage)
+    message = "{:.2f}%".format(percentage)
     if percentage > 0:
         return F.C.light_green(message)
     else:
@@ -155,35 +158,36 @@ class TickerPlugin:
         self.cardinal = cardinal
 
         self.config = config or {}
-        self.config.setdefault('api_key', None)
-        self.config.setdefault('channels', [])
-        self.config.setdefault('stocks', [])
-        self.config.setdefault('relay_bots', [])
+        self.config.setdefault("api_key", None)
+        self.config.setdefault("channels", [])
+        self.config.setdefault("stocks", [])
+        self.config.setdefault("relay_bots", [])
 
         if not self.config["channels"]:
-            self.logger.warning("No channels for ticker defined in config --"
-                                "ticker will be disabled")
+            self.logger.warning(
+                "No channels for ticker defined in config -- ticker will be disabled"
+            )
         if not self.config["stocks"]:
-            self.logger.warning("No stocks for ticker defined in config -- "
-                                "ticker will be disabled")
+            self.logger.warning(
+                "No stocks for ticker defined in config -- ticker will be disabled"
+            )
 
         if not self.config["api_key"]:
             raise KeyError("Missing required api_key in ticker config")
         if len(self.config["stocks"]) > 5:
-            raise ValueError("No more than 5 stocks may be present in ticker "
-                             "config")
+            raise ValueError("No more than 5 stocks may be present in ticker config")
 
         self.relay_bots = []
-        for relay_bot in self.config['relay_bots']:
-            user = user_info(
-                relay_bot['nick'],
-                relay_bot['user'],
-                relay_bot['vhost'])
+        for relay_bot in self.config["relay_bots"]:
+            user = user_info(relay_bot["nick"], relay_bot["user"], relay_bot["vhost"])
             self.relay_bots.append(user)
 
-        self.db = cardinal.get_db('ticker', default={
-            'predictions': {},
-        })
+        self.db = cardinal.get_db(
+            "ticker",
+            default={
+                "predictions": {},
+            },
+        )
 
         self.call_id = None
         self.wait()
@@ -195,9 +199,11 @@ class TickerPlugin:
     def is_relay_bot(self, user):
         """Compares a user against the registered relay bots."""
         for bot in self.relay_bots:
-            if (bot.nick is None or bot.nick == user.nick) and \
-                    (bot.user is None or bot.user == user.user) and \
-                    (bot.vhost is None or bot.vhost == user.vhost):
+            if (
+                (bot.nick is None or bot.nick == user.nick)
+                and (bot.user is None or bot.user == user.user)
+                and (bot.vhost is None or bot.vhost == user.vhost)
+            ):
                 return True
 
         return False
@@ -234,25 +240,27 @@ class TickerPlugin:
 
         # Determine if the market is currently open
         is_market_open = not (
-            (now in HOLIDAYS) or
-            (now.weekday() >= 5) or
-            (now.hour < 9 or now.hour >= 17) or
-            (now.hour == 9 and now.minute < 30) or
-            (now.hour == 16 and now.minute > 0))
+            (now in HOLIDAYS)
+            or (now.weekday() >= 5)
+            or (now.hour < 9 or now.hour >= 17)
+            or (now.hour == 9 and now.minute < 30)
+            or (now.hour == 16 and now.minute > 0)
+        )
 
         # Determine if this is the market opening or market closing
         is_open = now.hour == 9 and now.minute == 30
         is_close = now.hour == 16 and now.minute == 0
 
         # Determine if we should do predictions after sending ticker
-        should_do_predictions = True \
-            if is_market_open and (is_open or is_close) \
-            else False
+        should_do_predictions = (
+            True if is_market_open and (is_open or is_close) else False
+        )
 
         # If there are no stocks to send in the ticker, or no channels to send
         # them to, don't tick, just wait.
-        should_send_ticker = is_market_open and \
-            self.config["channels"] and self.config["stocks"]
+        should_send_ticker = (
+            is_market_open and self.config["channels"] and self.config["stocks"]
+        )
 
         if should_send_ticker:
             yield self.send_ticker()
@@ -274,12 +282,11 @@ class TickerPlugin:
 
             # convert result to a (symbol, delta) mapping for the list
             def errback(f):
-                self.logger.error("Failed to get stock {}: {}".format(
-                    symbol, f))
+                self.logger.error("Failed to get stock {}: {}".format(symbol, f))
                 return f
 
             def callback(res):
-                return (res['symbol'], res['change'])
+                return (res["symbol"], res["change"])
 
             d.addErrback(errback)
             d.addCallback(callback)
@@ -304,9 +311,7 @@ class TickerPlugin:
         message_parts = []
         for symbol, name in self.stocks.items():
             if symbol in results:
-                message_parts.append(
-                    self.format_symbol(symbol, results[symbol])
-                )
+                message_parts.append(self.format_symbol(symbol, results[symbol]))
 
         message = " | ".join(message_parts)
         return message
@@ -315,10 +320,10 @@ class TickerPlugin:
         name = self.stocks[symbol]
 
         return "{name} ({symbol}): {change}".format(
-                symbol=F.bold(symbol),
-                name=name,
-                change=colorize(change),
-            )
+            symbol=F.bold(symbol),
+            name=name,
+            change=colorize(change),
+        )
 
     @defer.inlineCallbacks
     def do_predictions(self):
@@ -326,7 +331,7 @@ class TickerPlugin:
         with self.db() as db:
             # TODO will this generator still work if it's iterated outside the
             # context manager?
-            predicted_symbols = list(db['predictions'].keys())
+            predicted_symbols = list(db["predictions"].keys())
 
         for symbol in predicted_symbols:
             try:
@@ -335,15 +340,17 @@ class TickerPlugin:
                 # this is not 100% accurate as to the value at open... it's
                 # just a value close to the open, iex cloud doesn't let us get
                 # at the true open without paying
-                actual = data['price']
+                actual = data["price"]
             except Exception:
                 self.logger.exception(
-                    "Failed to fetch information for symbol {} -- skipping"
-                    .format(symbol))
+                    "Failed to fetch information for symbol {} -- skipping".format(
+                        symbol
+                    )
+                )
                 for channel in self.config["channels"]:
                     self.cardinal.sendMsg(
-                        channel, "Error with predictions for symbol {}."
-                                 .format(symbol))
+                        channel, "Error with predictions for symbol {}.".format(symbol)
+                    )
                 continue
 
             # Loop each nick's prediction, and look for the closest prediction
@@ -353,14 +360,14 @@ class TickerPlugin:
             closest_nick = None
 
             with self.db() as db:
-                predictions = db['predictions'][symbol]
-                del db['predictions'][symbol]
+                predictions = db["predictions"][symbol]
+                del db["predictions"][symbol]
 
             for nick, prediction in list(predictions.items()):
                 # Check if this is the closest guess for the symbol so far
-                delta = abs(actual - prediction['prediction'])
+                delta = abs(actual - prediction["prediction"])
                 if not closest_delta or delta < closest_delta:
-                    closest_prediction = prediction['prediction']
+                    closest_prediction = prediction["prediction"]
                     closest_delta = delta
                     closest_nick = nick
 
@@ -371,7 +378,7 @@ class TickerPlugin:
                     actual,
                 )
 
-            market_open_close = 'open' if market_is_open() else 'close'
+            market_open_close = "open" if market_is_open() else "close"
             for channel in self.config["channels"]:
                 self.cardinal.sendMsg(
                     channel,
@@ -382,12 +389,12 @@ class TickerPlugin:
                         F.bold(symbol),
                         len(predictions),
                         closest_prediction,
-                        colorize(get_delta(closest_prediction,
-                                           prediction['base'])),
+                        colorize(get_delta(closest_prediction, prediction["base"])),
                         market_open_close,
                         actual,
-                        colorize(get_delta(actual, prediction['base'])),
-                    ))
+                        colorize(get_delta(actual, prediction["base"])),
+                    ),
+                )
 
             # Try to avoid hitting rate limiting (5 calls per minute) by
             # only checking predictions of 4 symbols per minute
@@ -400,7 +407,7 @@ class TickerPlugin:
         prediction,
         actual,
     ):
-        market_open_close = 'open' if market_is_open() else 'close'
+        market_open_close = "open" if market_is_open() else "close"
 
         for channel in self.config["channels"]:
             self.cardinal.sendMsg(
@@ -410,24 +417,23 @@ class TickerPlugin:
                 "Prediction set at {}.".format(
                     nick,
                     symbol,
-                    prediction['prediction'],
-                    colorize(get_delta(
-                        prediction['prediction'], prediction['base'])),
+                    prediction["prediction"],
+                    colorize(get_delta(prediction["prediction"], prediction["base"])),
                     market_open_close,
                     actual,
-                    colorize(get_delta(
-                        actual, prediction['base'])),
-                    prediction['when']
-                ))
+                    colorize(get_delta(actual, prediction["base"])),
+                    prediction["when"],
+                ),
+            )
 
-    @command('stock')
+    @command("stock")
     @help("Check the latest price of a stock")
     @help("Syntax: .stock <stock symbol>")
     @defer.inlineCallbacks
     def stock(self, cardinal, user, channel, msg):
         nick = user.nick  # other values may not exist for relayed users
 
-        parts = msg.split(' ')
+        parts = msg.split(" ")
         if len(parts) != 2:
             cardinal.sendMsg(channel, "Syntax: .stock <stock symbol>")
             return
@@ -436,19 +442,21 @@ class TickerPlugin:
         try:
             data = yield self.get_daily(symbol)
         except Exception as exc:
-            self.logger.warning("Error trying to look up symbol {}: {}".format(
-                symbol, exc))
-            cardinal.sendMsg(
-                channel, "{}: I couldn't look that symbol up".format(nick))
+            self.logger.warning(
+                "Error trying to look up symbol {}: {}".format(symbol, exc)
+            )
+            cardinal.sendMsg(channel, "{}: I couldn't look that symbol up".format(nick))
             return
 
         cardinal.sendMsg(
             channel,
             "{} (\x02{}\x02) = {:.2f} USD - Daily Change: {}".format(
-                data['companyName'],
-                data['symbol'],
-                data['price'],
-                colorize(data['change'])))
+                data["companyName"],
+                data["symbol"],
+                data["price"],
+                colorize(data["change"]),
+            ),
+        )
 
     @regex(STOCK_RELAY_REGEX)
     @defer.inlineCallbacks
@@ -461,14 +469,15 @@ class TickerPlugin:
         if not self.is_relay_bot(user):
             return
 
-        user = user_info(util.strip_formatting(match.group(1)),
-                         user.user,
-                         user.vhost,
-                         )
+        user = user_info(
+            util.strip_formatting(match.group(1)),
+            user.user,
+            user.vhost,
+        )
 
         yield self.stock(cardinal, user, channel, match.group(2))
 
-    @command('predict')
+    @command("predict")
     @help("Predict a stock price at the next market open/close")
     @help("Syntax: .predict <stock> [-]<X>%  |  .predict <stock> $<X>")
     @defer.inlineCallbacks
@@ -476,27 +485,26 @@ class TickerPlugin:
         nick = user.nick
 
         try:
-            msg = msg.split(' ', 1)[1]
+            msg = msg.split(" ", 1)[1]
         except IndexError:
-            cardinal.sendMsg(channel,
-                             "Syntax: .predict <stock> [-]<X>%  |"
-                             "  .predict <stock> $<X>")
+            cardinal.sendMsg(
+                channel, "Syntax: .predict <stock> [-]<X>%  |" "  .predict <stock> $<X>"
+            )
             return
 
         if not re.match(PREDICT_REGEX, msg):
-            cardinal.sendMsg(channel,
-                             "Syntax: .predict <stock> [-]<X>%  |"
-                             "  .predict <stock> $<X>")
+            cardinal.sendMsg(
+                channel, "Syntax: .predict <stock> [-]<X>%  |" "  .predict <stock> $<X>"
+            )
             return
 
         try:
             prediction = yield self.parse_prediction(nick, msg)
         except Exception as exc:
-            self.logger.warning("Error trying to parse prediction: {}"
-                                .format(exc))
+            self.logger.warning("Error trying to parse prediction: {}".format(exc))
             cardinal.sendMsg(
-                channel,
-                "{}: Are you sure the symbol is correct?".format(user.nick))
+                channel, "{}: Are you sure the symbol is correct?".format(user.nick)
+            )
             return
 
         nick, symbol, prediction, base = prediction
@@ -505,29 +513,31 @@ class TickerPlugin:
         # with the old prediction's info
         try:
             with self.db() as db:
-                old_prediction = db['predictions'][symbol][nick]
+                old_prediction = db["predictions"][symbol][nick]
         except KeyError:
-            old_str = ''
+            old_str = ""
         else:
-            old_str = '(replaces old prediction of {:.2f} ({}) set at {})' \
-                .format(
-                    old_prediction['prediction'],
-                    colorize(get_delta(old_prediction['prediction'],
-                                       old_prediction['base'])),
-                    old_prediction['when'],
-                )
+            old_str = "(replaces old prediction of {:.2f} ({}) set at {})".format(
+                old_prediction["prediction"],
+                colorize(
+                    get_delta(old_prediction["prediction"], old_prediction["base"])
+                ),
+                old_prediction["when"],
+            )
 
         # Save the prediction
         self.save_prediction(symbol, nick, base, prediction)
         cardinal.sendMsg(
             channel,
-            "Prediction by {} for \x02{}\x02 at market {}: {:.2f} ({}) {}"
-            .format(nick,
-                    symbol,
-                    'close' if market_is_open() else 'open',
-                    prediction,
-                    colorize(get_delta(prediction, base)),
-                    old_str))
+            "Prediction by {} for \x02{}\x02 at market {}: {:.2f} ({}) {}".format(
+                nick,
+                symbol,
+                "close" if market_is_open() else "open",
+                prediction,
+                colorize(get_delta(prediction, base)),
+                old_str,
+            ),
+        )
 
     @regex(PREDICT_RELAY_REGEX)
     @defer.inlineCallbacks
@@ -540,10 +550,11 @@ class TickerPlugin:
         if not self.is_relay_bot(user):
             return
 
-        user = user_info(util.strip_formatting(match.group(1)),
-                         user.user,
-                         user.vhost,
-                         )
+        user = user_info(
+            util.strip_formatting(match.group(1)),
+            user.user,
+            user.vhost,
+        )
 
         yield self.predict(cardinal, user, channel, match.group(2))
 
@@ -554,19 +565,19 @@ class TickerPlugin:
         data = yield self.get_daily(match.group(1))
         if market_is_open():
             # get value at previous close
-            base = data['previous close']
+            base = data["previous close"]
         else:
             # get latest price
-            base = data['price']
+            base = data["price"]
 
-        symbol = data['symbol']  # consistent casing
+        symbol = data["symbol"]  # consistent casing
 
-        negative_percentage = match.group(2) == '-'
+        negative_percentage = match.group(2) == "-"
         percentage = float(match.group(3)) if match.group(3) else None
         price = float(match.group(4)) if match.group(4) else None
 
         if percentage is not None:
-            prediction = percentage * .01 * base
+            prediction = percentage * 0.01 * base
             if negative_percentage:
                 prediction = base - prediction
             else:
@@ -586,17 +597,17 @@ class TickerPlugin:
 
     def save_prediction(self, symbol, nick, base, prediction):
         with self.db() as db:
-            predictions = db['predictions'].get(symbol, {})
+            predictions = db["predictions"].get(symbol, {})
             predictions[nick] = {
-                'when': est_now().strftime('%Y-%m-%d %H:%M:%S %Z'),
-                'base': base,
-                'prediction': prediction,
+                "when": est_now().strftime("%Y-%m-%d %H:%M:%S %Z"),
+                "base": base,
+                "prediction": prediction,
             }
-            db['predictions'][symbol] = predictions
+            db["predictions"][symbol] = predictions
 
     def get_prediction(self, symbol, nick):
         with self.db() as db:
-            return db['predictions'][symbol][nick]
+            return db["predictions"][symbol][nick]
 
     def get_daily(self, symbol):
         return self.make_iex_request(symbol)
@@ -611,16 +622,17 @@ class TickerPlugin:
         data = r.json()
 
         try:
-            price = float(data['latestPrice'])
-            previous_close = float(data['previousClose'])
+            price = float(data["latestPrice"])
+            previous_close = float(data["previousClose"])
             change_percent = ((price - previous_close) / previous_close) * 100
-            return ({'symbol': data['symbol'],
-                     'companyName': data['companyName'],
-                     'exchange': data['primaryExchange'],
-                     'price': price,
-                     'previous close': previous_close,
-                     'change': change_percent,
-                     })
+            return {
+                "symbol": data["symbol"],
+                "companyName": data["companyName"],
+                "exchange": data["primaryExchange"],
+                "price": price,
+                "previous close": previous_close,
+                "change": change_percent,
+            }
         except KeyError as e:
             self.logger.error("{}, with data: {}".format(e, data))
             raise

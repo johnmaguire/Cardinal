@@ -15,8 +15,8 @@ from cardinal.bot import CardinalBot, user_info
 from cardinal.unittest_util import get_mock_db
 from plugins.ticker import plugin
 from plugins.ticker.plugin import (
-    TickerPlugin,
     NYSEHolidays,
+    TickerPlugin,
     colorize,
     get_delta,
 )
@@ -26,10 +26,8 @@ def make_iex_response(symbol, price=None, previous_close=None):
     # NOTE - Not all values here will make sense. We are just mocking out the
     # values that will be used.
 
-    price = price or \
-        random.randrange(95, 105) + random.random()
-    previous_close = previous_close or \
-        random.randrange(95, 105) + random.random()
+    price = price or random.randrange(95, 105) + random.random()
+    previous_close = previous_close or random.randrange(95, 105) + random.random()
 
     return {
         "symbol": symbol,
@@ -86,11 +84,12 @@ def make_iex_response(symbol, price=None, previous_close=None):
         "week52Low": 2.8,
         "ytdChange": 8.20285475583864,
         "lastTradeTime": 1611781197811,
-        "isUSMarketOpen": False
+        "isUSMarketOpen": False,
     }
 
+
 def get_fake_now(market_is_open=True):
-    tz = pytz.timezone('America/New_York')
+    tz = pytz.timezone("America/New_York")
     fake_now = datetime.datetime.now(tz)
     if market_is_open:
         # Ensure it is open
@@ -105,12 +104,13 @@ def get_fake_now(market_is_open=True):
 
 
 @contextmanager
-def mock_api(response,
-             fake_now=None):
+def mock_api(response, fake_now=None):
     fake_now = fake_now or get_fake_now()
-    responses = copy.deepcopy(response) \
-        if isinstance(response, list) else \
-        [copy.deepcopy(response)]
+    responses = (
+        copy.deepcopy(response)
+        if isinstance(response, list)
+        else [copy.deepcopy(response)]
+    )
 
     response_mock = MagicMock()
     type(response_mock).status_code = PropertyMock(return_value=200)
@@ -120,8 +120,9 @@ def mock_api(response,
 
         return response_mock
 
-    with patch.object(plugin, 'deferToThread') as mock_defer, \
-            patch.object(plugin, 'est_now', return_value=fake_now):
+    with patch.object(plugin, "deferToThread") as mock_defer, patch.object(
+        plugin, "est_now", return_value=fake_now
+    ):
         mock_defer.side_effect = mock_deferToThread
 
         yield mock_defer
@@ -134,52 +135,58 @@ def test_get_delta():
 
 
 def test_colorize():
-    assert colorize(-0.151) == '\x0304-0.15%\x03'
-    assert colorize(-0.1) == '\x0304-0.10%\x03'
-    assert colorize(0) == '\x03040.00%\x03'
-    assert colorize(0.1) == '\x03090.10%\x03'
-    assert colorize(0.159) == '\x03090.16%\x03'
+    assert colorize(-0.151) == "\x0304-0.15%\x03"
+    assert colorize(-0.1) == "\x0304-0.10%\x03"
+    assert colorize(0) == "\x03040.00%\x03"
+    assert colorize(0.1) == "\x03090.10%\x03"
+    assert colorize(0.159) == "\x03090.16%\x03"
 
 
 class TestTickerPlugin:
     @pytest.fixture(autouse=True)
     def setup_method_fixture(self, request, tmpdir):
-        self.api_key = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-        self.channel = '#test'
+        self.api_key = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        self.channel = "#test"
         self.channels = [self.channel]
         self.stocks = [
-            ['SPY', 'S&P 500'],
-            ['DIA', 'Dow'],
-            ['VEU', 'Foreign'],
-            ['AGG', 'US Bond'],
+            ["SPY", "S&P 500"],
+            ["DIA", "Dow"],
+            ["VEU", "Foreign"],
+            ["AGG", "US Bond"],
         ]
         self.relay_bots = [
             {"nick": "relay.bot", "user": "relay", "vhost": "relay"},
         ]
 
-        d = tmpdir.mkdir('storage')
+        d = tmpdir.mkdir("storage")
 
         get_db, self.db = get_mock_db()
         self.mock_cardinal = Mock(spec=CardinalBot)
-        self.mock_cardinal.network = self.network = 'irc.darkscience.net'
+        self.mock_cardinal.network = self.network = "irc.darkscience.net"
         self.mock_cardinal.storage_path = str(d.dirpath())
         self.mock_cardinal.get_db.side_effect = get_db
 
-        self.plugin = TickerPlugin(self.mock_cardinal, {
-            'api_key': self.api_key,
-            'channels': self.channels,
-            'stocks': self.stocks,
-            'relay_bots': self.relay_bots,
-        })
+        self.plugin = TickerPlugin(
+            self.mock_cardinal,
+            {
+                "api_key": self.api_key,
+                "channels": self.channels,
+                "stocks": self.stocks,
+                "relay_bots": self.relay_bots,
+            },
+        )
 
     def test_config_defaults(self):
-        plugin = TickerPlugin(self.mock_cardinal, {
-            'api_key': self.api_key,
-        })
-        assert plugin.config['api_key'] == self.api_key
-        assert plugin.config['channels'] == []
-        assert plugin.config['stocks'] == []
-        assert plugin.config['relay_bots'] == []
+        plugin = TickerPlugin(
+            self.mock_cardinal,
+            {
+                "api_key": self.api_key,
+            },
+        )
+        assert plugin.config["api_key"] == self.api_key
+        assert plugin.config["channels"] == []
+        assert plugin.config["stocks"] == []
+        assert plugin.config["relay_bots"] == []
 
     def test_missing_api_key(self):
         with pytest.raises(KeyError):
@@ -187,33 +194,28 @@ class TestTickerPlugin:
 
     def test_missing_stocks(self):
         with pytest.raises(ValueError):
-            TickerPlugin(self.mock_cardinal, {
-                'api_key': self.api_key,
-                'stocks': [
-                    ['a', 'a'],
-                    ['b', 'b'],
-                    ['c', 'c'],
-                    ['d', 'd'],
-                    ['e', 'e'],
-                    ['f', 'f'],
-                ],
-            })
+            TickerPlugin(
+                self.mock_cardinal,
+                {
+                    "api_key": self.api_key,
+                    "stocks": [
+                        ["a", "a"],
+                        ["b", "b"],
+                        ["c", "c"],
+                        ["d", "d"],
+                        ["e", "e"],
+                        ["f", "f"],
+                    ],
+                },
+            )
 
     @defer.inlineCallbacks
     def test_send_ticker(self):
         responses = [
-            make_iex_response('DIA',
-                              previous_close=100,
-                              price=200),
-            make_iex_response('AGG',
-                              previous_close=100,
-                              price=150.50),
-            make_iex_response('VEU',
-                              previous_close=100,
-                              price=105),
-            make_iex_response('SPY',
-                              previous_close=100,
-                              price=50),
+            make_iex_response("DIA", previous_close=100, price=200),
+            make_iex_response("AGG", previous_close=100, price=150.50),
+            make_iex_response("VEU", previous_close=100, price=105),
+            make_iex_response("SPY", previous_close=100, price=50),
         ]
 
         with mock_api(responses, fake_now=get_fake_now(market_is_open=True)):
@@ -222,51 +224,72 @@ class TestTickerPlugin:
         # These should be ordered per the config
         self.mock_cardinal.sendMsg.assert_called_once_with(
             self.channel,
-            'S&P 500 (\x02SPY\x02): \x0304-50.00%\x03 | '
-            'Dow (\x02DIA\x02): \x0309100.00%\x03 | '
-            'Foreign (\x02VEU\x02): \x03095.00%\x03 | '
-            'US Bond (\x02AGG\x02): \x030950.50%\x03'
+            "S&P 500 (\x02SPY\x02): \x0304-50.00%\x03 | "
+            "Dow (\x02DIA\x02): \x0309100.00%\x03 | "
+            "Foreign (\x02VEU\x02): \x03095.00%\x03 | "
+            "US Bond (\x02AGG\x02): \x030950.50%\x03",
         )
 
-    @pytest.mark.parametrize("dt,should_send_ticker,should_do_predictions", [
-        (datetime.datetime(2020, 3, 21, 16, 0, 0),  # Saturday 4pm
-         False,
-         False,),
-        (datetime.datetime(2020, 3, 22, 16, 0, 0),  # Sunday 4pm
-         False,
-         False,),
-        (datetime.datetime(2020, 3, 23, 15, 45, 45),  # Monday 3:45pm
-         True,
-         False,),
-        (datetime.datetime(2020, 3, 23, 16, 0, 30),  # Monday 4pm
-         True,
-         True,),
-        (datetime.datetime(2020, 3, 23, 16, 15, 0),  # Monday 4:15pm
-         False,
-         False,),
-        (datetime.datetime(2020, 3, 27, 9, 15, 0),  # Friday 9:15am
-         False,
-         False,),
-        (datetime.datetime(2020, 3, 27, 9, 30, 15),  # Friday 9:30am
-         True,
-         True,),
-        (datetime.datetime(2020, 3, 27, 9, 45, 15),  # Friday 9:45am
-         True,
-         False,),
-    ])
-    @patch.object(plugin.TickerPlugin, 'do_predictions')
-    @patch.object(plugin.TickerPlugin, 'send_ticker')
-    @patch.object(util, 'sleep')
-    @patch.object(plugin, 'est_now')
+    @pytest.mark.parametrize(
+        "dt,should_send_ticker,should_do_predictions",
+        [
+            (
+                datetime.datetime(2020, 3, 21, 16, 0, 0),  # Saturday 4pm
+                False,
+                False,
+            ),
+            (
+                datetime.datetime(2020, 3, 22, 16, 0, 0),  # Sunday 4pm
+                False,
+                False,
+            ),
+            (
+                datetime.datetime(2020, 3, 23, 15, 45, 45),  # Monday 3:45pm
+                True,
+                False,
+            ),
+            (
+                datetime.datetime(2020, 3, 23, 16, 0, 30),  # Monday 4pm
+                True,
+                True,
+            ),
+            (
+                datetime.datetime(2020, 3, 23, 16, 15, 0),  # Monday 4:15pm
+                False,
+                False,
+            ),
+            (
+                datetime.datetime(2020, 3, 27, 9, 15, 0),  # Friday 9:15am
+                False,
+                False,
+            ),
+            (
+                datetime.datetime(2020, 3, 27, 9, 30, 15),  # Friday 9:30am
+                True,
+                True,
+            ),
+            (
+                datetime.datetime(2020, 3, 27, 9, 45, 15),  # Friday 9:45am
+                True,
+                False,
+            ),
+        ],
+    )
+    @patch.object(plugin.TickerPlugin, "do_predictions")
+    @patch.object(plugin.TickerPlugin, "send_ticker")
+    @patch.object(util, "sleep")
+    @patch.object(plugin, "est_now")
     @pytest_twisted.inlineCallbacks
-    def test_tick(self,
-                  est_now,
-                  sleep,
-                  send_ticker,
-                  do_predictions,
-                  dt,
-                  should_send_ticker,
-                  should_do_predictions):
+    def test_tick(
+        self,
+        est_now,
+        sleep,
+        send_ticker,
+        do_predictions,
+        dt,
+        should_send_ticker,
+        should_do_predictions,
+    ):
         est_now.return_value = dt
 
         yield self.plugin.tick()
@@ -284,14 +307,14 @@ class TestTickerPlugin:
             assert do_predictions.mock_calls == []
 
     @pytest.mark.parametrize("market_is_open", [True, False])
-    @patch.object(util, 'reactor', new_callable=Clock)
+    @patch.object(util, "reactor", new_callable=Clock)
     @pytest_twisted.inlineCallbacks
     def test_do_predictions(self, mock_reactor, market_is_open):
-        symbol = 'SPY'
+        symbol = "SPY"
         base = 100.0
 
-        user1 = 'user1'
-        user2 = 'user2'
+        user1 = "user1"
+        user2 = "user2"
         prediction1 = 105.0
         prediction2 = 96.0
 
@@ -310,8 +333,8 @@ class TestTickerPlugin:
             prediction2,
         )
 
-        assert len(self.db['predictions']) == 1
-        assert len(self.db['predictions'][symbol]) == 2
+        assert len(self.db["predictions"]) == 1
+        assert len(self.db["predictions"][symbol]) == 2
 
         response = make_iex_response(symbol, price=actual)
 
@@ -324,19 +347,21 @@ class TestTickerPlugin:
         assert len(self.mock_cardinal.sendMsg.mock_calls) == 3
         self.mock_cardinal.sendMsg.assert_called_with(
             self.channel,
-            '{} had the closest guess for \x02{}\x02 out of {} predictions '
-            'with a prediction of {:.2f} (\x0304{:.2f}%\x03) '
-            'compared to the actual {} of {:.2f} (\x0304{:.2f}%\x03).'.format(
+            "{} had the closest guess for \x02{}\x02 out of {} predictions "
+            "with a prediction of {:.2f} (\x0304{:.2f}%\x03) "
+            "compared to the actual {} of {:.2f} (\x0304{:.2f}%\x03).".format(
                 user2,
                 symbol,
                 2,
                 prediction2,
                 -4,
-                'open' if market_is_open else 'close',
+                "open" if market_is_open else "close",
                 actual,
-                -5))
+                -5,
+            ),
+        )
 
-    @patch.object(plugin, 'est_now')
+    @patch.object(plugin, "est_now")
     def test_send_prediction(self, mock_now):
         prediction = 105
         actual = 110
@@ -345,125 +370,148 @@ class TestTickerPlugin:
         symbol = "SPY"
 
         # Set the datetime to a known value so the message can be tested
-        tz = pytz.timezone('America/New_York')
+        tz = pytz.timezone("America/New_York")
         mock_now.return_value = tz.localize(
-            datetime.datetime(2020, 3, 20, 10, 50, 0, 0))
+            datetime.datetime(2020, 3, 20, 10, 50, 0, 0)
+        )
 
-        prediction_ = {'when': '2020-03-20 10:50:00 EDT',
-                       'prediction': prediction,
-                       'base': base,
-                       }
+        prediction_ = {
+            "when": "2020-03-20 10:50:00 EDT",
+            "prediction": prediction,
+            "base": base,
+        }
         self.plugin.send_prediction(nick, symbol, prediction_, actual)
 
-        message = ("Prediction by nick for \x02SPY\02: 105.00 (\x03095.00%\x03). "
-                   "Actual value at open: 110.00 (\x030910.00%\x03). "
-                   "Prediction set at 2020-03-20 10:50:00 EDT.")
-        self.mock_cardinal.sendMsg.assert_called_once_with('#test', message)
+        message = (
+            "Prediction by nick for \x02SPY\02: 105.00 (\x03095.00%\x03). "
+            "Actual value at open: 110.00 (\x030910.00%\x03). "
+            "Prediction set at 2020-03-20 10:50:00 EDT."
+        )
+        self.mock_cardinal.sendMsg.assert_called_once_with("#test", message)
 
-    @pytest.mark.parametrize("symbol,input_msg,output_msg,market_is_open", [
-        ("SPY",
-         ".predict SPY +5%",
-         "Prediction by nick for \x02SPY\x02 at market close: 105.00 (\x03095.00%\x03) ",
-         True,
-         ),
-        ("SPY",
-         ".predict SPY -5%",
-         "Prediction by nick for \x02SPY\x02 at market close: 95.00 (\x0304-5.00%\x03) ",
-         True,
-         ),
-        ("SPY",
-         ".predict SPY -5%",
-         "Prediction by nick for \x02SPY\x02 at market open: 95.00 (\x0304-5.00%\x03) ",
-         False,
-         ),
-        # testing a few more formats of stock symbols
-        ("^RUT",
-         ".predict ^RUT -5%",
-         "Prediction by nick for \x02^RUT\x02 at market open: 95.00 (\x0304-5.00%\x03) ",
-         False,
-         ),
-        ("REE.MC",
-         ".predict REE.MC -5%",
-         "Prediction by nick for \x02REE.MC\x02 at market open: 95.00 (\x0304-5.00%\x03) ",
-         False,
-         ),
-        ("LON:HDLV",
-         ".predict LON:HDLV -5%",
-         "Prediction by nick for \x02LON:HDLV\x02 at market open: 95.00 (\x0304-5.00%\x03) ",
-         False,
-         ),
-    ])
+    @pytest.mark.parametrize(
+        "symbol,input_msg,output_msg,market_is_open",
+        [
+            (
+                "SPY",
+                ".predict SPY +5%",
+                "Prediction by nick for \x02SPY\x02 at market close: 105.00 (\x03095.00%\x03) ",
+                True,
+            ),
+            (
+                "SPY",
+                ".predict SPY -5%",
+                "Prediction by nick for \x02SPY\x02 at market close: 95.00 (\x0304-5.00%\x03) ",
+                True,
+            ),
+            (
+                "SPY",
+                ".predict SPY -5%",
+                "Prediction by nick for \x02SPY\x02 at market open: 95.00 (\x0304-5.00%\x03) ",
+                False,
+            ),
+            # testing a few more formats of stock symbols
+            (
+                "^RUT",
+                ".predict ^RUT -5%",
+                "Prediction by nick for \x02^RUT\x02 at market open: 95.00 (\x0304-5.00%\x03) ",
+                False,
+            ),
+            (
+                "REE.MC",
+                ".predict REE.MC -5%",
+                "Prediction by nick for \x02REE.MC\x02 at market open: 95.00 (\x0304-5.00%\x03) ",
+                False,
+            ),
+            (
+                "LON:HDLV",
+                ".predict LON:HDLV -5%",
+                "Prediction by nick for \x02LON:HDLV\x02 at market open: 95.00 (\x0304-5.00%\x03) ",
+                False,
+            ),
+        ],
+    )
     @pytest_twisted.inlineCallbacks
-    def test_predict(self,
-                     symbol,
-                     input_msg,
-                     output_msg,
-                     market_is_open):
+    def test_predict(self, symbol, input_msg, output_msg, market_is_open):
         channel = "#finance"
 
         fake_now = get_fake_now(market_is_open=market_is_open)
 
-        kwargs = {'previous_close': 100} if market_is_open else {'price': 100}
+        kwargs = {"previous_close": 100} if market_is_open else {"price": 100}
         response = make_iex_response(symbol, **kwargs)
 
         with mock_api(response, fake_now=fake_now):
-            yield self.plugin.predict(self.mock_cardinal,
-                                      user_info("nick", "user", "vhost"),
-                                      channel,
-                                      input_msg)
+            yield self.plugin.predict(
+                self.mock_cardinal,
+                user_info("nick", "user", "vhost"),
+                channel,
+                input_msg,
+            )
 
-        assert symbol in self.db['predictions']
-        assert len(self.db['predictions'][symbol]) == 1
+        assert symbol in self.db["predictions"]
+        assert len(self.db["predictions"][symbol]) == 1
 
-        self.mock_cardinal.sendMsg.assert_called_once_with(
-            channel,
-            output_msg)
+        self.mock_cardinal.sendMsg.assert_called_once_with(channel, output_msg)
 
-    @pytest.mark.parametrize("message_pairs", [
-        ((".predict SPY +5%",
-          "Prediction by nick for \x02SPY\x02 at market close: 105.00 (\x03095.00%\x03) ",
-          ),
-         (".predict SPY -5%",
-          "Prediction by nick for \x02SPY\x02 at market close: 95.00 (\x0304-5.00%\x03) "
-          "(replaces old prediction of 105.00 (\x03095.00%\x03) set at {})"
-          ),
-         )
-    ])
+    @pytest.mark.parametrize(
+        "message_pairs",
+        [
+            (
+                (
+                    ".predict SPY +5%",
+                    "Prediction by nick for \x02SPY\x02 at market close: 105.00 (\x03095.00%\x03) ",
+                ),
+                (
+                    ".predict SPY -5%",
+                    "Prediction by nick for \x02SPY\x02 at market close: 95.00 (\x0304-5.00%\x03) "
+                    "(replaces old prediction of 105.00 (\x03095.00%\x03) set at {})",
+                ),
+            )
+        ],
+    )
     @pytest_twisted.inlineCallbacks
     def test_predict_replace(self, message_pairs):
         channel = "#finance"
-        symbol = 'SPY'
+        symbol = "SPY"
 
         response = make_iex_response(symbol, previous_close=100)
 
         fake_now = get_fake_now()
         for input_msg, output_msg in message_pairs:
             with mock_api(response, fake_now):
-                yield self.plugin.predict(self.mock_cardinal,
-                                          user_info("nick", "user", "vhost"),
-                                          channel,
-                                          input_msg)
+                yield self.plugin.predict(
+                    self.mock_cardinal,
+                    user_info("nick", "user", "vhost"),
+                    channel,
+                    input_msg,
+                )
 
-                assert symbol in self.db['predictions']
-                assert len(self.db['predictions'][symbol]) == 1
+                assert symbol in self.db["predictions"]
+                assert len(self.db["predictions"][symbol]) == 1
 
                 self.mock_cardinal.sendMsg.assert_called_with(
                     channel,
-                    output_msg.format(fake_now.strftime('%Y-%m-%d %H:%M:%S %Z'))
-                    if '{}' in output_msg else
-                    output_msg)
+                    output_msg.format(fake_now.strftime("%Y-%m-%d %H:%M:%S %Z"))
+                    if "{}" in output_msg
+                    else output_msg,
+                )
 
-    @pytest.mark.parametrize("input_msg,output_msg", [
-        ("<nick> .predict SPY +5%",
-         "Prediction by nick for \x02SPY\x02 at market close: 105.00 (\x03095.00%\x03) ",
-         ),
-        ("<nick> .predict SPY -5%",
-         "Prediction by nick for \x02SPY\x02 at market close: 95.00 (\x0304-5.00%\x03) ",
-         ),
-    ])
+    @pytest.mark.parametrize(
+        "input_msg,output_msg",
+        [
+            (
+                "<nick> .predict SPY +5%",
+                "Prediction by nick for \x02SPY\x02 at market close: 105.00 (\x03095.00%\x03) ",
+            ),
+            (
+                "<nick> .predict SPY -5%",
+                "Prediction by nick for \x02SPY\x02 at market close: 95.00 (\x0304-5.00%\x03) ",
+            ),
+        ],
+    )
     @pytest_twisted.inlineCallbacks
     def test_predict_relayed_relay_bot(self, input_msg, output_msg):
-        symbol = 'SPY'
+        symbol = "SPY"
         channel = "#finance"
 
         response = make_iex_response(symbol, previous_close=100)
@@ -472,61 +520,64 @@ class TestTickerPlugin:
                 self.mock_cardinal,
                 user_info("relay.bot", "relay", "relay"),
                 channel,
-                input_msg)
+                input_msg,
+            )
 
-        assert symbol in self.db['predictions']
-        assert len(self.db['predictions'][symbol]) == 1
+        assert symbol in self.db["predictions"]
+        assert len(self.db["predictions"][symbol]) == 1
 
-        self.mock_cardinal.sendMsg.assert_called_once_with(
-            channel,
-            output_msg)
+        self.mock_cardinal.sendMsg.assert_called_once_with(channel, output_msg)
 
-    @pytest.mark.parametrize("input_msg", [
-        "<whoami> .predict SPY +5%",
-        "<whoami> .predict SPY -5%",
-    ])
+    @pytest.mark.parametrize(
+        "input_msg",
+        [
+            "<whoami> .predict SPY +5%",
+            "<whoami> .predict SPY -5%",
+        ],
+    )
     @pytest_twisted.inlineCallbacks
     def test_predict_relayed_not_relay_bot(self, input_msg):
         channel = "#finance"
 
         yield self.plugin.predict_relayed(
-            self.mock_cardinal,
-            user_info("nick", "user", "vhost"),
-            channel,
-            input_msg)
+            self.mock_cardinal, user_info("nick", "user", "vhost"), channel, input_msg
+        )
 
-        assert len(self.db['predictions']) == 0
+        assert len(self.db["predictions"]) == 0
         assert self.mock_cardinal.sendMsg.mock_calls == []
 
-    @pytest.mark.parametrize("user,message,value,expected", [
-        (
-            "whoami",
-            ".predict SPY 5%",
-            100,
-            ("whoami", "SPY", 105, 100),
-        ),
-        (
-            "whoami",
-            ".predict SPY +5%",
-            100,
-            ("whoami", "SPY", 105, 100),
-        ),
-        (
-            "whoami",
-            ".predict SPY -5%",
-            100,
-            ("whoami", "SPY", 95, 100),
-        ),
-    ])
+    @pytest.mark.parametrize(
+        "user,message,value,expected",
+        [
+            (
+                "whoami",
+                ".predict SPY 5%",
+                100,
+                ("whoami", "SPY", 105, 100),
+            ),
+            (
+                "whoami",
+                ".predict SPY +5%",
+                100,
+                ("whoami", "SPY", 105, 100),
+            ),
+            (
+                "whoami",
+                ".predict SPY -5%",
+                100,
+                ("whoami", "SPY", 95, 100),
+            ),
+        ],
+    )
     @pytest_twisted.inlineCallbacks
     def test_parse_prediction_open(
-            self,
-            user,
-            message,
-            value,
-            expected,
+        self,
+        user,
+        message,
+        value,
+        expected,
     ):
-        symbol = 'SPY'
+        symbol = "SPY"
 
         response = make_iex_response(symbol, previous_close=value)
         with mock_api(response):
@@ -534,29 +585,32 @@ class TestTickerPlugin:
 
         assert result == expected
 
-    @pytest.mark.parametrize("user,message,value,expected", [
-        (
-            "whoami",
-            ".predict SPY 500",
-            100,
-            ("whoami", "SPY", 500, 100),
-        ),
-        (
-            "whoami",
-            ".predict SPY $100",
-            100,
-            ("whoami", "SPY", 100, 100),
-        ),
-    ])
+    @pytest.mark.parametrize(
+        "user,message,value,expected",
+        [
+            (
+                "whoami",
+                ".predict SPY 500",
+                100,
+                ("whoami", "SPY", 500, 100),
+            ),
+            (
+                "whoami",
+                ".predict SPY $100",
+                100,
+                ("whoami", "SPY", 100, 100),
+            ),
+        ],
+    )
     @pytest_twisted.inlineCallbacks
     def test_parse_prediction_open_dollar_amount(
-            self,
-            user,
-            message,
-            value,
-            expected,
+        self,
+        user,
+        message,
+        value,
+        expected,
     ):
-        symbol = 'SPY'
+        symbol = "SPY"
 
         response = make_iex_response(symbol, previous_close=value)
         with mock_api(response):
@@ -564,35 +618,38 @@ class TestTickerPlugin:
 
         assert result == expected
 
-    @pytest.mark.parametrize("user,message,value,expected", [
-        (
-            "whoami",
-            ".predict SPY 5%",
-            100,
-            ("whoami", "SPY", 105, 100),
-        ),
-        (
-            "whoami",
-            ".predict SPY +5%",
-            100,
-            ("whoami", "SPY", 105, 100),
-        ),
-        (
-            "whoami",
-            ".predict SPY -5%",
-            100,
-            ("whoami", "SPY", 95, 100),
-        ),
-    ])
+    @pytest.mark.parametrize(
+        "user,message,value,expected",
+        [
+            (
+                "whoami",
+                ".predict SPY 5%",
+                100,
+                ("whoami", "SPY", 105, 100),
+            ),
+            (
+                "whoami",
+                ".predict SPY +5%",
+                100,
+                ("whoami", "SPY", 105, 100),
+            ),
+            (
+                "whoami",
+                ".predict SPY -5%",
+                100,
+                ("whoami", "SPY", 95, 100),
+            ),
+        ],
+    )
     @pytest_twisted.inlineCallbacks
     def test_parse_prediction_close(
-            self,
-            user,
-            message,
-            value,
-            expected,
+        self,
+        user,
+        message,
+        value,
+        expected,
     ):
-        symbol = 'SPY'
+        symbol = "SPY"
 
         response = make_iex_response(symbol, price=value)
         with mock_api(response, fake_now=get_fake_now(market_is_open=False)):
@@ -600,22 +657,24 @@ class TestTickerPlugin:
 
         assert result == expected
 
-    @patch.object(plugin, 'est_now')
+    @patch.object(plugin, "est_now")
     def test_save_prediction(self, mock_now):
-        symbol = 'SPY'
-        nick = 'whoami'
+        symbol = "SPY"
+        nick = "whoami"
         base = 100
         prediction = 105
 
-        tz = pytz.timezone('America/New_York')
-        mock_now.return_value = tz.localize(datetime.datetime(
-            2020,
-            3,
-            23,
-            12,
-            0,
-            0,
-        ))
+        tz = pytz.timezone("America/New_York")
+        mock_now.return_value = tz.localize(
+            datetime.datetime(
+                2020,
+                3,
+                23,
+                12,
+                0,
+                0,
+            )
+        )
         self.plugin.save_prediction(
             symbol,
             nick,
@@ -623,114 +682,127 @@ class TestTickerPlugin:
             prediction,
         )
 
-        assert symbol in self.db['predictions']
-        assert nick in self.db['predictions'][symbol]
-        actual = self.db['predictions'][symbol][nick]
+        assert symbol in self.db["predictions"]
+        assert nick in self.db["predictions"][symbol]
+        actual = self.db["predictions"][symbol][nick]
         assert actual == {
-            'when': '2020-03-23 12:00:00 EDT',
-            'base': base,
-            'prediction': prediction,
+            "when": "2020-03-23 12:00:00 EDT",
+            "base": base,
+            "prediction": prediction,
         }
 
     @defer.inlineCallbacks
     def test_get_daily(self):
-        symbol = 'SPY'
+        symbol = "SPY"
         price = 101.0
         previous_close = 102.0
 
-        response = make_iex_response(symbol,
-                                     price=price,
-                                     previous_close=previous_close,
-                                     )
+        response = make_iex_response(
+            symbol,
+            price=price,
+            previous_close=previous_close,
+        )
 
         expected = {
-            'symbol': symbol,
-            'companyName': response['companyName'],
-            'exchange': response['primaryExchange'],
-            'price': price,
-            'previous close': previous_close,
+            "symbol": symbol,
+            "companyName": response["companyName"],
+            "exchange": response["primaryExchange"],
+            "price": price,
+            "previous close": previous_close,
             # this one is calculated by our mock response function so it
             # doesn't really test anything anymore
-            'change': ((price - previous_close) / previous_close) * 100,
+            "change": ((price - previous_close) / previous_close) * 100,
         }
 
         with mock_api(response):
             result = yield self.plugin.get_daily(symbol)
         assert result == expected
 
-    @patch.object(plugin, 'est_now')
+    @patch.object(plugin, "est_now")
     def test_market_is_open(self, mock_now):
-        tz = pytz.timezone('America/New_York')
+        tz = pytz.timezone("America/New_York")
         holidays = NYSEHolidays()
 
         # Nothing special about this time - it's a Thursday 7:49pm
-        mock_now.return_value = tz.localize(datetime.datetime(
-            2020,
-            3,
-            19,
-            19,
-            49,
-            55,
-            0,
-        ))
+        mock_now.return_value = tz.localize(
+            datetime.datetime(
+                2020,
+                3,
+                19,
+                19,
+                49,
+                55,
+                0,
+            )
+        )
         assert plugin.market_is_open() is False
 
         # The market was open earlier though
-        mock_now.return_value = tz.localize(datetime.datetime(
-            2020,
-            3,
-            19,
-            13,
-            49,
-            55,
-            0,
-        ))
+        mock_now.return_value = tz.localize(
+            datetime.datetime(
+                2020,
+                3,
+                19,
+                13,
+                49,
+                55,
+                0,
+            )
+        )
         assert plugin.market_is_open() is True
 
         # But not before 9:30am
-        mock_now.return_value = tz.localize(datetime.datetime(
-            2020,
-            3,
-            19,
-            9,
-            29,
-            59,
-            0,
-        ))
+        mock_now.return_value = tz.localize(
+            datetime.datetime(
+                2020,
+                3,
+                19,
+                9,
+                29,
+                59,
+                0,
+            )
+        )
         assert plugin.market_is_open() is False
 
         # Or this weekend
-        mock_now.return_value = tz.localize(datetime.datetime(
-            2020,
-            3,
-            14,
-            13,
-            49,
-            55,
-            0,
-        ))
+        mock_now.return_value = tz.localize(
+            datetime.datetime(
+                2020,
+                3,
+                14,
+                13,
+                49,
+                55,
+                0,
+            )
+        )
         assert plugin.market_is_open() is False
 
         # Or on Memorial Day
-        mock_now.return_value = tz.localize(datetime.datetime(
-            2021,
-            5,
-            31,
-            13,
-            49,
-            55,
-            0,
-        ))
+        mock_now.return_value = tz.localize(
+            datetime.datetime(
+                2021,
+                5,
+                31,
+                13,
+                49,
+                55,
+                0,
+            )
+        )
         assert plugin.market_is_open() is False
 
         # Or on those pesky observed holidays
-        mock_now.return_value = tz.localize(datetime.datetime(
-            2021,
-            7,
-            5,
-            13,
-            49,
-            55,
-            0,
-        ))
+        mock_now.return_value = tz.localize(
+            datetime.datetime(
+                2021,
+                7,
+                5,
+                13,
+                49,
+                55,
+                0,
+            )
+        )
         assert plugin.market_is_open() is False
