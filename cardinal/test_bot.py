@@ -577,7 +577,6 @@ class TestCardinalBot:
         with patch.object(self.cardinal, 'quit') as quit_mock:
             self.cardinal.disconnect()
 
-        self.plugin_manager.unload_all.assert_called_once_with()
         assert self.factory.disconnect is True
         quit_mock.assert_called_once_with('')
 
@@ -587,9 +586,14 @@ class TestCardinalBot:
         with patch.object(self.cardinal, 'quit') as quit_mock:
             self.cardinal.disconnect(message)
 
-        self.plugin_manager.unload_all.assert_called_once_with()
         assert self.factory.disconnect is True
         quit_mock.assert_called_once_with(message)
+
+    def test_disconnected(self):
+        self.cardinal.disconnected()
+
+        self.cardinal.plugin_manager.unload_all.assert_called_once()
+
 
     def test_get_db(self):
         with tempdir('database') as database_path:
@@ -772,6 +776,7 @@ class TestCardinalBotFactory:
         clock = Clock()
         mock_connector = Mock()
         self.factory._reactor = clock
+        self.factory.cardinal = Mock(spec=CardinalBot)
 
         self.factory.clientConnectionLost(
             mock_connector,
@@ -783,6 +788,16 @@ class TestCardinalBotFactory:
         clock.advance(self.factory.last_reconnection_wait)
 
         mock_connector.connect.assert_called_once()
+
+    def test_unload_plugins_on_disconnection(self):
+        mock_cardinal = Mock(spec=CardinalBot)
+        self.factory.cardinal = mock_cardinal
+
+        mock_connector = Mock()
+        self.factory._reactor = Mock()
+        self.factory.clientConnectionLost(mock_connector, "Called by unit test")
+
+        mock_cardinal.disconnected.assert_called_once()
 
     def test_initial_connection_failed(self):
         assert self.factory.disconnect is False
@@ -855,6 +870,7 @@ class TestCardinalBotFactory:
         # Mark that we purposefully disconnected
         self.factory.disconnect = True
 
+        self.factory.cardinal = Mock(spec=CardinalBot)
         self.factory._reactor = Mock()
 
         self.factory.clientConnectionLost(None, 'Called by unit test')

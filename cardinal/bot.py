@@ -564,9 +564,13 @@ class CardinalBot(irc.IRCClient, object):
           message -- Message to insert into QUIT, if any.
         """
         self.logger.info("Disconnecting from network")
-        self.plugin_manager.unload_all()
         self.factory.disconnect = True
         self.quit(message)
+
+    def disconnected(self):
+        """Called by the factory when Cardinal loses connection to the server"""
+        if self.plugin_manager:
+            self.plugin_manager.unload_all()
 
     def get_db(self, name, network_specific=True, default=None):
         if default is None:
@@ -627,6 +631,7 @@ class CardinalBotFactory(protocol.ClientFactory):
 
     @property
     def reactor(self):
+        """Allows us to inject a mock reactor in unit tests"""
         return getattr(self, '_reactor', reactor)
 
     def __init__(self,
@@ -702,6 +707,8 @@ class CardinalBotFactory(protocol.ClientFactory):
           connector -- Twisted IRC connector. Provided by Twisted.
           reason -- Reason for disconnect. Provided by Twisted.
         """
+        self.cardinal.disconnected()
+
         # This flag tells us if Cardinal was told to disconnect by a user. If
         # not, we'll attempt to reconnect.
         if not self.disconnect:
