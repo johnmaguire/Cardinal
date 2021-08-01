@@ -7,6 +7,6 @@
 <!-- Describe how you tested your change (ideally with automated tests) -->
 
 ## Contribution Checklist
-[ ] I have read the [contributing guidelines](https://github.com/JohnMaguire/Cardinal/blob/master/CONTRIBUTING.md).
-[ ] I consent to the [MIT project license](https://github.com/JohnMaguire/Cardinal/blob/master/LICENSE).
-[ ] I have added my name to the [`CONTRIBUTORS`](https://github.com/JohnMaguire/Cardinal/blob/master/CONTRIBUTORS) file if desired (optional).
+- [ ] I have read the [contributing guidelines](https://github.com/JohnMaguire/Cardinal/blob/master/CONTRIBUTING.md).
+- [ ] I consent to the [MIT project license](https://github.com/JohnMaguire/Cardinal/blob/master/LICENSE).
+- [ ] I have added my name to the [`CONTRIBUTORS`](https://github.com/JohnMaguire/Cardinal/blob/master/CONTRIBUTORS) file if desired (optional).
