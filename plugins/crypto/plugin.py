@@ -105,6 +105,7 @@ class CryptoPlugin:
         for coin in resp.values():
             name = coin['name']
             symbol = coin['symbol']
+            cmc_rank = coin['cmc_rank']
             for quote_currency, quote in coin['quote'].items():
                 price = quote['price']
                 if price >= 1:
@@ -115,11 +116,12 @@ class CryptoPlugin:
                 cardinal.sendMsg(
                     channel,
                     "{} ({}) = {} {} - Daily Change (24h): {} "
-                    "(Market Cap: {:,.2f})".format(
+                    "(Market Cap: {:,.2f} - Ranked #{})".format(
                         name, F.bold(symbol),
                         price, quote_currency,
                         colorize(quote['percent_change_24h']),
-                        quote['market_cap']))
+                        quote['market_cap'],
+                        cmc_rank))
 
     @regex(CRYPTO_REGEX)
     @defer.inlineCallbacks
