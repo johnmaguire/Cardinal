@@ -169,8 +169,8 @@ class TickerPlugin:
 
         if not self.config["api_key"]:
             raise KeyError("Missing required api_key in ticker config")
-        if len(self.config["stocks"]) > 5:
-            raise ValueError("No more than 5 stocks may be present in ticker "
+        if len(self.config["stocks"]) > 6:
+            raise ValueError("No more than 6 stocks may be present in ticker "
                              "config")
 
         self.relay_bots = []
