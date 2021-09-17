@@ -185,7 +185,7 @@ class TestTickerPlugin:
         with pytest.raises(KeyError):
             TickerPlugin(self.mock_cardinal, {})
 
-    def test_missing_stocks(self):
+    def test_too_many_stocks(self):
         with pytest.raises(ValueError):
             TickerPlugin(self.mock_cardinal, {
                 'api_key': self.api_key,
@@ -196,6 +196,7 @@ class TestTickerPlugin:
                     ['d', 'd'],
                     ['e', 'e'],
                     ['f', 'f'],
+                    ['g', 'g'],
                 ],
             })
 
