@@ -300,7 +300,23 @@ class MoviePlugin:
             "plot": self.get_output_format(channel),
         }
 
-        result = yield self._form_request(params)
+        try:
+            result = yield self._form_request(params)
+        except Exception:
+            self.logger.exception("Unable to connect to OMDb")
+            raise RuntimeError("Failed to connect to OMDb")
+
+        if result['Response'] == 'False':
+            if "Error" in result:
+                self.logger.error(
+                    "Error attempting to search OMDb: %s" % result['Error']
+                )
+
+            cardinal.sendMsg(
+                channel,
+                "Error searching OMDb: %s" % result['Error']
+            )
+            return
 
         for message in self._format_data(channel, result):
             cardinal.sendMsg(channel, message)
