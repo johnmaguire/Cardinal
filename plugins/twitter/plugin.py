@@ -54,7 +54,7 @@ class TwitterPlugin:
             url = yield self.follow_short_link(url)
             o = urlparse(url)
 
-        if o.netloc == 'twitter.com' \
+        if o.netloc in ('twitter.com', 'mobile.twitter.com') \
                 and (match := re.match(r'^/.*/status/(\d+)$', o.path)):
             tweet_id = match.group(1)
 
