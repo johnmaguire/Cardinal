@@ -12,7 +12,7 @@ from cardinal.exceptions import EventRejectedMessage
 ARTICLE_URL_REGEX = r"https?://(?:\w{2}\.)?wikipedia\..{2,4}/wiki/(.+)"
 
 DEFAULT_LANGUAGE_CODE = 'en'
-DEFAULT_MAX_DESCRIPTION_LENGTH = 150
+DEFAULT_MAX_DESCRIPTION_LENGTH = 250
 
 
 # This is used to filter out blank paragraphs
