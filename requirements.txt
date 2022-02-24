@@ -1,10 +1,10 @@
 # Core
-Twisted==20.3.0
+Twisted==22.1.0
 
 # SSL connections
-pyOpenSSL==19.0.0
-service_identity==18.1.0
+pyOpenSSL==22.0.0
+service_identity==21.1.0
 
 # Various URL scraping plugins
-beautifulsoup4==4.9.3
-requests==2.22.0
+beautifulsoup4==4.10.0
+requests==2.27.1
