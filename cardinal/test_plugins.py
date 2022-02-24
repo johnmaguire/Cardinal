@@ -1,10 +1,9 @@
-import inspect
 import logging
 import os
 import sys
 
 import pytest
-from twisted.internet.task import defer
+from twisted.internet import defer
 from mock import Mock, patch
 
 from cardinal import exceptions

@@ -1,6 +1,6 @@
 # Unit tests
 mock==2.0.0
-pytest==4.6.5
-pytest-cov==2.7.1
+pytest==7.0.1
+pytest-cov==3.0.0
 pytest-env==0.6.2
-pytest-twisted==1.11
+pytest-twisted==1.13.4
