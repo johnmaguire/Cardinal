@@ -9,7 +9,7 @@ import random
 import json
 from collections import defaultdict
 from copy import copy
-from imp import reload
+from importlib import reload
 
 from cardinal.exceptions import (
     CommandNotFoundError,
