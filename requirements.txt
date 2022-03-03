@@ -1,5 +1,5 @@
 # Core
-Twisted==22.1.0
+Twisted==22.2.0
 
 # SSL connections
 pyOpenSSL==22.0.0
