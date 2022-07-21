@@ -31,7 +31,9 @@ class UrbanDictPlugin:
             data = r.json()
             entry = data['list'].pop(0)
 
-            definition = entry['definition']
+            definition = entry['definition'][0:300]
+            if definition != entry['definition']:
+                definition = definition + "…"
             thumbs_up = entry['thumbs_up']
             thumbs_down = entry['thumbs_down']
             link = entry['permalink']
