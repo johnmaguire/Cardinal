@@ -11,7 +11,7 @@ TIME_FORMAT = '%b %d, %I:%M:%S %p UTC%z'
 class TimezonePlugin:
     @command(['time'])
     @help("Returns the current time in a given time zone or GMT offset.")
-    @help("Syntax: time <GMT offset or timezone>")
+    @help("Syntax: @time <GMT offset or timezone>")
     def get_time(self, cardinal, user, channel, msg):
         utc = pytz.utc
         now = datetime.now(utc)

@@ -422,7 +422,7 @@ class TickerPlugin:
 
     @command('stock')
     @help("Check the latest price of a stock")
-    @help("Syntax: .stock <stock symbol>")
+    @help("Syntax: @stock <stock symbol>")
     @defer.inlineCallbacks
     def stock(self, cardinal, user, channel, msg):
         nick = user.nick  # other values may not exist for relayed users
@@ -470,7 +470,7 @@ class TickerPlugin:
 
     @command('predict')
     @help("Predict a stock price at the next market open/close")
-    @help("Syntax: .predict <stock> [-]<X>%  |  .predict <stock> $<X>")
+    @help("Syntax: @predict <stock> [-]<X>%  |  @predict <stock> $<X>")
     @defer.inlineCallbacks
     def predict(self, cardinal, user, channel, msg):
         nick = user.nick

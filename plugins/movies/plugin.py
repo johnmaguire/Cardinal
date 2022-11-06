@@ -132,21 +132,21 @@ class MoviePlugin:
 
     @command('movie')
     @help('Get the first movie IMDb result for a given search')
-    @help('Syntax: .movie <search query>')
+    @help('Syntax: @movie <search query>')
     @defer.inlineCallbacks
     def movie(self, cardinal, user, channel, msg):
         yield self.imdb(cardinal, user, channel, msg, result_type='movie')
 
     @command('show')
     @help('Get the first TV show IMDb result for a given search')
-    @help('Syntax: .show <search query>')
+    @help('Syntax: @show <search query>')
     @defer.inlineCallbacks
     def show(self, cardinal, user, channel, msg):
         yield self.imdb(cardinal, user, channel, msg, result_type='series')
 
     @command(['omdb', 'imdb'])
     @help('Get the first IMDb result for a given search')
-    @help('Syntax: .imdb <search query>')
+    @help('Syntax: @imdb <search query>')
     @defer.inlineCallbacks
     def imdb(self, cardinal, user, channel, msg, result_type=None):
         # Before we do anything, let's make sure we'll be able to query omdb.
@@ -212,7 +212,7 @@ class MoviePlugin:
 
     @command('search')
     @help('Return IMDb search results (use .imdb for a single title)')
-    @help('Syntax: .search <search query>')
+    @help('Syntax: @search <search query>')
     @defer.inlineCallbacks
     def search(self, cardinal, user, channel, msg):
         if self.api_key is None:

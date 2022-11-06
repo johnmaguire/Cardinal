@@ -9,7 +9,7 @@ from cardinal.util import sleep
 class Magic8BallPlugin:
     @command(['8', '8ball'])
     @help("Ask the might 8-ball a question.")
-    @help("Syntax: .8 <question>")
+    @help("Syntax: @8 <question>")
     @defer.inlineCallbacks
     def answer(self, cardinal, user, channel, msg):
         if not (msg.endswith("?") and len(msg.split()) > 1):

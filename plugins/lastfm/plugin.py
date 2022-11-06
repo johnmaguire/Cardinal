@@ -47,7 +47,7 @@ class LastfmPlugin:
 
     @command('setlastfm')
     @help(["Sets the default Last.fm username for your nick.",
-           "Syntax: .setlastfm <username>"])
+           "Syntax: @setlastfm <username>"])
     def set_user(self, cardinal, user, channel, msg):
         if not self.conn:
             cardinal.sendMsg(
@@ -106,7 +106,7 @@ class LastfmPlugin:
     @command(['np', 'nowplaying'])
     @help("Get the Last.fm track currently played by a user (defaults to "
           "username set with .setlastfm)")
-    @help("Syntax: .np [Last.fm username]")
+    @help("Syntax: @np [Last.fm username]")
     @defer.inlineCallbacks
     def now_playing(self, cardinal, user, channel, msg):
         # Open the cursor for the query to find a saved Last.fm username

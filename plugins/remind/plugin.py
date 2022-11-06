@@ -9,7 +9,7 @@ class RemindPlugin:
 
     @command('remind')
     @help("Sends a reminder after a set time.")
-    @help("Syntax: .remind <minutes> <message>")
+    @help("Syntax: @remind <minutes> <message>")
     def remind(self, cardinal, user, channel, msg):
         message = msg.split(None, 2)
         if len(message) < 3:

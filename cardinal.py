@@ -72,6 +72,7 @@ https://github.com/JohnMaguire/Cardinal
         'urbandict',
         'seen'
     ])
+    spec.add_option('cmd_prefix', str, '.')
     spec.add_option('blacklist', dict, {})
     spec.add_option('logging', dict, None)
 
@@ -129,6 +130,7 @@ https://github.com/JohnMaguire/Cardinal
                                  config['username'],
                                  config['realname'],
                                  config['plugins'],
+                                 config['cmd_prefix'],
                                  config['blacklist'],
                                  config['storage'])
 

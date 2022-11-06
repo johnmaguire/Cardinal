@@ -34,7 +34,7 @@ class WolframAlphaPlugin:
 
     @command(['wolfram', 'calc'])
     @help('Make a query with Wolfram Alpha')
-    @help('Syntax: .wolfram <query>')
+    @help('Syntax: @wolfram <query>')
     @defer.inlineCallbacks
     def wolfram(self, cardinal, user, channel, message):
         try:

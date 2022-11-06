@@ -2,7 +2,15 @@ from datetime import datetime
 from cardinal.decorators import command, help
 
 
+# Command prefix placeholder to look for when performing string replace on 
+# the syntax help message.
+PREFIX_PLACEHOLDER = '@'
+
+
 class HelpPlugin:
+    def __init__(self, cmd_prefix):
+        self._cmd_prefix = cmd_prefix
+
     # Gets a list of admins from the admin plugin instantiated within the
     # Cardinal instance, if exists
     def _get_admins(self, cardinal):
@@ -76,11 +84,19 @@ class HelpPlugin:
 
         return uptime
 
+    # Replace the command prefix placeholder (@) with the user-defined prefix
+    def _replace_prefix(self, help_msg):
+        if isinstance(help_msg, list):
+            correct_help_msg = [line.replace(PREFIX_PLACEHOLDER, self._cmd_prefix) for line in help_msg]
+        else:
+            correct_help_msg = help_msg.replace(PREFIX_PLACEHOLDER, self._cmd_prefix)
+        return correct_help_msg
+
     # Give the user a list of valid commands in the bot if no command is
     # provided. If a valid command is provided, return its help text
     @command(['help'])
     @help("Shows loaded commands or a specific command's help.")
-    @help("Syntax: .help [command]")
+    @help("Syntax: @help [command]")
     def cmd_help(self, cardinal, user, channel, msg):
         parameters = msg.split()
         if len(parameters) == 1:
@@ -91,6 +107,7 @@ class HelpPlugin:
         else:
             command = parameters[1]
             help = self._get_command_help(cardinal, command)
+            help = self._replace_prefix(help)
             if isinstance(help, list):
                 for help_line in help:
                     cardinal.sendMsg(channel, help_line)
@@ -104,7 +121,7 @@ class HelpPlugin:
     # Sends some basic meta information about the bot
     @command('info')
     @help("Gives some basic information about the bot.")
-    @help("Syntax: .info")
+    @help("Syntax: @info")
     def cmd_info(self, cardinal, user, channel, msg):
         admins = self._get_admins(cardinal)
         meta = self._get_meta(cardinal)
