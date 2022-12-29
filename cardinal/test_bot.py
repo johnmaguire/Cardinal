@@ -36,6 +36,7 @@ class TestCardinalBot:
         self.factory.server_commands = []
         self.factory.channels = []
         self.factory.plugins = []
+        self.factory.censored_words = {}
         self.factory.blacklist = {}
         self.factory.booted = datetime.now()
         self.factory.storage_path = '.'
@@ -554,6 +555,20 @@ class TestCardinalBot:
 
         msg_mock.assert_called_once_with(channel, message, length)
 
+    def test_sendMsg_censored_words(self):
+        # passes through to Twisted w/ additional logging
+        channel = '#channel'
+        message = 'this is some message supernets eh'
+        length = 5
+
+        self.factory.censored_words = {"supernets": "s-nets"}
+
+        with patch.object(self.cardinal, 'msg') as msg_mock:
+            self.cardinal.sendMsg(channel, message, length)
+
+        msg_mock.assert_called_once_with(channel, "this is some message s-nets eh", length)
+
+
     def test_sendMsg_no_length(self):
         # passes through to Twisted w/ additional logging
         channel = '#channel'
@@ -684,6 +699,7 @@ class TestCardinalBotFactory:
             username='cardinal',
             realname='Mr. Cardinal',
             plugins=['plugin1', 'plugin2'],
+            censored_words={},
             blacklist=[
                 {'urls': '#finance'},
             ],
@@ -710,6 +726,7 @@ class TestCardinalBotFactory:
         username = 'cardinal'
         realname = 'Mr. Cardinal'
         plugins = ['plugin1', 'plugin2']
+        censored_words = {'supernets': 's-nets'}
         blacklist = [
             {'urls': '#finance'},
         ]
@@ -725,6 +742,7 @@ class TestCardinalBotFactory:
             username,
             realname,
             plugins,
+            censored_words,
             blacklist,
             storage,
         )

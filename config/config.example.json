@@ -31,6 +31,10 @@
         "youtube"
     ],
 
+    "censored_words": {
+        "supernets": "s-nets"
+    },
+
     "logging": {
         "version": 1,
 

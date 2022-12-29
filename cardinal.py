@@ -47,30 +47,34 @@ https://github.com/JohnMaguire/Cardinal
     spec.add_option('password', str, None)
     spec.add_option('username', str, None)
     spec.add_option('realname', str, None)
-    spec.add_option('network', str, 'irc.freenode.net')
-    spec.add_option('port', int, 6667)
+    spec.add_option('network', str, 'irc.darkscience.net')
+    spec.add_option('port', int, 6697)
     spec.add_option('server_password', str, None)
     spec.add_option('server_commands', list, [])
-    spec.add_option('ssl', bool, False)
+    spec.add_option('ssl', bool, True)
     spec.add_option('storage', str, os.path.join(
         os.path.dirname(os.path.realpath(sys.argv[0])),
         'storage'
     ))
     spec.add_option('channels', list, ['#bots'])
+    spec.add_option('censored_words', dict, {})
     spec.add_option('plugins', list, [
-        'wikipedia',
-        'ping',
-        'help',
-        'admin',
-        'join_on_invite',
-        'urls',
-        'calculator',
-        'lastfm',
-        'remind',
-        'weather',
-        'youtube',
-        'urbandict',
-        'seen'
+        "admin",
+        "github",
+        "google",
+        "help",
+        "join_on_invite",
+        "lastfm",
+        "ping",
+        "remind",
+        "sed",
+        "seen",
+        "timezone",
+        "urbandict",
+        "urls",
+        "weather",
+        "wikipedia",
+        "youtube"
     ])
     spec.add_option('blacklist', dict, {})
     spec.add_option('logging', dict, None)
@@ -129,6 +133,7 @@ https://github.com/JohnMaguire/Cardinal
                                  config['username'],
                                  config['realname'],
                                  config['plugins'],
+                                 config['censored_words'],
                                  config['blacklist'],
                                  config['storage'])
 

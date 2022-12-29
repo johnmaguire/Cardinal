@@ -74,6 +74,10 @@ class CardinalBot(irc.IRCClient, object):
         self.factory.realname = value
 
     @property
+    def censored_words(self):
+        return self.factory.censored_words
+
+    @property
     def storage_path(self):
         return self.factory.storage_path
 
@@ -544,6 +548,9 @@ class CardinalBot(irc.IRCClient, object):
         except KeyError:
             pass
 
+        for word, replacement in self.censored_words.items():
+            message = message.replace(word, replacement)
+
         self.logger.info("Sending in %s: %s" % (channel, message))
 
         self.msg(channel, message, length)
@@ -644,6 +651,7 @@ class CardinalBotFactory(protocol.ClientFactory):
                  username,
                  realname,
                  plugins,
+                 censored_words,
                  blacklist,
                  storage):
         """Boots the bot, triggers connection, and initializes logging.
@@ -671,6 +679,7 @@ class CardinalBotFactory(protocol.ClientFactory):
         self.username = username
         self.realname = realname
         self.plugins = plugins
+        self.censored_words = censored_words
         self.blacklist = blacklist
         self.storage_path = storage
 
