@@ -432,7 +432,7 @@ class TickerPlugin:
             cardinal.sendMsg(channel, "Syntax: .stock <stock symbol>")
             return
 
-        symbol = parts[1]
+        symbol = parts[1].upper()
         try:
             data = yield self.get_daily(symbol)
         except Exception as exc:
@@ -444,11 +444,12 @@ class TickerPlugin:
 
         cardinal.sendMsg(
             channel,
-            "{} (\x02{}\x02) = {:.2f} USD - Daily Change: {}".format(
+            "{} (\x02{}\x02) = {:.2f} USD - Daily Change: {} - https://finance.yahoo.com/quote/{}".format(
                 data['companyName'],
                 data['symbol'],
                 data['price'],
-                colorize(data['change'])))
+                colorize(data['change']),
+                data['symbol']))
 
     @regex(STOCK_RELAY_REGEX)
     @defer.inlineCallbacks
