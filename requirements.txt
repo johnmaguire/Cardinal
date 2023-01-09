@@ -3,6 +3,7 @@ Twisted==22.10.0
 
 # SSL connections
 pyOpenSSL==22.0.0
+cryptography==38.0.4
 service_identity==21.1.0
 
 # Various URL scraping plugins
