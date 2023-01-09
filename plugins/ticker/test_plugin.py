@@ -6,7 +6,7 @@ from contextlib import contextmanager
 import pytest
 import pytest_twisted
 import pytz
-from mock import MagicMock, Mock, PropertyMock, call, patch
+from unittest.mock import MagicMock, Mock, PropertyMock, call, patch
 from twisted.internet import defer
 from twisted.internet.task import Clock
 

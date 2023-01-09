@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-from mock import Mock, PropertyMock, call, patch
+from unittest.mock import Mock, PropertyMock, call, patch
 
 from cardinal.bot import CardinalBot, user_info
 from plugins.help import plugin
