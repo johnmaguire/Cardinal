@@ -4,7 +4,7 @@ import signal
 from datetime import datetime
 
 import pytest
-from mock import Mock, call, patch
+from unittest.mock import Mock, call, patch
 from twisted.internet import defer
 from twisted.internet.task import Clock
 from twisted.words.protocols.irc import ServerSupportedFeatures

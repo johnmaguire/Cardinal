@@ -1,5 +1,5 @@
 import pytest
-from mock import Mock
+from unittest.mock import Mock
 
 from cardinal.bot import user_info
 from plugins.sed.plugin import SedPlugin

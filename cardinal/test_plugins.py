@@ -4,7 +4,7 @@ import sys
 
 import pytest
 from twisted.internet import defer
-from mock import Mock, patch
+from unittest.mock import Mock, patch
 
 from cardinal import exceptions
 from cardinal.bot import CardinalBot
