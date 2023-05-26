@@ -195,7 +195,14 @@ class MoviePlugin:
         if not imdb_id:
             try:
                 results = yield self._search(search_query, result_type)
+
+                # Take the first result
                 imdb_id = results[0]['imdbID']
+
+                # Unless there's an exact title match
+                for result in results:
+                    if result['Title'].lower()  == search_query:
+                        imdb_id = result['imdbID']
             except RuntimeError as e:
                 cardinal.sendMsg(channel, str(e))
                 return
