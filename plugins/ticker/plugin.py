@@ -101,9 +101,6 @@ class NYSEHolidays(HolidayBase):
 # Class populated with NYSE holidays
 HOLIDAYS = NYSEHolidays()
 
-# IEX API Endpoint
-IEX_QUOTE_API_URL = "https://cloud.iexapis.com/stable/stock/{symbol}/quote?token={token}"  # noqa: E501
-
 # TwelveData API Endpoint
 TD_QUOTE_API_URL = "https://api.twelvedata.com/quote?symbol={symbol}&apikey={token}"  # noqa: E501
 
@@ -335,10 +332,6 @@ class TickerPlugin:
         for symbol in predicted_symbols:
             try:
                 data = yield self.get_daily(symbol)
-
-                # this is not 100% accurate as to the value at open... it's
-                # just a value close to the open, iex cloud doesn't let us get
-                # at the true open without paying
                 actual = data['price']
             except Exception:
                 self.logger.exception(
@@ -622,30 +615,6 @@ class TickerPlugin:
             return ({'symbol': data['symbol'],
                      'companyName': data['name'],
                      'exchange': data['exchange'],
-                     'price': price,
-                     'previous close': previous_close,
-                     'change': change_percent,
-                     })
-        except KeyError as e:
-            self.logger.error("{}, with data: {}".format(e, data))
-            raise
-
-    @defer.inlineCallbacks
-    def make_iex_request(self, symbol):
-        url = IEX_QUOTE_API_URL.format(
-            symbol=symbol,
-            token=self.config["api_key"],
-        )
-        r = yield deferToThread(requests.get, url)
-        data = r.json()
-
-        try:
-            price = float(data['latestPrice'])
-            previous_close = float(data['previousClose'])
-            change_percent = ((price - previous_close) / previous_close) * 100
-            return ({'symbol': data['symbol'],
-                     'companyName': data['companyName'],
-                     'exchange': data['primaryExchange'],
                      'price': price,
                      'previous close': previous_close,
                      'change': change_percent,
