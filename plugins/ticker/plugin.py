@@ -104,6 +104,9 @@ HOLIDAYS = NYSEHolidays()
 # IEX API Endpoint
 IEX_QUOTE_API_URL = "https://cloud.iexapis.com/stable/stock/{symbol}/quote?token={token}"  # noqa: E501
 
+# TwelveData API Endpoint
+TD_QUOTE_API_URL = "https://api.twelvedata.com/quote?symbol={symbol}&apikey={token}"  # noqa: E501
+
 # Regex pattern that matches PyLink relay bots
 RELAY_REGEX = r'^(?:<(.+?)>\s+)'
 
@@ -296,9 +299,10 @@ class TickerPlugin:
             symbol, change = result
             results.update({symbol: change})
 
-        message = self.format_ticker(results)
-        for channel in self.config["channels"]:
-            self.cardinal.sendMsg(channel, message)
+        if results:
+            message = self.format_ticker(results)
+            for channel in self.config["channels"]:
+                self.cardinal.sendMsg(channel, message)
 
     def format_ticker(self, results):
         message_parts = []
@@ -600,7 +604,31 @@ class TickerPlugin:
             return db['predictions'][symbol][nick]
 
     def get_daily(self, symbol):
-        return self.make_iex_request(symbol)
+        return self.make_td_request(symbol)
+
+    @defer.inlineCallbacks
+    def make_td_request(self, symbol):
+        url = TD_QUOTE_API_URL.format(
+            symbol=symbol,
+            token=self.config["api_key"],
+        )
+        r = yield deferToThread(requests.get, url)
+        data = r.json()
+
+        try:
+            price = float(data['close'])
+            previous_close = float(data['previous_close'])
+            change_percent = ((price - previous_close) / previous_close) * 100
+            return ({'symbol': data['symbol'],
+                     'companyName': data['name'],
+                     'exchange': data['exchange'],
+                     'price': price,
+                     'previous close': previous_close,
+                     'change': change_percent,
+                     })
+        except KeyError as e:
+            self.logger.error("{}, with data: {}".format(e, data))
+            raise
 
     @defer.inlineCallbacks
     def make_iex_request(self, symbol):
