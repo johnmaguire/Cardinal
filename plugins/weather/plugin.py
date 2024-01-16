@@ -19,7 +19,7 @@ class Forecast:
         self.location = location
         self.condition = condition
         self.temperature_f = temperature_f
-        self.temperature_c = (temperature_f - 32) * 5 // 9
+        self.temperature_c = round((temperature_f - 32) * 5 / 9, 1)
         self.humidity = humidity
         self.winds_mph = winds_mph
         self.winds_k = round(winds_mph * 1.609344, 2)
