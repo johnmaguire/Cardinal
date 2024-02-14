@@ -77,3 +77,20 @@ class TestColors:
 
         # foreground color numbers must be zero-padded to a width of 2
         assert f(text) == '\x03{:02}{}\x03'.format(color_value, text)
+
+
+class TestFormatting:
+    @pytest.mark.parametrize('func,hex_code', (
+        ('bold', "\x02"),
+        ('monospace', "\x11"),
+        ('italic', "\x1d"),
+        ('strikethrough', "\x1e"),
+        ('underline', "\x1f"),
+    ))
+    def test_colors(self, func, hex_code):
+        text = 'sample message'
+
+        f = getattr(util.F, func)
+
+        # foreground color numbers must be zero-padded to a width of 2
+        assert f(text) == '{}{}{}'.format(hex_code, text, hex_code)
