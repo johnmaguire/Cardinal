@@ -178,8 +178,8 @@ class CardinalBot(irc.IRCClient, object):
         if self.channels:
             self.channels.add(channel)
 
-        # Request the channel modes for this channel
-        self.sendLine("MODE {}".format(channel))
+            # Request the channel modes for this channel
+            self.send("MODE {}".format(channel))
 
     def irc_RPL_CHANNELMODEIS(self, prefix, params):
         channel, modes, args = params[1], params[2], params[3:]
@@ -366,6 +366,22 @@ class CardinalBot(irc.IRCClient, object):
         # Trigger events
         self.event_manager.fire("irc.mode", user, channel, mode)
 
+    def irc_RPL_CHANNELMODEIS(self, prefix, params):
+        """Called when we get a MODE reply"""
+
+        channel, modes, args = params[1], params[2], params[3:]
+        if modes[0] not in "-+":
+            modes = "+" + modes
+
+        # Update channel in memory
+        if channel != self.nickname:
+            self.channels.set_modes(channel, modes, args)
+
+        mode = (modes + ' ' + ' '.join(args)).strip()
+
+        self.logger.debug(
+            "Channel %s has mode %s" % (channel, mode))
+
     def irc_JOIN(self, prefix, params):
         """Called when a user joins a channel"""
         super().irc_JOIN(prefix, params)
@@ -505,7 +521,7 @@ class CardinalBot(irc.IRCClient, object):
             # Send the actual WHO command to the server. irc_RPL_WHOREPLY will
             # receive a response when the server sends one.
             self.logger.info("Making WHO request to server")
-            self.sendLine("WHO %s" % channel)
+            self.send("WHO %s" % channel)
         else:
             self._who_deferreds[channel].append(d)
 
