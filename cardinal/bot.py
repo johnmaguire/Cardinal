@@ -342,7 +342,7 @@ class CardinalBot(irc.IRCClient, object):
             self.channels.set_modes(channel, modes, args)
 
         user = self.get_user_tuple(prefix)
-        mode = modes + ' ' + ' '.join(args)
+        mode = (modes + ' ' + ' '.join(args)).strip()
 
         # Sent by network, not a real user
         if not user:
@@ -784,17 +784,10 @@ class ChannelManager:
         #   param - param changed (always takes a param)
         #   setParam - param taken when mode is set
         #   noParam - no param necessary
-        #
-        # Convert it to e.g. {mode: addressParam}
         self.chanmodes = {}
         for k, v in chanmodes.items():
             for mode in v:
-                self.chanmodes[v] = {
-                    'addressModes': 'addressParam',
-                    'param': 'param',
-                    'setParam': 'setParam',
-                    'noParam': 'noParam',
-                }[k]
+                self.chanmodes[mode] = k
 
         # Keeping this around so we can make a call to irc.parseModes
         self._twisted_param_modes = param_modes
@@ -826,7 +819,7 @@ class ChannelManager:
         # parse mode changes out into added and removed
         try:
             added, removed = irc.parseModes(
-                modes, args, self._twisted_param_modes)
+                modes, args.copy(), self._twisted_param_modes)
         except KeyError:
             self.logger.error("Error parsing modes for {channel}: {modes}"
                               .format(channel=channel,
@@ -835,7 +828,7 @@ class ChannelManager:
 
         # set modes
         for mode, param in added:
-            if self.chanmodes.get(mode) == "addressParam":
+            if self.chanmodes.get(mode) == "addressModes":
                 chan.modes[mode] = chan.modes.get(mode, []).append(param)
 
             elif self.chanmodes.get(mode) in ("param", "setParam"):
@@ -857,7 +850,7 @@ class ChannelManager:
                                   .format(mode=mode))
                 continue
 
-            if self.chanmodes.get(mode) == "addressParam":
+            if self.chanmodes.get(mode) == "addressModes":
                 chan.modes[mode] = chan.modes[mode].remove(param)
 
             elif self.chanmodes.get(mode) == "param":
