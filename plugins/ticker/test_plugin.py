@@ -22,7 +22,7 @@ from plugins.ticker.plugin import (
 )
 
 
-def make_iex_response(symbol, price=None, previous_close=None):
+def make_td_response(symbol, price=None, previous_close=None):
     # NOTE - Not all values here will make sense. We are just mocking out the
     # values that will be used.
 
@@ -33,60 +33,31 @@ def make_iex_response(symbol, price=None, previous_close=None):
 
     return {
         "symbol": symbol,
-        "companyName": "Gamestop Corporation - Class A",
-        "primaryExchange": "NEW YORK STOCK EXCHANGE, INC.",
-        "calculationPrice": "iexlasttrade",
-        "open": None,
-        "openTime": None,
-        "openSource": "official",
-        "close": None,
-        "closeTime": None,
-        "closeSource": "official",
-        "high": None,
-        "highTime": 1611781163724,
-        "highSource": "15 minute delayed price",
-        "low": None,
-        "lowTime": 1611760730732,
-        "lowSource": "15 minute delayed price",
-        "latestPrice": price,
-        "latestSource": "IEX Last Trade",
-        "latestTime": "January 27, 2021",
-        "latestUpdate": 1611781197811,
-        "latestVolume": None,
-        "iexRealtimePrice": 368.495,
-        "iexRealtimeSize": 16,
-        "iexLastUpdated": 1611781357372,
-        "delayedPrice": None,
-        "delayedPriceTime": None,
-        "oddLotDelayedPrice": None,
-        "oddLotDelayedPriceTime": None,
-        "extendedPrice": None,
-        "extendedChange": None,
-        "extendedChangePercent": None,
-        "extendedPriceTime": None,
-        "previousClose": previous_close,
-        "previousVolume": 178587974,
-        "change": 199.52,
-        "changePercent": (price - previous_close) / previous_close,
-        "volume": None,
-        "iexMarketPercent": 0.017150159906855904,
-        "iexVolume": 1570454,
-        "avgTotalVolume": 56932477,
-        "iexBidPrice": 0,
-        "iexBidSize": 0,
-        "iexAskPrice": 0,
-        "iexAskSize": 0,
-        "iexOpen": 368.495,
-        "iexOpenTime": 1611781357372,
-        "iexClose": 347.5,
-        "iexCloseTime": 1611781197811,
-        "marketCap": 24237068600,
-        "peRatio": -82.15,
-        "week52High": 380,
-        "week52Low": 2.8,
-        "ytdChange": 8.20285475583864,
-        "lastTradeTime": 1611781197811,
-        "isUSMarketOpen": False
+        "name": "Vanguard Total Stock Market Index Fund ETF Shares",
+        "exchange": "NYSE",
+        "mic_code": "ARCX",
+        "currency": "USD",
+        "datetime": "2024-02-13",
+        "timestamp": 1707857997,
+        "open": "245.61000",
+        "high": "246.32001",
+        "low": "243.35001",
+        "close": "{:.5f}".format(price),
+        "volume": "5811400",
+        "previous_close": "{:.5f}".format(previous_close),
+        "change": "-3.99001",
+        "percent_change": "-1.60151",
+        "average_volume": "3356110",
+        "is_market_open": False,
+        "fifty_two_week": {
+            "low": "190.17999",
+            "high": "250.34000",
+            "low_change": "54.97000",
+            "high_change": "-5.19000",
+            "low_change_percent": "28.90420",
+            "high_change_percent": "-2.07318",
+            "range": "190.179993 - 250.339996",
+        },
     }
 
 def get_fake_now(market_is_open=True):
@@ -203,18 +174,18 @@ class TestTickerPlugin:
     @defer.inlineCallbacks
     def test_send_ticker(self):
         responses = [
-            make_iex_response('DIA',
-                              previous_close=100,
-                              price=200),
-            make_iex_response('AGG',
-                              previous_close=100,
-                              price=150.50),
-            make_iex_response('VEU',
-                              previous_close=100,
-                              price=105),
-            make_iex_response('SPY',
-                              previous_close=100,
-                              price=50),
+            make_td_response('DIA',
+                             previous_close=100,
+                             price=200),
+            make_td_response('AGG',
+                             previous_close=100,
+                             price=150.50),
+            make_td_response('VEU',
+                             previous_close=100,
+                             price=105),
+            make_td_response('SPY',
+                             previous_close=100,
+                             price=50),
         ]
 
         with mock_api(responses, fake_now=get_fake_now(market_is_open=True)):
@@ -314,7 +285,7 @@ class TestTickerPlugin:
         assert len(self.db['predictions']) == 1
         assert len(self.db['predictions'][symbol]) == 2
 
-        response = make_iex_response(symbol, price=actual)
+        response = make_td_response(symbol, price=actual)
 
         with mock_api(response, fake_now=get_fake_now(market_is_open)):
             d = self.plugin.do_predictions()
@@ -405,7 +376,7 @@ class TestTickerPlugin:
         fake_now = get_fake_now(market_is_open=market_is_open)
 
         kwargs = {'previous_close': 100} if market_is_open else {'price': 100}
-        response = make_iex_response(symbol, **kwargs)
+        response = make_td_response(symbol, **kwargs)
 
         with mock_api(response, fake_now=fake_now):
             yield self.plugin.predict(self.mock_cardinal,
@@ -435,7 +406,7 @@ class TestTickerPlugin:
         channel = "#finance"
         symbol = 'SPY'
 
-        response = make_iex_response(symbol, previous_close=100)
+        response = make_td_response(symbol, previous_close=100)
 
         fake_now = get_fake_now()
         for input_msg, output_msg in message_pairs:
@@ -467,7 +438,7 @@ class TestTickerPlugin:
         symbol = 'SPY'
         channel = "#finance"
 
-        response = make_iex_response(symbol, previous_close=100)
+        response = make_td_response(symbol, previous_close=100)
         with mock_api(response):
             yield self.plugin.predict_relayed(
                 self.mock_cardinal,
@@ -529,7 +500,7 @@ class TestTickerPlugin:
     ):
         symbol = 'SPY'
 
-        response = make_iex_response(symbol, previous_close=value)
+        response = make_td_response(symbol, previous_close=value)
         with mock_api(response):
             result = yield self.plugin.parse_prediction(user, message)
 
@@ -559,7 +530,7 @@ class TestTickerPlugin:
     ):
         symbol = 'SPY'
 
-        response = make_iex_response(symbol, previous_close=value)
+        response = make_td_response(symbol, previous_close=value)
         with mock_api(response):
             result = yield self.plugin.parse_prediction(user, message)
 
@@ -595,7 +566,7 @@ class TestTickerPlugin:
     ):
         symbol = 'SPY'
 
-        response = make_iex_response(symbol, price=value)
+        response = make_td_response(symbol, price=value)
         with mock_api(response, fake_now=get_fake_now(market_is_open=False)):
             result = yield self.plugin.parse_prediction(user, message)
 
@@ -639,15 +610,15 @@ class TestTickerPlugin:
         price = 101.0
         previous_close = 102.0
 
-        response = make_iex_response(symbol,
-                                     price=price,
-                                     previous_close=previous_close,
-                                     )
+        response = make_td_response(symbol,
+                                    price=price,
+                                    previous_close=previous_close,
+                                    )
 
         expected = {
             'symbol': symbol,
-            'companyName': response['companyName'],
-            'exchange': response['primaryExchange'],
+            'companyName': response['name'],
+            'exchange': response['exchange'],
             'price': price,
             'previous close': previous_close,
             # this one is calculated by our mock response function so it
