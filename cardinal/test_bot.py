@@ -188,11 +188,11 @@ class TestCardinalBot:
             call('MODE {} +B'.format(self.factory.nickname))
         ])
 
-    @patch('cardinal.bot.irc.IRCClient.sendLine')
-    def test_joined(self, mock_sendline):
+    @patch.object(CardinalBot, 'send')
+    def test_joined(self, mock_send):
         self.cardinal.joined("#bots")
         # need to request modes to track channel
-        mock_sendline.assert_called_once_with("MODE #bots")
+        mock_send.assert_called_once_with("MODE #bots")
 
     @patch('cardinal.bot.irc.IRCClient.lineReceived')
     def test_lineReceived(self, mock_parent_linereceived):

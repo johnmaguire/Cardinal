@@ -147,6 +147,9 @@ class CardinalBot(irc.IRCClient, object):
         for channel in self.factory.channels:
             self.join(channel)
 
+        # ChannelManager is only created if CHANMODES is supported
+        self.channels = None
+
         # Set the uptime as now and grab the  boot time from the factory
         self.uptime = datetime.now()
         self.booted = self.factory.booted
@@ -172,7 +175,8 @@ class CardinalBot(irc.IRCClient, object):
         channel -- Channel joined. Provided by Twisted.
         """
         self.logger.info("Joined %s" % channel)
-        self.channels.add(channel)
+        if self.channels:
+            self.channels.add(channel)
 
         # Request the channel modes for this channel
         self.sendLine("MODE {}".format(channel))
@@ -183,7 +187,8 @@ class CardinalBot(irc.IRCClient, object):
         if modes[0] not in "-+":
             modes = "+" + modes
 
-        self.channels.set_modes(channel, modes, args)
+        if self.channels:
+            self.channels.set_modes(channel, modes, args)
 
     def left(self, channel):
         """Called when we leave a channel.
@@ -191,7 +196,8 @@ class CardinalBot(irc.IRCClient, object):
         channel -- Channel joined. Provided by Twisted.
         """
         self.logger.info("Parted %s" % channel)
-        self.channels.remove(channel)
+        if self.channels:
+            self.channels.remove(channel)
 
     def kickedFrom(self, channel):
         """Called when we leave a channel.
@@ -199,7 +205,8 @@ class CardinalBot(irc.IRCClient, object):
         channel -- Channel joined. Provided by Twisted.
         """
         self.logger.info("Kicked from %s" % channel)
-        self.channels.remove(channel)
+        if self.channels:
+            self.channels.remove(channel)
 
     def lineReceived(self, line):
         """Called for every line received from the server."""
@@ -543,7 +550,7 @@ class CardinalBot(irc.IRCClient, object):
           length -- Length of message. Twisted will calculate if None given.
         """
         try:
-            if not self.channels[channel].allows_color():
+            if self.channels and not self.channels[channel].allows_color():
                 message = strip_formatting(message)
         except KeyError:
             pass
@@ -802,6 +809,9 @@ class ChannelManager:
 
     def __iter__(self):
         return iter(self._channels)
+
+    def __bool__(self):
+        return True
 
     def add(self, name):
         self._channels[name] = Channel(name)
