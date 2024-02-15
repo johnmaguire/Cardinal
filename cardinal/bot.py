@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import re
+import shutil
 from collections import namedtuple
 from contextlib import contextmanager
 from datetime import datetime
@@ -621,15 +622,37 @@ class CardinalBot(irc.IRCClient, object):
             self._db_locks[db_path] = LOCKED
 
             try:
+                # Create the DB if this is the first access
                 if not os.path.exists(db_path):
                     with open(db_path, 'w') as f:
                         json.dump(default, f)
 
                 # Load the DB as JSON, use it, then save the result
                 with open(db_path, 'r+') as f:
-                    database = json.load(f)
+                    # In the event that the DB cannot be loaded, check if a
+                    # backup DB exists. If so, open it in read-only mode and
+                    # load that instead. When we go to save, we'll write to the
+                    # main DB and create a new backup.
+                    corrupt = False
+                    try:
+                        database = json.load(f)
+                    except json.JSONDecodeError:
+                        corrupt = True
+                        # Save the corrupt DB for later inspection
+                        shutil.copyfile(db_path, db_path + '.corrupt')
+
+                        # Attempt to read from backup
+                        if os.path.exists(db_path + '.bak'):
+                            with open(db_path + '.bak', 'r') as f_bak:
+                                database = json.load(f_bak)
 
                     yield database
+
+                    # Create a backup of the database before writing in case
+                    # of power loss or other corruption. If the database is
+                    # corrupt, don't create a backup of it.
+                    if not corrupt:
+                        shutil.copyfile(db_path, db_path + '.bak')
 
                     f.seek(0)
                     f.truncate()

@@ -657,6 +657,40 @@ class TestCardinalBot:
                     with db2():
                         pass
 
+    def test_db_corrupted(self):
+        with tempdir('database') as database_path:
+            self.factory.storage_path = os.path.dirname(database_path)
+            db = self.cardinal.get_db('test', network_specific=False)
+
+            # write a test value to the db
+            with db() as db_obj:
+                db_obj['x'] = True
+
+            # verify that the data was written to disk. also, since we are
+            # calling the db a second time, this will create a backup.
+            with db() as db_obj:
+                assert db_obj == {'x': True}
+
+            # corrupt the db
+            with open(os.path.join(database_path, 'test.json'), 'w') as f:
+                f.write('corrupted')
+
+            # verify that the db is restored
+            with db() as db_obj:
+                assert db_obj == {'x': True}
+
+            # corrupt the db again to verify that the backup wasn't overwritten
+            with open(os.path.join(database_path, 'test.json'), 'w') as f:
+                f.write('corrupted')
+
+            # verify that the db is restored
+            with db() as db_obj:
+                assert db_obj == {'x': True}
+
+            # a corrupt file should exist for inspection
+            assert os.path.exists(
+                os.path.join(database_path, 'test.json.corrupt'))
+
     def test_db_contextmanager_exception(self):
         with tempdir('database') as database_path:
             self.factory.storage_path = os.path.dirname(database_path)
