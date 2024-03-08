@@ -2,6 +2,7 @@
 import re
 import html
 import logging
+import requests
 import unicodedata
 from datetime import datetime
 from urllib import request
@@ -66,6 +67,8 @@ class URLsPlugin:
         self.timeout = config.get('timeout', self.TIMEOUT)
         self.read_bytes = config.get('read_bytes', self.READ_BYTES)
         self.lookup_cooloff = config.get('lookup_cooloff', self.LOOKUP_COOLOFF)
+        self.shorten_links = config.get('shorten_links', False)
+        self.api_key = config.get('crdnlxyz_api_key', None)
         # Whether to attempt to grab a title if no other plugin handles it
         self.generic_handler_enabled = config.get(
             'handle_generic_urls', True)
@@ -130,7 +133,34 @@ class URLsPlugin:
                     # Truncate long titles to the first 200 characters.
                     title_to_send = title[:200] if len(title) >= 200 else title
 
-                    cardinal.sendMsg(channel, "URL Found: %s" % title_to_send)
+                    message = "URL Found: %s" % title_to_send
+
+                    if self.shorten_links:
+                        try:
+                            url = self.shorten_url(url)
+                        except Exception as e:
+                            self.logger.exception(
+                                "Unable to shorten URL: %s" % url)
+                        else:
+                            message = "^ %s: %s" % (
+                                title_to_send, url)
+
+                    cardinal.sendMsg(channel, message)
+
+    def shorten_url(self, url):
+        if not self.api_key:
+            raise Exception("No API key provided for URL shortening")
+
+        data = {
+            'url': url,
+            'token': self.api_key,
+        }
+
+        response = requests.post('https://crdnl.xyz/add', json=data)
+        response.raise_for_status()
+        response = response.json()
+
+        return response['url']
 
     def close(self, cardinal):
         cardinal.event_manager.remove('urls.detection')

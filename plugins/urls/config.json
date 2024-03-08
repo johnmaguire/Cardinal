@@ -1,6 +1,8 @@
 {
-	"timeout": 5,
-	"read_bytes": 524288,
-	"lookup_cooloff": 10,
-	"handle_generic_urls": true
+    "timeout": 5,
+    "read_bytes": 524288,
+    "lookup_cooloff": 10,
+    "handle_generic_urls": true,
+    "shorten_links": true,
+    "crdnlxyz_api_key": "jmlHgK+wF1hd55XqksG3uI3H92b/jGjPEOoZnwiZ26c="
 }
