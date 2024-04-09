@@ -10,7 +10,7 @@ from urllib import request
 from twisted.internet import defer
 from twisted.internet.threads import deferToThread
 
-from cardinal.decorators import regex
+from cardinal.decorators import command, help, regex
 
 # Some notes about this regex - it will attempt to capture URLs prefixed by a
 # space, a control character (e.g. for formatting), or the beginning of the
@@ -162,8 +162,23 @@ class URLsPlugin:
 
         return response['url']
 
-    def close(self, cardinal):
-        cardinal.event_manager.remove('urls.detection')
+    @command("shorten")
+    @help("Syntax: .shorten <url>")
+    def close(self, cardinal, user, channel, msg):
+        try:
+            url = msg.split(" ")[1]
+        except IndexError:
+            cardinal.sendMsg(channel, "Syntax: .shorten <url>")
+            return
+
+        try:
+            url = self.shorten_url("http://example.com")
+        except Exception as e:
+            self.logger.exception("Unable to shorten URL: %s" % url)
+            cardinal.sendMsg(channel, "Error shortening URL")
+            return
+
+        cardinal.sendMsg(channel, "Shortened URL: %s" % url)
 
 
 entrypoint = URLsPlugin
