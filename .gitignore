@@ -27,6 +27,9 @@ lib
 lib64
 include
 
+# Python venv
+venv/
+
 # Installer logs
 pip-log.txt
 pip-selfcheck.json
