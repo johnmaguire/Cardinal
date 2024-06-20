@@ -30,6 +30,7 @@ jobs:
         run: pytest
 
       - name: Report coverage to Codecov
-        uses: codecov/codecov-action@v1
+        uses: codecov/codecov-action@v4
         with:
           fail_ci_if_error: True
+          token: ${{ secrets.CODECOV_TOKEN }}
