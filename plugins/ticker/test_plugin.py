@@ -16,7 +16,6 @@ from cardinal.unittest_util import get_mock_db
 from plugins.ticker import plugin
 from plugins.ticker.plugin import (
     TickerPlugin,
-    NYSEHolidays,
     colorize,
     get_delta,
 )
@@ -633,7 +632,6 @@ class TestTickerPlugin:
     @patch.object(plugin, 'est_now')
     def test_market_is_open(self, mock_now):
         tz = pytz.timezone('America/New_York')
-        holidays = NYSEHolidays()
 
         # Nothing special about this time - it's a Thursday 7:49pm
         mock_now.return_value = tz.localize(datetime.datetime(

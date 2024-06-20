@@ -5,19 +5,9 @@ from dateutil.relativedelta import relativedelta as rd, MO, TH, FR
 import logging
 import re
 
-from holidays.constants import (
-    JAN,
-    FEB,
-    MAY,
-    JUL,
-    SEP,
-    NOV,
-    DEC,
-)
-from holidays.constants import FRI, SAT, SUN
-from holidays.holiday_base import HolidayBase
 from twisted.internet import defer, error, reactor
 from twisted.internet.threads import deferToThread
+import holidays
 import pytz
 import requests
 
@@ -27,79 +17,8 @@ from cardinal.decorators import command, help, regex
 from cardinal.util import F
 
 
-# NYSE currently has nine (9) trading holidays: New Year's Day, MLK Jr. Day,
-# Washington's Birthday, Good Friday, Memorial Day, Independence Day, Labor
-# Day, Thanksgiving Day, and Christmas Day. This does not take into account
-# early closes.
-#
-# Reference:
-# https://github.com/dr-prodigy/python-holidays/blob/master/holidays/countries/united_states.py
-class NYSEHolidays(HolidayBase):
-    def __init__(self, **kwargs):
-        self.observed = True
-        HolidayBase.__init__(self, **kwargs)
-
-    def _populate(self, year):
-        # New Year's Day
-        name = "New Year's Day"
-        self[date(year, JAN, 1)] = name
-        if self.observed and date(year, JAN, 1).weekday() == SUN:
-            self[date(year, JAN, 1) + rd(days=+1)] = name + " (Observed)"
-        elif self.observed and date(year, JAN, 1).weekday() == SAT:
-            # Add December 31st from the previous year without triggering
-            # the entire year to be added
-            expand = self.expand
-            self.expand = False
-            self[date(year, JAN, 1) + rd(days=-1)] = name + " (Observed)"
-            self.expand = expand
-        # The next year's observed New Year's Day can be in this year
-        # when it falls on a Friday (i.e. Jan 1st is a Saturday)
-        if self.observed and date(year, DEC, 31).weekday() == FRI:
-            self[date(year, DEC, 31)] = name + " (Observed)"
-
-        # Martin Luther King Jr. Day
-        name = "Martin Luther King Jr. Day"
-        self[date(year, JAN, 1) + rd(weekday=MO(+3))] = name
-
-        # Washington's Birthday
-        name = "Washington's Birthday"
-        self[date(year, FEB, 1) + rd(weekday=MO(+3))] = name
-
-        # Good Friday
-        name = "Good Friday"
-        self[easter(year) + rd(weekday=FR(-1))] = name
-
-        # Memorial Day
-        name = "Memorial Day"
-        self[date(year, MAY, 31) + rd(weekday=MO(-1))] = name
-
-        # Independence Day
-        name = "Independence Day"
-        self[date(year, JUL, 4)] = name
-        if self.observed and date(year, JUL, 4).weekday() == SAT:
-            self[date(year, JUL, 4) + rd(days=-1)] = name + " (Observed)"
-        elif self.observed and date(year, JUL, 4).weekday() == SUN:
-            self[date(year, JUL, 4) + rd(days=+1)] = name + " (Observed)"
-
-        # Labor Day
-        name = "Labor Day"
-        self[date(year, SEP, 1) + rd(weekday=MO)] = name
-
-        # Thanksgiving Day
-        name = "Thanksgiving Day"
-        self[date(year, NOV, 1) + rd(weekday=TH(+4))] = name
-
-        # Christmas Day
-        name = "Christmas Day"
-        self[date(year, DEC, 25)] = name
-        if self.observed and date(year, DEC, 25).weekday() == SAT:
-            self[date(year, DEC, 25) + rd(days=-1)] = name + " (Observed)"
-        elif self.observed and date(year, DEC, 25).weekday() == SUN:
-            self[date(year, DEC, 25) + rd(days=+1)] = name + " (Observed)"
-
-
 # Class populated with NYSE holidays
-HOLIDAYS = NYSEHolidays()
+HOLIDAYS = holidays.NYSE()
 
 # TwelveData API Endpoint
 TD_QUOTE_API_URL = "https://api.twelvedata.com/quote?symbol={symbol}&apikey={token}"  # noqa: E501
@@ -233,12 +152,7 @@ class TickerPlugin:
         now = est_now()
 
         # Determine if the market is currently open
-        is_market_open = not (
-            (now in HOLIDAYS) or
-            (now.weekday() >= 5) or
-            (now.hour < 9 or now.hour >= 17) or
-            (now.hour == 9 and now.minute < 30) or
-            (now.hour == 16 and now.minute > 0))
+        is_market_open = market_is_open()
 
         # Determine if this is the market opening or market closing
         is_open = now.hour == 9 and now.minute == 30
