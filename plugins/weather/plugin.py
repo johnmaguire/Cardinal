@@ -115,7 +115,7 @@ class WeatherPlugin:
         else:
             raise Exception(f"Unknown weather provider: {self.provider}")
 
-    @command('setw')
+    @command(['setweather','setw'])
     @help("Set your default weather location.")
     @help("Syntax: .setw <location>")
     @defer.inlineCallbacks
