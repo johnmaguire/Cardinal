@@ -75,6 +75,9 @@ class URLsPlugin:
 
         cardinal.event_manager.register('urls.detection', 2)
 
+    def close(self, cardinal):
+        cardinal.event_manager.remove('urls.detection')
+
     @regex(URL_REGEX)
     @defer.inlineCallbacks
     def get_title(self, cardinal, user, channel, msg):
@@ -164,7 +167,7 @@ class URLsPlugin:
 
     @command("shorten")
     @help("Syntax: .shorten <url>")
-    def close(self, cardinal, user, channel, msg):
+    def shorten(self, cardinal, user, channel, msg):
         try:
             url = msg.split(" ")[1]
         except IndexError:

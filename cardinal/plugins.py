@@ -793,7 +793,8 @@ class EventManager:
             )
 
         del self.registered_events[name]
-        del self.registered_callbacks[name]
+        # Don't unregister callbacks, because there is no mechanism to restore
+        # them when the event is re-added (e.g. after calling .reload urls)
 
         self.logger.info("Removed event: %s" % name)
 

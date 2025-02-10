@@ -823,7 +823,7 @@ class TestEventManager:
         self.event_manager.remove(name)
 
         assert name not in self.event_manager.registered_events
-        assert name not in self.event_manager.registered_callbacks
+        assert name in self.event_manager.registered_callbacks
 
     def test_remove_event_doesnt_exist(self):
         name = 'test_event'
