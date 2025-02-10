@@ -72,6 +72,6 @@ Cardinal also offers a [lightweight database API](https://github.com/JohnMaguire
 
 ## Contributing
 
-Cardinal is a public, open-source project, licensed under the [MIT License](LICENSE). Anyone may contribute.
+Cardinal is a public, open-source project, licensed under the [MIT License](LICENSE). [Anyone may contribute.](CONTRIBUTING.md)
 
 When submitting a pull request, you may add your name to the [CONTRIBUTORS](CONTRIBUTORS) file.
