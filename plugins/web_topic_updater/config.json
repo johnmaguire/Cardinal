@@ -1,0 +1,5 @@
+{
+    "api_key": "SecretAPIKey",
+    "port": 8080,
+    "channel": "#DefaultChannel"
+}
