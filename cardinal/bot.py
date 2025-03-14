@@ -4,6 +4,9 @@ import logging
 import os
 import re
 import shutil
+import socket
+import struct
+import random
 from collections import namedtuple
 from contextlib import contextmanager
 from datetime import datetime
@@ -29,6 +32,35 @@ user_info = namedtuple('user_info', ('nick', 'user', 'vhost'))
 UNLOCKED = 'unlocked'
 LOCKED = 'locked'
 
+class DCCSendProtocol(protocol.Protocol):
+    """Handles the actual file sending over DCC."""
+    def __init__(self, file_path):
+        self.file_path = file_path
+        self.file = open(file_path, "rb")
+    
+    def connectionMade(self):
+        """Start sending the file once a connection is made."""
+        print("DCC connection established, sending file...")
+        self.sendNextChunk()
+
+    def sendNextChunk(self):
+        """Send the next chunk of the file."""
+        chunk = self.file.read(1024)
+        if chunk:
+            self.transport.write(chunk)
+            reactor.callLater(0.1, self.sendNextChunk)
+        else:
+            print("File transfer complete.")
+            self.file.close()
+            self.transport.loseConnection()
+
+class DCCSendFactory(protocol.Factory):
+    """Creates the protocol instance for sending the file."""
+    def __init__(self, file_path):
+        self.file_path = file_path
+
+    def buildProtocol(self, addr):
+        return DCCSendProtocol(self.file_path)
 
 class CardinalBot(irc.IRCClient, object):
     """Cardinal, in all its glory"""
@@ -578,6 +610,26 @@ class CardinalBot(irc.IRCClient, object):
         self.logger.info("Sending in %s: %s" % (channel, message))
 
         self.msg(channel, message, length)
+
+    def senddccfile(self, user, filepath):
+        """Initiates a DCC SEND transfer with a dynamically selected port."""
+        ip = socket.gethostbyname(socket.gethostname())  # Get local IP
+        ipint = struct.unpack("!I", socket.inet_aton(ip))[0]  # Convert to integer
+
+        # Select a random port in the 1024-5000 range
+        port = random.randint(1024, 5000)
+
+        fileSize = os.path.getsize(filepath)
+        fileName = os.path.basename(filepath)
+
+        # Start listening for DCC connection
+        listener = reactor.listenTCP(0, DCCSendFactory(filepath))  # Port 0 = auto-assign
+        assignedPort = listener.getHost().port  # Get the assigned port
+
+        dccmsg = f"\x01DCC SEND {fileName} {ipint} {assignedPort} {fileSize}\x01"
+        self.ctcpMakeQuery(user, [dccmsg])
+
+        self.logger.info(f"Started DCC SEND for {fileName} on port {assignedPort}")
 
     def send(self, message):
         """Send a raw message to the server.
