@@ -611,25 +611,35 @@ class CardinalBot(irc.IRCClient, object):
 
         self.msg(channel, message, length)
 
-    def senddccfile(self, user, filepath):
-        """Initiates a DCC SEND transfer with a dynamically selected port."""
+    def senddccfile(self, user, filePath):
+        """Initiates a DCC SEND transfer with a timeout."""
         ip = socket.gethostbyname(socket.gethostname())  # Get local IP
-        ipint = struct.unpack("!I", socket.inet_aton(ip))[0]  # Convert to integer
+        ipint = struct.unpack("!I", socket.inet_aton(ip))[0]  # Convert IP to integer format
 
-        # Select a random port in the 1024-5000 range
-        port = random.randint(1024, 5000)
+        # Bind to an available port within 1024-5000
+        listener = reactor.listenTCP(0, DCCSendFactory(filePath, None))  # Use port 0 for auto-assign
+        assignedPort = listener.getHost().port  # Retrieve assigned port
 
-        fileSize = os.path.getsize(filepath)
-        fileName = os.path.basename(filepath)
+        # Create a timeout to close the socket if no connection is made
+        timeoutDeferred = reactor.callLater(60, self.canceldccrequest, listener, user)
 
-        # Start listening for DCC connection
-        listener = reactor.listenTCP(0, DCCSendFactory(filepath))  # Port 0 = auto-assign
-        assignedPort = listener.getHost().port  # Get the assigned port
+        # Update the factory to include the timeout
+        listener.factory = DCCSendFactory(filePath, timeoutDeferred)
 
-        dccmsg = f"\x01DCC SEND {fileName} {ipint} {assignedPort} {fileSize}\x01"
-        self.ctcpMakeQuery(user, [dccmsg])
+        fileSize = os.path.getsize(filePath)
+        fileName = os.path.basename(filePath)
 
-        self.logger.info(f"Started DCC SEND for {fileName} on port {assignedPort}")
+        # Construct and send the DCC SEND CTCP message
+        dcc_msg = f"\x01DCC SEND {fileName} {ipint} {assignedPort} {fileSize}\x01"
+        self.ctcpMakeQuery(user, [dcc_msg])
+
+        print(f"Started DCC SEND for {fileName} to {user} on port {assignedPort}")
+    
+    def canceldccrequest(self, listener, user):
+        """Cancel the DCC request if the receiver does not accept within the timeout."""
+        listener.stopListening()  # Close the port
+        self.msg(user, "DCC SEND request timed out. Please request the file again.")
+        self.logger.info(f"DCC SEND request timed out for user {user}. Closing port.")
 
     def send(self, message):
         """Send a raw message to the server.
