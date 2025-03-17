@@ -7,6 +7,7 @@ import shutil
 import socket
 import struct
 import random
+import requests
 from collections import namedtuple
 from contextlib import contextmanager
 from datetime import datetime
@@ -612,28 +613,39 @@ class CardinalBot(irc.IRCClient, object):
         self.msg(channel, message, length)
 
     def senddccfile(self, user, filePath):
-        """Initiates a DCC SEND transfer with a timeout."""
-        ip = socket.gethostbyname(socket.gethostname())  # Get local IP
+        def get_external_ip():
+            try:
+                return requests.get("https://checkip.amazonaws.com").text.strip()
+            except:
+                return socket.gethostbyname(socket.gethostname())  # Fallback to local IP
+        """Initiates a DCC SEND transfer with a fixed port range and correct IP."""
+        ip = get_external_ip()  # ✅ Get external IP
         ipint = struct.unpack("!I", socket.inet_aton(ip))[0]  # Convert IP to integer format
 
-        # Bind to an available port within 1024-5000
-        listener = reactor.listenTCP(0, DCCSendFactory(filePath, None))  # Use port 0 for auto-assign
+        fileName = os.path.basename(filePath)  # Get the filename
+        fileSize = os.path.getsize(filePath)  # Get the file size
+
+        # Extract the nickname from the user object
+        nick = user.nick if hasattr(user, "nick") else user[0]
+
+        # Pick a port between 1024 and 5000
+        port = random.randint(1024, 5000)
+
+        # Create a single instance of DCCSendFactory
+        factory = DCCSendFactory(filePath)  # Only pass filePath
+        listener = reactor.listenTCP(port, factory)  # ✅ Use a fixed port range
         assignedPort = listener.getHost().port  # Retrieve assigned port
 
         # Create a timeout to close the socket if no connection is made
-        timeoutDeferred = reactor.callLater(60, self.canceldccrequest, listener, user)
+        timeoutDeferred = reactor.callLater(60, self.canceldccrequest, listener, nick)
 
-        # Update the factory to include the timeout
-        listener.factory = DCCSendFactory(filePath, timeoutDeferred)
+        # Store timeout inside the factory
+        factory.timeoutDeferred = timeoutDeferred
 
-        fileSize = os.path.getsize(filePath)
-        fileName = os.path.basename(filePath)
+        # Corrected CTCP format (Pass only the extracted nickname)
+        self.ctcpMakeQuery(nick, [("DCC", f"SEND {fileName} {ipint} {assignedPort} {fileSize}")])
 
-        # Construct and send the DCC SEND CTCP message
-        dcc_msg = f"\x01DCC SEND {fileName} {ipint} {assignedPort} {fileSize}\x01"
-        self.ctcpMakeQuery(user, [dcc_msg])
-
-        print(f"Started DCC SEND for {fileName} to {user} on port {assignedPort}")
+        print(f"Started DCC SEND for {fileName} to {nick} on port {assignedPort}")
     
     def canceldccrequest(self, listener, user):
         """Cancel the DCC request if the receiver does not accept within the timeout."""
