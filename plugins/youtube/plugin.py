@@ -11,6 +11,7 @@ from cardinal.exceptions import EventRejectedMessage
 
 VIDEO_URL_REGEX = re.compile(r'https?:\/\/(?:www\.)?youtube\..{2,4}\/watch\?.*(?:v=(.+?))(?:(?:&.*)|$)', flags=re.IGNORECASE)  # noqa: E501
 VIDEO_URL_SHORT_REGEX = re.compile(r'https?:\/\/(?:www\.)?youtu\.be\/(.+?)(?:(?:\?.*)|$)', flags=re.IGNORECASE)  # noqa: E501
+SHORTS_URL_REGEX = re.compile(r'https?:\/\/(?:www\.)?youtube\..{2,4}\/shorts\/(.+?)(?:(?:\?.*)|$)', flags=re.IGNORECASE)  # noqa: E501
 
 # Fetched from the YouTube API on 2021-06-04, hopefully it doesn't change.
 MUSIC_CATEGORY_ID = 10
@@ -142,6 +143,8 @@ class YouTubePlugin:
         match = re.match(VIDEO_URL_REGEX, url)
         if not match:
             match = re.match(VIDEO_URL_SHORT_REGEX, url)
+        if not match:
+            match = re.match(SHORTS_URL_REGEX, url)
         if not match:
             raise EventRejectedMessage
 
