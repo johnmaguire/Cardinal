@@ -11,6 +11,9 @@ from twisted.internet.threads import deferToThread
 REPO_URL_REGEX = re.compile(
     r'https://(?:www\.)?github\..{2,4}/([^/]+)/([^/]+)',
     flags=re.IGNORECASE)
+COMMIT_URL_REGEX = re.compile(
+    r'https://(?:www\.)?github\..{2,4}/([^/]+)/([^/]+)/commit/([a-f0-9]+)',
+    flags=re.IGNORECASE)
 ISSUE_URL_REGEX = re.compile(
     r'https://(?:www\.)?github\..{2,4}/([^/]+)/([^/]+)/(?:issues|pull)/([0-9]+)',  # noqa: E501
     flags=re.IGNORECASE)
@@ -52,8 +55,7 @@ class GithubPlugin:
                 if not self.default_repo:
                     cardinal.sendMsg(
                         channel,
-                        "Syntax: .issue <username/repository> <id or search "
-                        "query>")
+                        "Syntax: .issue <username/repository> <id or search query>")
                     return
 
                 repo = self.default_repo
@@ -91,6 +93,15 @@ class GithubPlugin:
     @event('urls.detection')
     @defer.inlineCallbacks
     def get_repo_info(self, cardinal, channel, url):
+        match = re.match(COMMIT_URL_REGEX, url)
+        if match:
+            groups = match.groups()
+            yield self._show_commit(cardinal,
+                                    channel,
+                                    '%s/%s' % (groups[0], groups[1]),
+                                    groups[2])
+            return
+
         match = re.match(ISSUE_URL_REGEX, url)
         if not match:
             match = re.match(REPO_URL_REGEX, url)
@@ -152,6 +163,16 @@ class GithubPlugin:
 
         message += "]"
 
+        cardinal.sendMsg(channel, message)
+
+    @defer.inlineCallbacks
+    def _show_commit(self, cardinal, channel, repo, sha):
+        commit = yield self._form_request('repos/%s/commits/%s' % (repo, sha))
+        message = "%s: %s" % (commit['sha'][:7], commit['commit']['message'].split('\n')[0])
+        if 'stats' in commit:
+            additions = commit['stats'].get('additions', 0)
+            deletions = commit['stats'].get('deletions', 0)
+            message += " (+%d -%d)" % (additions, deletions)
         cardinal.sendMsg(channel, message)
 
     @defer.inlineCallbacks
