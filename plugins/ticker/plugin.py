@@ -169,7 +169,9 @@ class TickerPlugin:
             self.config["channels"] and self.config["stocks"]
 
         if should_send_ticker:
-            yield self.send_ticker()
+            # if the market is just opening, ignore the tick. this API sucks
+            if not is_open:
+                yield self.send_ticker()
 
         if should_do_predictions:
             # Try to avoid hitting rate limiting (5 calls per minute) by giving
