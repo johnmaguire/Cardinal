@@ -3,7 +3,7 @@
 		{
 			"nick": "your_nickname",
 			"vhost": "your.vhost",
-			"ident": "yourusername"
+			"user": "username_aka_ident"
 		},
 		{
 			"nick": "your_nickname",
