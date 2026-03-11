@@ -4,6 +4,10 @@ import logging
 import os
 import re
 import shutil
+import socket
+import struct
+import random
+import requests
 from collections import namedtuple
 from contextlib import contextmanager
 from datetime import datetime
@@ -29,6 +33,35 @@ user_info = namedtuple('user_info', ('nick', 'user', 'vhost'))
 UNLOCKED = 'unlocked'
 LOCKED = 'locked'
 
+class DCCSendProtocol(protocol.Protocol):
+    """Handles the actual file sending over DCC."""
+    def __init__(self, file_path):
+        self.file_path = file_path
+        self.file = open(file_path, "rb")
+    
+    def connectionMade(self):
+        """Start sending the file once a connection is made."""
+        print("DCC connection established, sending file...")
+        self.sendNextChunk()
+
+    def sendNextChunk(self):
+        """Send the next chunk of the file."""
+        chunk = self.file.read(1024)
+        if chunk:
+            self.transport.write(chunk)
+            reactor.callLater(0.1, self.sendNextChunk)
+        else:
+            print("File transfer complete.")
+            self.file.close()
+            self.transport.loseConnection()
+
+class DCCSendFactory(protocol.Factory):
+    """Creates the protocol instance for sending the file."""
+    def __init__(self, file_path):
+        self.file_path = file_path
+
+    def buildProtocol(self, addr):
+        return DCCSendProtocol(self.file_path)
 
 class CardinalBot(irc.IRCClient, object):
     """Cardinal, in all its glory"""
@@ -578,6 +611,47 @@ class CardinalBot(irc.IRCClient, object):
         self.logger.info("Sending in %s: %s" % (channel, message))
 
         self.msg(channel, message, length)
+
+    def senddccfile(self, user, filePath):
+        def get_external_ip():
+            try:
+                return requests.get("https://checkip.amazonaws.com").text.strip()
+            except:
+                return socket.gethostbyname(socket.gethostname())  # Fallback to local IP
+        """Initiates a DCC SEND transfer with a fixed port range and correct IP."""
+        ip = get_external_ip()  # ✅ Get external IP
+        ipint = struct.unpack("!I", socket.inet_aton(ip))[0]  # Convert IP to integer format
+
+        fileName = os.path.basename(filePath)  # Get the filename
+        fileSize = os.path.getsize(filePath)  # Get the file size
+
+        # Extract the nickname from the user object
+        nick = user.nick if hasattr(user, "nick") else user[0]
+
+        # Pick a port between 1024 and 5000
+        port = random.randint(1024, 5000)
+
+        # Create a single instance of DCCSendFactory
+        factory = DCCSendFactory(filePath)  # Only pass filePath
+        listener = reactor.listenTCP(port, factory)  # ✅ Use a fixed port range
+        assignedPort = listener.getHost().port  # Retrieve assigned port
+
+        # Create a timeout to close the socket if no connection is made
+        timeoutDeferred = reactor.callLater(60, self.canceldccrequest, listener, nick)
+
+        # Store timeout inside the factory
+        factory.timeoutDeferred = timeoutDeferred
+
+        # Corrected CTCP format (Pass only the extracted nickname)
+        self.ctcpMakeQuery(nick, [("DCC", f"SEND {fileName} {ipint} {assignedPort} {fileSize}")])
+
+        print(f"Started DCC SEND for {fileName} to {nick} on port {assignedPort}")
+    
+    def canceldccrequest(self, listener, user):
+        """Cancel the DCC request if the receiver does not accept within the timeout."""
+        listener.stopListening()  # Close the port
+        self.msg(user, "DCC SEND request timed out. Please request the file again.")
+        self.logger.info(f"DCC SEND request timed out for user {user}. Closing port.")
 
     def send(self, message):
         """Send a raw message to the server.
