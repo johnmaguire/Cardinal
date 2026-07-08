@@ -219,11 +219,11 @@ class TestTickerPlugin:
          False,
          False,),
         (datetime.datetime(2020, 3, 27, 9, 30, 15),  # Friday 9:30am
-         True,
-         True,),
+         False,
+         False,),
         (datetime.datetime(2020, 3, 27, 9, 45, 15),  # Friday 9:45am
          True,
-         False,),
+         True,),
     ])
     @patch.object(plugin.TickerPlugin, 'do_predictions')
     @patch.object(plugin.TickerPlugin, 'send_ticker')

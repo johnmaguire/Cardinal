@@ -154,24 +154,22 @@ class TickerPlugin:
         # Determine if the market is currently open
         is_market_open = market_is_open()
 
-        # Determine if this is the market opening or market closing
-        is_open = now.hour == 9 and now.minute == 30
+        # The API returns bad data right at 9:30, so skip that tick entirely
+        # and treat 9:45 as the market-open tick instead
+        just_opened = now.hour == 9 and now.minute == 30
+        is_open = now.hour == 9 and now.minute == 45
         is_close = now.hour == 16 and now.minute == 0
 
         # Determine if we should do predictions after sending ticker
-        should_do_predictions = True \
-            if is_market_open and (is_open or is_close) \
-            else False
+        should_do_predictions = is_market_open and (is_open or is_close)
 
         # If there are no stocks to send in the ticker, or no channels to send
         # them to, don't tick, just wait.
-        should_send_ticker = is_market_open and \
+        should_send_ticker = is_market_open and not just_opened and \
             self.config["channels"] and self.config["stocks"]
 
         if should_send_ticker:
-            # if the market is just opening, ignore the tick. this API sucks
-            if not is_open:
-                yield self.send_ticker()
+            yield self.send_ticker()
 
         if should_do_predictions:
             # Try to avoid hitting rate limiting (5 calls per minute) by giving
