@@ -1,8 +1,9 @@
 import logging
 import re
+from datetime import datetime, timezone
 
 import requests
-from twisted.internet import defer
+from twisted.internet import defer, error, reactor
 from twisted.internet.threads import deferToThread
 
 from cardinal import util
@@ -45,6 +46,8 @@ class CryptoPlugin:
         self.config.setdefault('cmc_api_key', None)
         self.config.setdefault('default_crypto_price_currency', 'USD')
         self.config.setdefault('relay_bots', [])
+        self.config.setdefault('ticker_channels', [])
+        self.config.setdefault('ticker_coins', ['BTC'])
 
         if not self.config["cmc_api_key"]:
             raise KeyError(
@@ -58,6 +61,50 @@ class CryptoPlugin:
                 relay_bot['user'],
                 relay_bot['vhost'])
             self.relay_bots.append(user)
+
+        self.call_id = None
+        self.wait()
+
+    def wait(self):
+        """Tell the reactor to call tick() at the next 6-hour UTC boundary"""
+        now = datetime.now(timezone.utc)
+        seconds_into_period = (now.hour % 6) * 3600 + \
+            now.minute * 60 + now.second
+        self.call_id = reactor.callLater(
+            6 * 3600 - seconds_into_period, self.tick)
+
+    def close(self, cardinal):
+        if self.call_id:
+            try:
+                self.call_id.cancel()
+            except error.AlreadyCancelled as e:
+                self.logger.debug(e)
+
+    @defer.inlineCallbacks
+    def tick(self):
+        """Send the coin ticker to configured channels (4x daily)"""
+        # Schedule the next tick first: if the plugin is reloaded while the
+        # request below is in flight, close() must be able to cancel the
+        # pending call so the old instance stops ticking.
+        self.wait()
+
+        if not self.config['ticker_channels']:
+            return
+
+        coin = ','.join(self.config['ticker_coins'])
+        currency = self.config['default_crypto_price_currency']
+        try:
+            resp = yield self.make_cmc_request(coin, currency)
+        except Exception as exc:
+            self.logger.warning(
+                "Error fetching ticker for {} in currency {}: {}"
+                .format(coin, currency, exc))
+            return
+
+        for coin in resp.values():
+            for message in self.format_coin_messages(coin):
+                for channel in self.config['ticker_channels']:
+                    self.cardinal.sendMsg(channel, message)
 
     @command('crypto')
     @help('Check the price of a cryptocurrency')
@@ -103,25 +150,29 @@ class CryptoPlugin:
             return
 
         for coin in resp.values():
-            name = coin['name']
-            symbol = coin['symbol']
-            cmc_rank = coin['cmc_rank']
-            for quote_currency, quote in coin['quote'].items():
-                price = quote['price']
-                if price >= 1:
-                    price = round(price, 2)
-                else:
-                    price = float("%.4g" % price)
+            for message in self.format_coin_messages(coin):
+                cardinal.sendMsg(channel, message)
 
-                cardinal.sendMsg(
-                    channel,
-                    "{} ({}) = {:,.2f} {} - Daily Change (24h): {} "
-                    "(Market Cap: {} - Ranked #{})".format(
-                        name, F.bold(symbol),
-                        price, quote_currency,
-                        colorize(quote['percent_change_24h']),
-                        self.format_market_cap(quote['market_cap']),
-                        cmc_rank))
+    def format_coin_messages(self, coin):
+        """Format a CMC coin record as one message per quote currency"""
+        messages = []
+        for quote_currency, quote in coin['quote'].items():
+            price = quote['price']
+            if price >= 1:
+                price = round(price, 2)
+            else:
+                price = float("%.4g" % price)
+
+            messages.append(
+                "{} ({}) = {:,.2f} {} - Daily Change (24h): {} "
+                "(Market Cap: {} - Ranked #{})".format(
+                    coin['name'], F.bold(coin['symbol']),
+                    price, quote_currency,
+                    colorize(quote['percent_change_24h']),
+                    self.format_market_cap(quote['market_cap']),
+                    coin['cmc_rank']))
+
+        return messages
 
     @regex(CRYPTO_REGEX)
     @defer.inlineCallbacks

@@ -1,3 +1,5 @@
 {
-	"cmc_api_key": ""
+	"cmc_api_key": "",
+	"ticker_channels": ["#finance"],
+	"ticker_coins": ["BTC"]
 }
