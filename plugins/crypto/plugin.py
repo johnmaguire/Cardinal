@@ -115,12 +115,12 @@ class CryptoPlugin:
 
                 cardinal.sendMsg(
                     channel,
-                    "{} ({}) = {} {} - Daily Change (24h): {} "
-                    "(Market Cap: {:,.2f} - Ranked #{})".format(
+                    "{} ({}) = {:,.2f} {} - Daily Change (24h): {} "
+                    "(Market Cap: {} - Ranked #{})".format(
                         name, F.bold(symbol),
                         price, quote_currency,
                         colorize(quote['percent_change_24h']),
-                        quote['market_cap'],
+                        self.format_market_cap(quote['market_cap']),
                         cmc_rank))
 
     @regex(CRYPTO_REGEX)
@@ -173,6 +173,21 @@ class CryptoPlugin:
                 return True
 
         return False
+
+    def format_market_cap(self, value):
+        """Format market cap with appropriate suffix (T, B, M, K)"""
+        abs_value = abs(value)
+        if abs_value >= 1e12:
+            return "${:.3f}T".format(value / 1e12)
+        elif abs_value >= 1e9:
+            return "${:.3f}B".format(value / 1e9)
+        elif abs_value >= 1e6:
+            return "${:.3f}M".format(value / 1e6)
+        elif abs_value >= 1e3:
+            return "${:.3f}K".format(value / 1e3)
+        else:
+            return "${:.2f}".format(value)
+
 
 
 entrypoint = CryptoPlugin

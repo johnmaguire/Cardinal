@@ -229,11 +229,19 @@ class TickerPlugin:
     def format_symbol(self, symbol, change):
         name = self.stocks[symbol]
 
-        return "{name} ({symbol}): {change}".format(
-                symbol=F.bold(symbol),
-                name=name,
-                change=colorize(change),
-            )
+        # Try to align positive and negative changes
+        if change < 0:
+            return "{name} ({symbol}): {change}".format(
+                    symbol=F.bold(symbol),
+                    name=name,
+                    change=colorize(change),
+                )
+        else:
+            return "{name} ({symbol}):  {change}".format(
+                    symbol=F.bold(symbol),
+                    name=name,
+                    change=colorize(change),
+                )
 
     @defer.inlineCallbacks
     def do_predictions(self):
