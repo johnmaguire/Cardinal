@@ -13,8 +13,8 @@ from cardinal.util import F
 # CoinMarketCap API Endpoint
 CMC_QUOTE_API_URL = "https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest"  # noqa: E501
 
-# Regex pattern that matches PyLink relay bots (copied from ticker plugin)
-RELAY_REGEX = r'^(?:<(.+?)>\s+)'
+# Regex pattern that matches PyLink relay bots
+RELAY_REGEX = r'^(?:(?:\[.+\] )?<(.+?)>\s+)'
 
 # For 'crypto' command - checking cryptocurrency price
 CRYPTO_REGEX = RELAY_REGEX + r'(\.crypto.*?)$'
