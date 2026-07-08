@@ -11,6 +11,9 @@ from twisted.internet.threads import deferToThread
 REPO_URL_REGEX = re.compile(
     r'https://(?:www\.)?github\..{2,4}/([^/]+)/([^/]+)',
     flags=re.IGNORECASE)
+COMMIT_URL_REGEX = re.compile(
+    r'https://(?:www\.)?github\..{2,4}/([^/]+)/([^/]+)/commit/([a-f0-9]+)',
+    flags=re.IGNORECASE)
 ISSUE_URL_REGEX = re.compile(
     r'https://(?:www\.)?github\..{2,4}/([^/]+)/([^/]+)/(?:issues|pull)/([0-9]+)',  # noqa: E501
     flags=re.IGNORECASE)
@@ -91,6 +94,18 @@ class GithubPlugin:
     @event('urls.detection')
     @defer.inlineCallbacks
     def get_repo_info(self, cardinal, channel, url):
+        match = re.match(COMMIT_URL_REGEX, url)
+        if match:
+            groups = match.groups()
+            try:
+                yield self._show_commit(cardinal,
+                                        channel,
+                                        '%s/%s' % (groups[0], groups[1]),
+                                        groups[2])
+            except requests.exceptions.HTTPError:
+                raise EventRejectedMessage
+            return
+
         match = re.match(ISSUE_URL_REGEX, url)
         if not match:
             match = re.match(REPO_URL_REGEX, url)
@@ -151,6 +166,21 @@ class GithubPlugin:
             message += "| ! %s open issues " % repo['open_issues_count']
 
         message += "]"
+
+        cardinal.sendMsg(channel, message)
+
+    @defer.inlineCallbacks
+    def _show_commit(self, cardinal, channel, repo, sha):
+        commit = yield self._form_request('repos/%s/commits/%s' % (repo, sha))
+        subject = commit['commit']['message'].split('\n')[0]
+        message = "%s: %s" % (commit['sha'][:7], subject)
+
+        # stats isn't in the response schema's required fields, and may be
+        # omitted for very large diffs
+        stats = commit.get('stats')
+        if stats:
+            message += " (+%d -%d)" % (stats['additions'],
+                                       stats['deletions'])
 
         cardinal.sendMsg(channel, message)
 
