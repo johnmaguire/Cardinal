@@ -49,8 +49,8 @@ class SedPlugin:
                 re.escape(pattern),  # don't allow complex regex
                 replacement,
                 self.history[channel][user.nick],
-                count,
-                flags,
+                count=count,
+                flags=flags,
             )
         except KeyError:
             return None
