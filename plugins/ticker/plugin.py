@@ -24,7 +24,7 @@ HOLIDAYS = holidays.NYSE()
 TD_QUOTE_API_URL = "https://api.twelvedata.com/quote?symbol={symbol}&apikey={token}"  # noqa: E501
 
 # Regex pattern that matches PyLink relay bots
-RELAY_REGEX = r'^(?:<(.+?)>\s+)'
+RELAY_REGEX = r'^(?:(?:\[.+\] )?<(.+?)>\s+)'
 
 # For 'stock' command - checking stock price
 STOCK_RELAY_REGEX = RELAY_REGEX + r'(\.stock.*?)$'
