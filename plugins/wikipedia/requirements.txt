@@ -1,1 +1,1 @@
-pymediawiki==0.7.4
+pymediawiki==0.7.5
