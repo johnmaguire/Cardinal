@@ -14,6 +14,14 @@ from cardinal.util import F
 # CoinMarketCap API Endpoint
 CMC_QUOTE_API_URL = "https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest"  # noqa: E501
 
+# Coin detail page - CoinMarketCap publishes no symbol-based URL, so a direct
+# link needs the per-coin slug returned alongside the quote
+CMC_COIN_URL = "https://coinmarketcap.com/currencies/{slug}/"
+
+# Shortened coin link, used when shorten_links is enabled. Redirecting by
+# symbol keeps the symbol to slug mapping off the bot.
+SHORT_COIN_URL = "https://prce.cc/c/{symbol}"
+
 # Regex pattern that matches PyLink relay bots
 RELAY_REGEX = r'^(?:(?:\[.+\] )?<(.+?)>\s+)'
 
@@ -46,6 +54,7 @@ class CryptoPlugin:
         self.config.setdefault('cmc_api_key', None)
         self.config.setdefault('default_crypto_price_currency', 'USD')
         self.config.setdefault('relay_bots', [])
+        self.config.setdefault('shorten_links', False)
         self.config.setdefault('ticker_channels', [])
         self.config.setdefault('ticker_coins', ['BTC'])
 
@@ -153,8 +162,22 @@ class CryptoPlugin:
             for message in self.format_coin_messages(coin):
                 cardinal.sendMsg(channel, message)
 
+    def coin_url(self, coin):
+        """Build a link to a coin's page, or None if one can't be formed"""
+        if self.config['shorten_links']:
+            return SHORT_COIN_URL.format(symbol=coin['symbol'])
+
+        # Older API responses may omit the slug; drop the link rather than
+        # emitting a URL that 404s
+        if coin.get('slug'):
+            return CMC_COIN_URL.format(slug=coin['slug'])
+
+        return None
+
     def format_coin_messages(self, coin):
         """Format a CMC coin record as one message per quote currency"""
+        url = self.coin_url(coin)
+
         messages = []
         for quote_currency, quote in coin['quote'].items():
             price = quote['price']
@@ -163,7 +186,7 @@ class CryptoPlugin:
             else:
                 price = float("%.4g" % price)
 
-            messages.append(
+            message = (
                 "{} ({}) = {:,.2f} {} - Daily Change (24h): {} "
                 "(Market Cap: {} - Ranked #{})".format(
                     coin['name'], F.bold(coin['symbol']),
@@ -171,6 +194,10 @@ class CryptoPlugin:
                     colorize(quote['percent_change_24h']),
                     self.format_market_cap(quote['market_cap']),
                     coin['cmc_rank']))
+            if url:
+                message += " - {}".format(url)
+
+            messages.append(message)
 
         return messages
 

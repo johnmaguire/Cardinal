@@ -150,6 +150,18 @@ class TestTickerPlugin:
         assert plugin.config['channels'] == []
         assert plugin.config['stocks'] == []
         assert plugin.config['relay_bots'] == []
+        assert plugin.config['shorten_links'] is False
+
+    def test_stock_url(self):
+        assert self.plugin.stock_url('SPY') == \
+            'https://finance.yahoo.com/quote/SPY'
+
+    def test_stock_url_shortened(self):
+        plugin = TickerPlugin(self.mock_cardinal, {
+            'api_key': self.api_key,
+            'shorten_links': True,
+        })
+        assert plugin.stock_url('SPY') == 'https://prce.cc/s/SPY'
 
     def test_missing_api_key(self):
         with pytest.raises(KeyError):

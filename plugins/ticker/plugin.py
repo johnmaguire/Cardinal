@@ -1,7 +1,5 @@
 from collections import OrderedDict
 from datetime import date, datetime
-from dateutil.easter import easter
-from dateutil.relativedelta import relativedelta as rd, MO, TH, FR
 import logging
 import re
 
@@ -22,6 +20,12 @@ HOLIDAYS = holidays.NYSE()
 
 # TwelveData API Endpoint
 TD_QUOTE_API_URL = "https://api.twelvedata.com/quote?symbol={symbol}&apikey={token}"  # noqa: E501
+
+# Quote page linked alongside prices
+YF_QUOTE_URL = "https://finance.yahoo.com/quote/{symbol}"
+
+# Shortened quote link, used when shorten_links is enabled
+SHORT_QUOTE_URL = "https://prce.cc/s/{symbol}"
 
 # Regex pattern that matches PyLink relay bots
 RELAY_REGEX = r'^(?:(?:\[.+\] )?<(.+?)>\s+)'
@@ -78,6 +82,7 @@ class TickerPlugin:
         self.config.setdefault('channels', [])
         self.config.setdefault('stocks', [])
         self.config.setdefault('relay_bots', [])
+        self.config.setdefault('shorten_links', False)
 
         if not self.config["channels"]:
             self.logger.warning("No channels for ticker defined in config --"
@@ -363,12 +368,12 @@ class TickerPlugin:
 
         cardinal.sendMsg(
             channel,
-            "{} (\x02{}\x02) = {:.2f} USD - Daily Change: {} - https://finance.yahoo.com/quote/{}".format(
+            "{} (\x02{}\x02) = {:.2f} USD - Daily Change: {} - {}".format(
                 data['companyName'],
                 data['symbol'],
                 data['price'],
                 colorize(data['change']),
-                data['symbol']))
+                self.stock_url(data['symbol'])))
 
     @regex(STOCK_RELAY_REGEX)
     @defer.inlineCallbacks
@@ -517,6 +522,13 @@ class TickerPlugin:
     def get_prediction(self, symbol, nick):
         with self.db() as db:
             return db['predictions'][symbol][nick]
+
+    def stock_url(self, symbol):
+        """Build a link to a symbol's quote page"""
+        if self.config['shorten_links']:
+            return SHORT_QUOTE_URL.format(symbol=symbol)
+
+        return YF_QUOTE_URL.format(symbol=symbol)
 
     def get_daily(self, symbol):
         return self.make_td_request(symbol)
