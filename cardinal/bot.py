@@ -6,6 +6,7 @@ import re
 import shutil
 from collections import namedtuple
 from contextlib import contextmanager
+from copy import deepcopy
 from datetime import datetime
 
 from twisted.internet import defer, protocol, reactor
@@ -628,35 +629,24 @@ class CardinalBot(irc.IRCClient, object):
                         json.dump(default, f)
 
                 # Load the DB as JSON, use it, then save the result
-                with open(db_path, 'r+') as f:
-                    # In the event that the DB cannot be loaded, check if a
-                    # backup DB exists. If so, open it in read-only mode and
-                    # load that instead. When we go to save, we'll write to the
-                    # main DB and create a new backup.
-                    corrupt = False
-                    try:
+                try:
+                    with open(db_path, 'r') as f:
                         database = json.load(f)
-                    except json.JSONDecodeError:
-                        corrupt = True
-                        # Save the corrupt DB for later inspection
-                        shutil.copyfile(db_path, db_path + '.corrupt')
+                except json.JSONDecodeError:
+                    # Preserve the corrupt DB for inspection and start fresh
+                    shutil.copyfile(db_path, db_path + '.corrupt')
+                    database = deepcopy(default)
 
-                        # Attempt to read from backup
-                        if os.path.exists(db_path + '.bak'):
-                            with open(db_path + '.bak', 'r') as f_bak:
-                                database = json.load(f_bak)
+                yield database
 
-                    yield database
-
-                    # Create a backup of the database before writing in case
-                    # of power loss or other corruption. If the database is
-                    # corrupt, don't create a backup of it.
-                    if not corrupt:
-                        shutil.copyfile(db_path, db_path + '.bak')
-
-                    f.seek(0)
-                    f.truncate()
+                # Write to a temp file and atomically replace the DB so a
+                # crash or power loss mid-write can't corrupt it
+                tmp_path = db_path + '.tmp'
+                with open(tmp_path, 'w') as f:
                     json.dump(database, f)
+                    f.flush()
+                    os.fsync(f.fileno())
+                os.replace(tmp_path, db_path)
             finally:
                 self._db_locks[db_path] = UNLOCKED
 

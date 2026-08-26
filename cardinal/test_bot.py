@@ -666,8 +666,7 @@ class TestCardinalBot:
             with db() as db_obj:
                 db_obj['x'] = True
 
-            # verify that the data was written to disk. also, since we are
-            # calling the db a second time, this will create a backup.
+            # verify that the data was written to disk
             with db() as db_obj:
                 assert db_obj == {'x': True}
 
@@ -675,21 +674,17 @@ class TestCardinalBot:
             with open(os.path.join(database_path, 'test.json'), 'w') as f:
                 f.write('corrupted')
 
-            # verify that the db is restored
+            # verify that the db is reset to the default
             with db() as db_obj:
-                assert db_obj == {'x': True}
-
-            # corrupt the db again to verify that the backup wasn't overwritten
-            with open(os.path.join(database_path, 'test.json'), 'w') as f:
-                f.write('corrupted')
-
-            # verify that the db is restored
-            with db() as db_obj:
-                assert db_obj == {'x': True}
+                assert db_obj == {}
 
             # a corrupt file should exist for inspection
             assert os.path.exists(
                 os.path.join(database_path, 'test.json.corrupt'))
+
+            # verify that the reset db was written back out
+            with db() as db_obj:
+                assert db_obj == {}
 
     def test_db_contextmanager_exception(self):
         with tempdir('database') as database_path:
