@@ -10,6 +10,7 @@ from twisted.application.internet import ClientService, backoffPolicy
 from twisted.internet import reactor
 from twisted.internet.endpoints import HostnameEndpoint, wrapClientTLS
 from twisted.internet.ssl import optionsForClientTLS
+from twisted.logger import STDLibLogObserver, globalLogBeginner
 
 from cardinal.config import ConfigParser, ConfigSpec
 from cardinal.bot import CardinalBotFactory
@@ -23,6 +24,12 @@ def setup_logging(config=None):
         )
     else:
         logging.config.dictConfig(config)
+
+    # Forward Twisted's own log events (e.g. ClientService reconnection
+    # failures) to stdlib logging under the "twisted" logger, which would
+    # otherwise never be seen
+    globalLogBeginner.beginLoggingTo(
+        [STDLibLogObserver()], redirectStandardIO=False)
 
     return logging.getLogger(__name__)
 
