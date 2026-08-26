@@ -6,7 +6,6 @@ from datetime import datetime
 import pytest
 from unittest.mock import Mock, call, patch
 from twisted.internet import defer
-from twisted.internet.task import Clock
 from twisted.words.protocols.irc import ServerSupportedFeatures
 
 from cardinal import exceptions, plugins
@@ -588,6 +587,13 @@ class TestCardinalBot:
 
         sendLine_mock.assert_called_once_with(message)
 
+    def test_connectionLost_notifies_factory(self):
+        reason = Mock()
+
+        self.cardinal.connectionLost(reason)
+
+        self.factory.connection_lost.assert_called_once_with(reason)
+
     def test_disconnect(self):
         with patch.object(self.cardinal, 'quit') as quit_mock:
             self.cardinal.disconnect()
@@ -785,7 +791,7 @@ class TestCardinalBotFactory:
         assert self.factory.cardinal is None
         assert self.factory.disconnect is False
         assert isinstance(self.factory.booted, datetime)
-        assert self.factory.last_reconnection_wait is None
+        assert self.factory.service is None
 
         assert factory.network == network.lower()
         assert factory.server_commands == server_commands
@@ -813,113 +819,42 @@ class TestCardinalBotFactory:
     def test_sigint_handler_without_cardinal(self):
         assert self.factory.disconnect is False
 
+        self.factory.service = Mock()
+        self.factory._reactor = Mock()
+
         os.kill(os.getpid(), signal.SIGINT)
 
         assert self.factory.disconnect is True
 
+        # Never connected, so shutdown happens immediately
+        self.factory.service.stopService.assert_called_once()
+        self.factory._reactor.stop.assert_called_once()
+
     def test_reconnection(self):
         assert self.factory.disconnect is False
 
-        clock = Clock()
-        mock_connector = Mock()
-        self.factory._reactor = clock
-        self.factory.cardinal = Mock(spec=CardinalBot)
-
-        self.factory.clientConnectionLost(
-            mock_connector,
-            'Called by unit test'
-        )
-
-        assert self.factory.last_reconnection_wait == \
-            CardinalBotFactory.MINIMUM_RECONNECTION_WAIT
-        clock.advance(self.factory.last_reconnection_wait)
-
-        mock_connector.connect.assert_called_once()
-
-    def test_unload_plugins_on_disconnection(self):
         mock_cardinal = Mock(spec=CardinalBot)
         self.factory.cardinal = mock_cardinal
-
-        mock_connector = Mock()
+        self.factory.service = Mock()
         self.factory._reactor = Mock()
-        self.factory.clientConnectionLost(mock_connector, "Called by unit test")
 
+        self.factory.connection_lost('Called by unit test')
+
+        # plugins should be unloaded, but the service keeps retrying and the
+        # reactor keeps running
         mock_cardinal.disconnected.assert_called_once()
-
-    def test_initial_connection_failed(self):
-        assert self.factory.disconnect is False
-        assert self.factory.last_reconnection_wait is None
-
-        clock = Clock()
-        mock_connector = Mock()
-        self.factory._reactor = clock
-
-        self.factory.clientConnectionFailed(
-            mock_connector,
-            'Called by unit test'
-        )
-
-        assert self.factory.last_reconnection_wait == \
-            CardinalBotFactory.MINIMUM_RECONNECTION_WAIT
-        clock.advance(self.factory.last_reconnection_wait)
-
-        mock_connector.connect.assert_called_once()
-
-    def test_reconnection_failed(self):
-        assert self.factory.disconnect is False
-        self.factory.last_reconnection_wait = \
-            CardinalBotFactory.MINIMUM_RECONNECTION_WAIT
-
-        clock = Clock()
-        mock_connector = Mock()
-        self.factory._reactor = clock
-
-        self.factory.clientConnectionFailed(
-            mock_connector,
-            'Called by unit test'
-        )
-
-        # time should have doubled
-        assert self.factory.last_reconnection_wait == \
-            CardinalBotFactory.MINIMUM_RECONNECTION_WAIT * 2
-
-        # make sure it's not called on original time
-        clock.advance(self.factory.MINIMUM_RECONNECTION_WAIT)
-        assert not mock_connector.connect.called
-
-        # advance it one more time and it should be
-        clock.advance(self.factory.MINIMUM_RECONNECTION_WAIT)
-        mock_connector.connect.assert_called_once()
-
-    def test_reconnection_failed_max_wait(self):
-        assert self.factory.disconnect is False
-        self.factory.last_reconnection_wait = \
-            CardinalBotFactory.MAXIMUM_RECONNECTION_WAIT
-
-        clock = Clock()
-        mock_connector = Mock()
-        self.factory._reactor = clock
-
-        self.factory.clientConnectionFailed(
-            mock_connector,
-            'Called by unit test'
-        )
-
-        # cannot increase past maximum
-        assert self.factory.last_reconnection_wait == \
-            CardinalBotFactory.MAXIMUM_RECONNECTION_WAIT
-
-        # advance it one more time and it should be
-        clock.advance(self.factory.MAXIMUM_RECONNECTION_WAIT)
-        mock_connector.connect.assert_called_once()
+        assert not self.factory.service.stopService.called
+        assert not self.factory._reactor.stop.called
 
     def test_bypass_reconnection(self):
         # Mark that we purposefully disconnected
         self.factory.disconnect = True
 
         self.factory.cardinal = Mock(spec=CardinalBot)
+        self.factory.service = Mock()
         self.factory._reactor = Mock()
 
-        self.factory.clientConnectionLost(None, 'Called by unit test')
+        self.factory.connection_lost('Called by unit test')
 
+        self.factory.service.stopService.assert_called_once()
         self.factory._reactor.stop.assert_called_once()

@@ -10,7 +10,6 @@ from copy import deepcopy
 from datetime import datetime
 
 from twisted.internet import defer, protocol, reactor
-from twisted.internet.task import deferLater
 from twisted.words.protocols import irc
 
 from cardinal.util import strip_formatting
@@ -604,6 +603,15 @@ class CardinalBot(irc.IRCClient, object):
         if self.plugin_manager:
             self.plugin_manager.unload_all()
 
+    def connectionLost(self, reason):
+        """Called by Twisted when the transport drops.
+
+        ClientService doesn't use the ClientFactory connector callbacks, so
+        the factory is notified from here.
+        """
+        super().connectionLost(reason)
+        self.factory.connection_lost(reason)
+
     def get_db(self, name, network_specific=True, default=None):
         if default is None:
             default = {}
@@ -660,7 +668,7 @@ class CardinalBot(irc.IRCClient, object):
         return user
 
 
-class CardinalBotFactory(protocol.ClientFactory):
+class CardinalBotFactory(protocol.Factory):
     """The interface between Cardinal and the Twisted library"""
 
     protocol = CardinalBot
@@ -670,7 +678,7 @@ class CardinalBotFactory(protocol.ClientFactory):
     """Minimum time in seconds before reconnection attempt"""
 
     MAXIMUM_RECONNECTION_WAIT = 300
-    """Maximum time in connections before reconnection attempt"""
+    """Maximum time in seconds before reconnection attempt"""
 
     @property
     def reactor(self):
@@ -732,8 +740,9 @@ class CardinalBotFactory(protocol.ClientFactory):
         # The time we first connected to the network with Cardinal
         self.booted = datetime.now()
 
-        # Used for backing off when reconnecting
-        self.last_reconnection_wait = None
+        # ClientService managing the connection, set during startup. It
+        # handles reconnection with exponential backoff.
+        self.service = None
 
     def _sigint(self, signal, frame):
         """Called when a SIGINT is received.
@@ -744,71 +753,36 @@ class CardinalBotFactory(protocol.ClientFactory):
         self.disconnect = True
         if self.cardinal:
             self.cardinal.quit('Received SIGINT.')
-
-    def clientConnectionLost(self, connector, reason):
-        """Called when we lose connection to the server.
-
-        Keyword arguments:
-          connector -- Twisted IRC connector. Provided by Twisted.
-          reason -- Reason for disconnect. Provided by Twisted.
-        """
-        self.cardinal.disconnected()
-
-        # This flag tells us if Cardinal was told to disconnect by a user. If
-        # not, we'll attempt to reconnect.
-        if not self.disconnect:
-            self.logger.info(
-                "Connection lost (%s), reconnecting in %d seconds." %
-                (reason, self.MINIMUM_RECONNECTION_WAIT)
-            )
-
-            # Reset the last reconnection wait time since this is the first
-            # time we've disconnected since a successful connection and then
-            # wait before connecting.
-            self.last_reconnection_wait = self.MINIMUM_RECONNECTION_WAIT
-            deferLater(
-                self.reactor,
-                self.last_reconnection_wait,
-                connector.connect
-            )
         else:
+            # Never connected, so there's no QUIT to send and no
+            # connection_lost coming - stop retrying and shut down
+            self.stop()
+
+    def connection_lost(self, reason):
+        """Called by CardinalBot when the connection drops.
+
+        ClientService handles reconnection; we only need to unload plugins
+        and, on an intentional disconnect, shut down.
+        """
+        if self.cardinal:
+            self.cardinal.disconnected()
+
+        if self.disconnect:
             self.logger.info(
                 "Disconnected successfully (%s), quitting." % reason
             )
-
-            self.reactor.stop()
-
-    def clientConnectionFailed(self, connector, reason):
-        """Called when a connection attempt fails.
-
-        Keyword arguments:
-          connector -- Twisted IRC connector. Provided by Twisted.
-          reason -- Reason connection failed. Provided by Twisted.
-        """
-        # If we disconnected on our first connection attempt, then we don't
-        # need to calculate a wait time, we can just use the minimum time
-        if not self.last_reconnection_wait:
-            wait_time = self.MINIMUM_RECONNECTION_WAIT
+            self.stop()
         else:
-            # We'll attempt to reconnect after waiting twice as long as the
-            # last time we waited, unless it exceeds the maximum wait time, in
-            # which case we'll wait that long instead
-            wait_time = self.last_reconnection_wait * 2
-            if wait_time > self.MAXIMUM_RECONNECTION_WAIT:
-                wait_time = self.MAXIMUM_RECONNECTION_WAIT
+            self.logger.info(
+                "Connection lost (%s), reconnecting." % reason
+            )
 
-        self.logger.info(
-            "Could not connect (%s), retrying in %d seconds" %
-            (reason, wait_time)
-        )
+    def stop(self):
+        """Stops reconnection attempts and shuts down the reactor."""
+        if self.service:
+            self.service.stopService()
 
-        # Update the last connection wait time, then wait and try to connect
-        self.last_reconnection_wait = wait_time
-        deferLater(
-            self.reactor,
-            self.last_reconnection_wait,
-            connector.connect
-        )
+        self.reactor.stop()
 
 
 class ChannelManager:

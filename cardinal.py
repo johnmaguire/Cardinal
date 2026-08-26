@@ -6,7 +6,10 @@ import argparse
 import logging
 import logging.config
 
+from twisted.application.internet import ClientService, backoffPolicy
 from twisted.internet import reactor
+from twisted.internet.endpoints import HostnameEndpoint, wrapClientTLS
+from twisted.internet.ssl import optionsForClientTLS
 
 from cardinal.config import ConfigParser, ConfigSpec
 from cardinal.bot import CardinalBotFactory
@@ -137,23 +140,34 @@ https://github.com/JohnMaguire/Cardinal
                                  config['blacklist'],
                                  config['storage'])
 
-    if not config['ssl']:
+    endpoint = HostnameEndpoint(reactor, config['network'], config['port'])
+    if config['ssl']:
+        logger.info(
+            "Connecting over TLS to %s:%d" %
+            (config['network'], config['port'])
+        )
+
+        endpoint = wrapClientTLS(
+            optionsForClientTLS(config['network']), endpoint)
+    else:
         logger.info(
             "Connecting over plaintext to %s:%d" %
             (config['network'], config['port'])
         )
 
-        reactor.connectTCP(config['network'], config['port'], factory)
-    else:
-        logger.info(
-            "Connecting over SSL to %s:%d" %
-            (config['network'], config['port'])
-        )
-
-        # For SSL, we need to import the SSL module from Twisted
-        from twisted.internet import ssl
-        reactor.connectSSL(config['network'], config['port'], factory,
-                           ssl.optionsForClientTLS(config['network']))
+    # ClientService reconnects with exponential backoff whenever the
+    # connection drops or an attempt fails, until stopService is called
+    service = ClientService(
+        endpoint,
+        factory,
+        retryPolicy=backoffPolicy(
+            initialDelay=CardinalBotFactory.MINIMUM_RECONNECTION_WAIT,
+            maxDelay=CardinalBotFactory.MAXIMUM_RECONNECTION_WAIT,
+            factor=2.0,
+        ),
+    )
+    factory.service = service
+    service.startService()
 
     # Run the Twisted reactor
     reactor.run()
