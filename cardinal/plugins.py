@@ -1015,6 +1015,7 @@ class EventManager:
 
         return callback_id
 
+    @staticmethod
     def _generate_id(size=6, chars=string.ascii_uppercase + string.digits):
         """
         Thank you StackOverflow: http://stackoverflow.com/a/2257449/242129
@@ -1022,4 +1023,4 @@ class EventManager:
         Generates a random, 6 character string of letters and numbers (by
         default.)
         """
-        return ''.join(random.choice(chars) for _ in range(6))
+        return ''.join(random.choice(chars) for _ in range(size))
