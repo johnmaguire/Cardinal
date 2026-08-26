@@ -153,7 +153,7 @@ https://github.com/JohnMaguire/Cardinal
         # For SSL, we need to import the SSL module from Twisted
         from twisted.internet import ssl
         reactor.connectSSL(config['network'], config['port'], factory,
-                           ssl.ClientContextFactory())
+                           ssl.optionsForClientTLS(config['network']))
 
     # Run the Twisted reactor
     reactor.run()
