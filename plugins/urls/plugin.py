@@ -140,8 +140,8 @@ class URLsPlugin:
 
                     if self.shorten_links:
                         try:
-                            url = self.shorten_url(url)
-                        except Exception as e:
+                            url = yield deferToThread(self.shorten_url, url)
+                        except Exception:
                             self.logger.exception(
                                 "Unable to shorten URL: %s" % url)
                         else:
@@ -159,7 +159,8 @@ class URLsPlugin:
             'token': self.api_key,
         }
 
-        response = requests.post('https://crdnl.xyz/add', json=data)
+        response = requests.post('https://crdnl.xyz/add', json=data,
+                                 timeout=self.timeout)
         response.raise_for_status()
         response = response.json()
 
@@ -167,6 +168,7 @@ class URLsPlugin:
 
     @command("shorten")
     @help("Syntax: .shorten <url>")
+    @defer.inlineCallbacks
     def shorten(self, cardinal, user, channel, msg):
         try:
             url = msg.split(" ")[1]
@@ -175,8 +177,8 @@ class URLsPlugin:
             return
 
         try:
-            url = self.shorten_url("http://example.com")
-        except Exception as e:
+            url = yield deferToThread(self.shorten_url, url)
+        except Exception:
             self.logger.exception("Unable to shorten URL: %s" % url)
             cardinal.sendMsg(channel, "Error shortening URL")
             return
