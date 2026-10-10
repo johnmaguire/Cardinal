@@ -154,6 +154,7 @@ class WeatherPlugin:
                 "Weather plugin is not configured correctly. "
                 "Please set API key."
             )
+            return
 
         try:
             location = msg.split(' ', 1)[1]
