@@ -3,4 +3,3 @@ omit =
 	plugins/*
 	*/test_*.py
 	cardinal/fixtures/*
-include=cardinal/*
