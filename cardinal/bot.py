@@ -144,12 +144,14 @@ class CardinalBot(irc.IRCClient, object):
         # For servers that support it, set the bot mode
         self.send("MODE {} +B".format(self.nickname))
 
+        # Starts from Twisted's default CHANMODES; isupport() refreshes it
+        self.channels = ChannelManager(
+            self.supported.getFeature("CHANMODES"),
+            self.getChannelModeParams())
+
         # Attempt to join channels
         for channel in self.factory.channels:
             self.join(channel)
-
-        # ChannelManager is only created if CHANMODES is supported
-        self.channels = None
 
         # Set the uptime as now and grab the  boot time from the factory
         self.uptime = datetime.now()
@@ -161,14 +163,15 @@ class CardinalBot(irc.IRCClient, object):
         options -- A partial list of all ISUPPORT options, possibly in the
           format "OPTION=value".
         """
-        for option in options:
-            # Setup the channel manager at this point - it should occur during
-            # startup before we join channels. We need the result of CHANMODES
-            # to correctly understand channel modes.
-            if option.startswith('CHANMODES='):
-                self.channels = \
-                    ChannelManager(self.supported.getFeature("CHANMODES"),
-                                   self.getChannelModeParams())
+        # CHANMODES and PREFIX together decide which modes take a param, and
+        # may arrive in separate ISUPPORT messages.
+        if not any(option.startswith(('CHANMODES=', 'PREFIX='))
+                   for option in options):
+            return
+
+        self.channels.set_supported(
+            self.supported.getFeature("CHANMODES"),
+            self.getChannelModeParams())
 
     def joined(self, channel):
         """Called when we join a channel.
@@ -176,20 +179,10 @@ class CardinalBot(irc.IRCClient, object):
         channel -- Channel joined. Provided by Twisted.
         """
         self.logger.info("Joined %s" % channel)
-        if self.channels:
-            self.channels.add(channel)
+        self.channels.add(channel)
 
-            # Request the channel modes for this channel
-            self.send("MODE {}".format(channel))
-
-    def irc_RPL_CHANNELMODEIS(self, prefix, params):
-        channel, modes, args = params[1], params[2], params[3:]
-
-        if modes[0] not in "-+":
-            modes = "+" + modes
-
-        if self.channels:
-            self.channels.set_modes(channel, modes, args)
+        # Request the channel modes for this channel
+        self.send("MODE {}".format(channel))
 
     def left(self, channel):
         """Called when we leave a channel.
@@ -197,8 +190,7 @@ class CardinalBot(irc.IRCClient, object):
         channel -- Channel joined. Provided by Twisted.
         """
         self.logger.info("Parted %s" % channel)
-        if self.channels:
-            self.channels.remove(channel)
+        self.channels.remove(channel)
 
     def kickedFrom(self, channel):
         """Called when we leave a channel.
@@ -206,8 +198,7 @@ class CardinalBot(irc.IRCClient, object):
         channel -- Channel joined. Provided by Twisted.
         """
         self.logger.info("Kicked from %s" % channel)
-        if self.channels:
-            self.channels.remove(channel)
+        self.channels.remove(channel)
 
     def lineReceived(self, line):
         """Called for every line received from the server."""
@@ -567,7 +558,7 @@ class CardinalBot(irc.IRCClient, object):
           length -- Length of message. Twisted will calculate if None given.
         """
         try:
-            if self.channels and not self.channels[channel].allows_color():
+            if not self.channels[channel].allows_color():
                 message = strip_formatting(message)
         except KeyError:
             pass
@@ -788,7 +779,10 @@ class CardinalBotFactory(protocol.Factory):
 class ChannelManager:
     def __init__(self, chanmodes, param_modes):
         self.logger = logging.getLogger(__name__)
+        self._channels = {}
+        self.set_supported(chanmodes, param_modes)
 
+    def set_supported(self, chanmodes, param_modes):
         # chanmodes dict (from Twisted):
         #   addressModes - param added/removed from address list
         #   param - param changed (always takes a param)
@@ -802,38 +796,38 @@ class ChannelManager:
         # Keeping this around so we can make a call to irc.parseModes
         self._twisted_param_modes = param_modes
 
-        self._channels = {}
-
     def __len__(self):
         return len(self._channels)
 
+    # Channel names are case-insensitive
     def __getitem__(self, key):
-        return self._channels[key]
+        return self._channels[key.lower()]
 
     def __iter__(self):
         return iter(self._channels)
 
-    def __bool__(self):
-        return True
-
     def add(self, name):
-        self._channels[name] = Channel(name)
+        self._channels[name.lower()] = Channel(name)
 
     def remove(self, name):
-        del self._channels[name]
+        self._channels.pop(name.lower(), None)
 
     def set_modes(self, channel, modes, args):
         try:
-            chan = self._channels[channel]
+            chan = self[channel]
         except KeyError:
             self.logger.error(f"Can't set mode for unknown channel: {channel}")
+            return
+
+        # A bare "+" is how some servers report a channel with no modes
+        if modes == '+':
             return
 
         # parse mode changes out into added and removed
         try:
             added, removed = irc.parseModes(
                 modes, args.copy(), self._twisted_param_modes)
-        except KeyError:
+        except irc.IRCBadModes:
             self.logger.error("Error parsing modes for {channel}: {modes}"
                               .format(channel=channel,
                                       modes=modes + " " + ' '.join(args)))
@@ -841,44 +835,33 @@ class ChannelManager:
 
         # set modes
         for mode, param in added:
+            # PREFIX modes (e.g. +o) target a user, not the channel
+            if mode not in self.chanmodes and param is not None:
+                continue
+
             if self.chanmodes.get(mode) == "addressModes":
-                chan.modes[mode] = chan.modes.get(mode, []).append(param)
+                chan.modes.setdefault(mode, []).append(param)
 
             elif self.chanmodes.get(mode) in ("param", "setParam"):
                 chan.modes[mode] = param
 
             else:  # noParam
-                if param is not None:
-                    self.logger.error("Mode '{mode}' should not have a param"
-                                      .format(mode=mode))
-                    continue
-
-                chan.modes[mode] = param
+                chan.modes[mode] = None
 
         # unset modes
         for mode, param in removed:
-            # ignore unset modes
-            if mode not in chan.modes:
-                self.logger.error("Cannot set unset mode '{mode}'"
-                                  .format(mode=mode))
+            if mode not in self.chanmodes and param is not None:
                 continue
 
             if self.chanmodes.get(mode) == "addressModes":
-                chan.modes[mode] = chan.modes[mode].remove(param)
+                # addresses set before we joined are not tracked
+                if param in chan.modes.get(mode, []):
+                    chan.modes[mode].remove(param)
 
-            elif self.chanmodes.get(mode) == "param":
-                if chan.modes[mode] != param:
-                    self.logger.error(
-                        "Mode '{mode}' param ({param}) does not match "
-                        "set param ({set_param})".format(
-                            mode=mode,
-                            param=param,
-                            set_param=chan.modes[param]))
-                    continue
-                del chan.modes[mode]
-
-            else:  # setParam or noParam
-                del chan.modes[mode]
+            # The param of an unset is not compared to the stored one: some
+            # servers send a placeholder such as "-k *".
+            else:
+                chan.modes.pop(mode, None)
 
 
 class Channel:

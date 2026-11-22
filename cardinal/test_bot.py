@@ -125,8 +125,11 @@ class TestCardinalBot:
         channels = ['#channel1', '#channel2']
         self.factory.channels = channels
 
+        del self.cardinal.channels
+
         self.cardinal.signedOn()
 
+        assert isinstance(self.cardinal.channels, ChannelManager)
         assert not mock_msg.called  # no nickserv password provided
         assert mock_join.mock_calls == [call(channel) for channel in channels]
         mock_send.assert_called_once_with("MODE {} +B".format(
@@ -363,6 +366,21 @@ class TestCardinalBot:
             '+b user!*@*',
         )
 
+    def test_isupport_keeps_channels_and_tracks_late_prefix(self):
+        self.cardinal.channels.add('#early')
+        self.cardinal.supported.parse(['CHANMODES=b,k,l,cnt'])
+        self.cardinal.isupport(['CHANMODES=b,k,l,cnt'])
+        self.cardinal.channels.add('#channel')
+
+        self.cardinal.supported.parse(['CHANMODES=b,k,l,cnt'])
+        self.cardinal.isupport(['CHANMODES=b,k,l,cnt'])
+        self.cardinal.supported.parse(['PREFIX=(qov)~@+'])
+        self.cardinal.isupport(['PREFIX=(qov)~@+'])
+
+        self.cardinal.channels.set_modes('#channel', '+qc', ['nick'])
+        assert self.cardinal.channels['#channel'].modes == {'c': None}
+        assert '#early' in self.cardinal.channels
+
     def test_irc_MODE_from_server_no_events(self):
         channel = '#channel'
 
@@ -567,6 +585,22 @@ class TestCardinalBot:
 
         msg_mock.assert_called_once_with(channel, "this is some message s-nets eh", length)
 
+
+    @patch.object(CardinalBot, 'send')
+    def test_sendMsg_strips_formatting_in_no_color_channel(self, _mock_send):
+        self.cardinal.joined('#channel')
+        self.cardinal.irc_RPL_CHANNELMODEIS(
+            'server', ['Cardinal', '#channel', '+cnt'])
+
+        with patch.object(self.cardinal, 'msg') as msg_mock:
+            self.cardinal.sendMsg('#Channel', '\x02bold\x02 \x0304red')
+
+        msg_mock.assert_called_once_with('#Channel', 'bold red', None)
+
+        self.cardinal.irc_MODE('server', ['#channel', '-c'])
+        self.cardinal.left('#channel')
+        self.cardinal.kickedFrom('#channel')
+        assert len(self.cardinal.channels) == 0
 
     def test_sendMsg_no_length(self):
         # passes through to Twisted w/ additional logging
@@ -858,3 +892,87 @@ class TestCardinalBotFactory:
 
         self.factory.service.stopService.assert_called_once()
         self.factory._reactor.stop.assert_called_once()
+
+
+class TestChannelManager:
+    def setup_method(self):
+        self.manager = ChannelManager(
+            {"addressModes": "beI", "param": "k", "setParam": "l",
+             "noParam": "cimnpst"},
+            ["ovbeIkl", "ovbeIk"],
+        )
+        self.manager.add('#chan')
+        self.modes = self.manager['#chan'].modes
+
+    def test_noparam_modes(self):
+        self.manager.set_modes('#chan', '+cnt', [])
+        self.manager.set_modes('#chan', '-c', [])
+        assert self.modes == {'n': None, 't': None}
+
+    def test_address_modes_accumulate(self):
+        self.manager.set_modes('#chan', '+b', ['a!*@*'])
+        self.manager.set_modes('#chan', '+b', ['b!*@*'])
+        assert self.modes == {'b': ['a!*@*', 'b!*@*']}
+
+        self.manager.set_modes('#chan', '-b', ['a!*@*'])
+        assert self.modes == {'b': ['b!*@*']}
+
+    def test_address_mode_unset_untracked_address(self, caplog):
+        with caplog.at_level(logging.ERROR):
+            self.manager.set_modes('#chan', '-b', ['set-before-join!*@*'])
+            self.manager.set_modes('#chan', '+b', ['a!*@*'])
+            self.manager.set_modes('#chan', '-b', ['set-before-join!*@*'])
+        assert self.modes == {'b': ['a!*@*']}
+        assert caplog.records == []
+
+    def test_channel_names_case_insensitive(self):
+        self.manager.set_modes('#Chan', '+c', [])
+        assert not self.manager['#CHAN'].allows_color()
+
+        self.manager.remove('#CHAN')
+        assert len(self.manager) == 0
+
+    def test_param_mode_unset_with_placeholder_param(self):
+        self.manager.set_modes('#chan', '+k', ['secret'])
+        assert self.modes == {'k': 'secret'}
+
+        self.manager.set_modes('#chan', '-k', ['*'])
+        assert self.modes == {}
+
+    def test_set_param_mode(self):
+        self.manager.set_modes('#chan', '+l', ['50'])
+        assert self.modes == {'l': '50'}
+
+        self.manager.set_modes('#chan', '-l', [])
+        assert self.modes == {}
+
+    def test_prefix_modes_not_tracked(self, caplog):
+        with caplog.at_level(logging.ERROR):
+            self.manager.set_modes('#chan', '+o', ['nick'])
+            self.manager.set_modes('#chan', '-o', ['nick'])
+        assert self.modes == {}
+        assert caplog.records == []
+
+    def test_empty_modes_not_an_error(self, caplog):
+        with caplog.at_level(logging.ERROR):
+            self.manager.set_modes('#chan', '+', [])
+        assert self.modes == {}
+        assert caplog.records == []
+
+    def test_bad_modes_ignored(self):
+        self.manager.set_modes('#chan', '+k', [])
+        self.manager.set_modes('#chan', '+n', ['extra'])
+        assert self.modes == {}
+
+    def test_set_supported_keeps_channels(self):
+        self.manager.set_modes('#chan', '+c', [])
+        self.manager.set_supported(
+            {"addressModes": "b", "param": "k", "setParam": "l",
+             "noParam": "cnt"},
+            ["qovbkl", "qovbk"],
+        )
+        self.manager.set_modes('#chan', '+q', ['nick'])
+        assert self.manager['#chan'].modes == {'c': None}
+
+    def test_remove_unknown_channel(self):
+        self.manager.remove('#unknown')
